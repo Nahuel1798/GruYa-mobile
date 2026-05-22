@@ -4,20 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
+import androidx.compose.ui.unit.dp
 import com.example.gruya.ui.screens.HomeScreen
 import com.example.gruya.ui.screens.LoginScreen
 import com.example.gruya.ui.theme.GruYaTheme
@@ -37,7 +38,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@PreviewScreenSizes
 @Composable
 fun GruYaApp() {
 
@@ -46,18 +46,23 @@ fun GruYaApp() {
     }
 
     if (!isLogged) {
+
         LoginScreen(
-            onLoginClick = {email, password ->
-                // Login temporal
-                if(
+
+            onLoginClick = { email, password ->
+
+                if (
                     email == "admin@gmail.com" &&
                     password == "1234"
                 ) {
+
                     isLogged = true
                 }
             }
         )
+
     } else {
+
         var currentDestination by rememberSaveable {
             mutableStateOf(AppDestinations.HOME)
         }
@@ -69,11 +74,32 @@ fun GruYaApp() {
                 AppDestinations.entries.forEach { destination ->
 
                     item(
+
                         icon = {
-                            Icon(
-                                painter = painterResource(destination.icon),
-                                contentDescription = destination.label
-                            )
+
+                            when (destination) {
+
+                                AppDestinations.HOME -> {
+                                    Icon(
+                                        Icons.Default.Home,
+                                        contentDescription = destination.label
+                                    )
+                                }
+
+                                AppDestinations.FAVORITES -> {
+                                    Icon(
+                                        Icons.Default.Favorite,
+                                        contentDescription = destination.label
+                                    )
+                                }
+
+                                AppDestinations.PROFILE -> {
+                                    Icon(
+                                        Icons.Default.AccountCircle,
+                                        contentDescription = destination.label
+                                    )
+                                }
+                            }
                         },
 
                         label = {
@@ -91,25 +117,18 @@ fun GruYaApp() {
 
         ) {
 
-            Scaffold(
-                modifier = Modifier.fillMaxSize()
-            ) { innerPadding ->
+            when (currentDestination) {
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
+                AppDestinations.HOME -> {
+                    HomeScreen()
+                }
 
-                    contentAlignment = Alignment.Center
-                ) {
+                AppDestinations.FAVORITES -> {
+                    FavoriteScreen()
+                }
 
-                    when(currentDestination) {
-                        AppDestinations.HOME -> HomeScreen()
-
-                        AppDestinations.FAVORITES -> FavoriteScreen()
-
-                        AppDestinations.PROFILE -> ProfileScreen()
-                    }
+                AppDestinations.PROFILE -> {
+                    ProfileScreen()
                 }
             }
         }
@@ -117,26 +136,88 @@ fun GruYaApp() {
 }
 
 enum class AppDestinations(
-    val label: String,
-    val icon: Int
+    val label: String
 ) {
 
-    HOME(
-        "Home",
-        R.drawable.ic_home
-    ),
+    HOME("Inicio"),
 
-    FAVORITES(
-        "Favorites",
-        R.drawable.ic_favorite
-    ),
+    FAVORITES("Favoritos"),
 
-    PROFILE(
-        "Profile",
-        R.drawable.ic_account_box
-    )
+    PROFILE("Perfil")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FavoriteScreen() {
+
+    Scaffold(
+
+        topBar = {
+
+            TopAppBar(
+
+                title = {
+
+                    Text(
+                        "Servicios Favoritos"
+                    )
+                }
+            )
+        }
+
+    ) { padding ->
+
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(20.dp),
+
+            color = Color(0xFFF9F9FF)
+        ) {
+
+            Text(
+                text = "Todavía no tienes servicios guardados."
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileScreen() {
+
+    Scaffold(
+
+        topBar = {
+
+            TopAppBar(
+
+                title = {
+                    Text("Mi Perfil")
+                }
+            )
+        }
+
+    ) { padding ->
+
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(20.dp),
+
+            color = Color(0xFFF9F9FF)
+        ) {
+
+            Text(
+                text = "Información del usuario."
+            )
+        }
+    }
+}
+
+@PreviewScreenSizes
 @Preview(showBackground = true)
 @Composable
 fun GruYaAppPreview() {
@@ -145,9 +226,3 @@ fun GruYaAppPreview() {
         GruYaApp()
     }
 }
-
-@Composable
-fun FavoriteScreen() { }
-
-@Composable
-fun ProfileScreen() { }

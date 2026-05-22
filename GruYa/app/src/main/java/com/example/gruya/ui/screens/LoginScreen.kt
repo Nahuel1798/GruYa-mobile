@@ -1,80 +1,250 @@
 package com.example.gruya.ui.screens
 
-
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.gruya.ui.theme.GruYaTheme
 
 @Composable
 fun LoginScreen(
     onLoginClick: (String, String) -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+
+    var email by remember {
+        mutableStateOf("")
+    }
+
+    var password by remember {
+        mutableStateOf("")
+    }
+
+    var passwordVisible by remember {
+        mutableStateOf(false)
+    }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF5F7FF)),
+
         contentAlignment = Alignment.Center
-    ){
-       Card(
-           modifier = Modifier
-               .fillMaxWidth()
-               .padding(24.dp)
-       ) {
-           Column(
-               modifier = Modifier.padding(24.dp),
-               verticalArrangement = Arrangement.spacedBy(16.dp)
-           ) {
-               Text(
-                   text = "GruYa Login",
-                   style = MaterialTheme.typography.headlineMedium
-               )
+    ) {
 
-               OutlinedTextField(
-                   value = email,
-                   onValueChange = {
-                       email = it
-                   },
-                   label = {
-                       Text("Email")
-                   },
-                   modifier = Modifier.fillMaxWidth()
-               )
+        Card(
 
-               OutlinedTextField(
-                   value = password,
-                   onValueChange = {
-                       password = it
-                   },
-                   label = {
-                       Text("Contraseña")
-                   },
-                   visualTransformation = PasswordVisualTransformation(),
-                   modifier = Modifier.fillMaxWidth()
-               )
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
 
-               Button(onClick = {
-                   onLoginClick(email,password)
-               },
-                   modifier = Modifier.fillMaxWidth()
-               ){
-                   Text("Iniciar sesion")
-               }
-           }
-       }
+            shape = RoundedCornerShape(28.dp),
+
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = 12.dp
+            )
+
+        ) {
+
+            Column(
+
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(28.dp),
+
+                horizontalAlignment = Alignment.CenterHorizontally
+
+            ) {
+
+                // ICONO
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE8EDFF)),
+
+                    contentAlignment = Alignment.Center
+                ) {
+
+                    Icon(
+                        Icons.Default.Warning,
+                        contentDescription = null,
+
+                        tint = Color(0xFF003D9B),
+
+                        modifier = Modifier.size(45.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = "GruYa",
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF003D9B)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Accede para solicitar asistencia vial",
+                    color = Color.Gray
+                )
+
+                Spacer(modifier = Modifier.height(30.dp))
+
+                // EMAIL
+                OutlinedTextField(
+
+                    value = email,
+
+                    onValueChange = {
+                        email = it
+                    },
+
+                    label = {
+                        Text("Correo electrónico")
+                    },
+
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Email,
+                            contentDescription = null
+                        )
+                    },
+
+                    modifier = Modifier.fillMaxWidth(),
+
+                    singleLine = true,
+
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // PASSWORD
+                OutlinedTextField(
+
+                    value = password,
+
+                    onValueChange = {
+                        password = it
+                    },
+
+                    label = {
+                        Text("Contraseña")
+                    },
+
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = null
+                        )
+                    },
+
+                    trailingIcon = {
+
+                        IconButton(
+
+                            onClick = {
+                                passwordVisible = !passwordVisible
+                            }
+                        ) {
+
+                            Icon(
+
+                                imageVector = if (passwordVisible)
+                                    Icons.Default.Visibility
+                                else
+                                    Icons.Default.VisibilityOff,
+
+                                contentDescription = null
+                            )
+                        }
+                    },
+
+                    visualTransformation = if (passwordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
+
+                    modifier = Modifier.fillMaxWidth(),
+
+                    singleLine = true,
+
+                    shape = RoundedCornerShape(16.dp)
+                )
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                // BOTON LOGIN
+                Button(
+
+                    onClick = {
+                        onLoginClick(email, password)
+                    },
+
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(55.dp),
+
+                    shape = RoundedCornerShape(18.dp),
+
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF003D9B)
+                    )
+
+                ) {
+
+                    Text(
+                        text = "Iniciar Sesión",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                TextButton(
+                    onClick = { }
+                ) {
+
+                    Text(
+                        text = "¿Olvidaste tu contraseña?",
+                        color = Color(0xFF003D9B)
+                    )
+                }
+            }
+        }
     }
 }
 
 @PreviewScreenSizes
 @Composable
 private fun LoginScreenPreview() {
+
     GruYaTheme {
-        LoginScreen(onLoginClick = { _, _ -> })
+
+        LoginScreen(
+            onLoginClick = { _, _ -> }
+        )
     }
 }

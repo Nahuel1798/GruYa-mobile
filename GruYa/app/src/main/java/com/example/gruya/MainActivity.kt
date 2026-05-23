@@ -19,9 +19,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
+import com.example.gruya.network.ApiClient
+import com.example.gruya.network.dtos.request.LoginRequest
 import com.example.gruya.ui.screens.HomeScreen
 import com.example.gruya.ui.screens.LoginScreen
 import com.example.gruya.ui.theme.GruYaTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -40,6 +43,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun GruYaApp() {
+    val scope = rememberCoroutineScope()
 
     var isLogged by rememberSaveable {
         mutableStateOf(false)
@@ -51,12 +55,20 @@ fun GruYaApp() {
 
             onLoginClick = { email, password ->
 
-                if (
-                    email == "admin@gmail.com" &&
-                    password == "1234"
-                ) {
+                scope.launch {
 
-                    isLogged = true
+                    try {
+
+                        val request = LoginRequest(email, password)
+                        val apiClient = ApiClient.api
+
+                        apiClient.login(request)
+
+                        isLogged = true
+
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
         )

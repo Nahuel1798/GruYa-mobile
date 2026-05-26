@@ -9,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
@@ -28,20 +30,20 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gruya.ui.theme.GruYaTheme
 import androidx.compose.foundation.text.KeyboardOptions
+import com.example.gruya.ui.theme.GruYaTheme
 
 @Composable
-fun LoginScreen(
-    onLoginSuccess: () -> Unit,
-    viewModel: LoginViewModel = viewModel()
+fun RegisterScreen(
+    onRegisterSuccess: () -> Unit,
+    viewModel: RegisterViewModel = viewModel()
 ) {
 
-    val loginUiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(loginUiState.success) {
-        if (loginUiState.success) {
-            onLoginSuccess()
+    LaunchedEffect(uiState.success) {
+        if (uiState.success) {
+            onRegisterSuccess()
         }
     }
 
@@ -93,7 +95,7 @@ fun LoginScreen(
 
                     Icon(
                         imageVector = Icons.Default.Warning,
-                        contentDescription = "Logo GruYa",
+                        contentDescription = null,
 
                         tint = Color(0xFF003D9B),
 
@@ -104,8 +106,8 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "GruYa",
-                    fontSize = 32.sp,
+                    text = "Crear Cuenta",
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF003D9B)
                 )
@@ -113,16 +115,80 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Accede para solicitar asistencia vial",
-                    color = Color.Gray,
-                    fontSize = 14.sp
+                    text = "Registrate para usar GruYa",
+                    color = Color.Gray
                 )
 
                 Spacer(modifier = Modifier.height(30.dp))
 
+                // NOMBRE
+                OutlinedTextField(
+                    value = uiState.name,
+
+                    onValueChange = {
+                        viewModel.onNameChanged(it)
+                    },
+
+                    label = {
+                        Text("Nombre completo")
+                    },
+
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = null
+                        )
+                    },
+
+                    modifier = Modifier.fillMaxWidth(),
+
+                    singleLine = true,
+
+                    shape = RoundedCornerShape(16.dp),
+
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // TELEFONO
+                OutlinedTextField(
+                    value = uiState.phone,
+
+                    onValueChange = {
+                        viewModel.onPhoneChanged(it)
+                    },
+
+                    label = {
+                        Text("Teléfono")
+                    },
+
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Phone,
+                            contentDescription = null
+                        )
+                    },
+
+                    modifier = Modifier.fillMaxWidth(),
+
+                    singleLine = true,
+
+                    shape = RoundedCornerShape(16.dp),
+
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Phone,
+                        imeAction = ImeAction.Next
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 // EMAIL
                 OutlinedTextField(
-                    value = loginUiState.email,
+                    value = uiState.email,
 
                     onValueChange = {
                         viewModel.onEmailChanged(it)
@@ -155,7 +221,7 @@ fun LoginScreen(
 
                 // PASSWORD
                 OutlinedTextField(
-                    value = loginUiState.password,
+                    value = uiState.password,
 
                     onValueChange = {
                         viewModel.onPasswordChanged(it)
@@ -176,26 +242,26 @@ fun LoginScreen(
 
                         IconButton(
                             onClick = {
-                                viewModel.onPasswordVisibilityClick(
-                                    !loginUiState.passwordVisible
+                                viewModel.onPasswordVisibilityChanged(
+                                    !uiState.passwordVisible
                                 )
                             }
                         ) {
 
                             Icon(
                                 imageVector =
-                                    if (loginUiState.passwordVisible)
+                                    if (uiState.passwordVisible)
                                         Icons.Default.Visibility
                                     else
                                         Icons.Default.VisibilityOff,
 
-                                contentDescription = "Mostrar contraseña"
+                                contentDescription = null
                             )
                         }
                     },
 
                     visualTransformation =
-                        if (loginUiState.passwordVisible)
+                        if (uiState.passwordVisible)
                             VisualTransformation.None
                         else
                             PasswordVisualTransformation(),
@@ -212,24 +278,22 @@ fun LoginScreen(
                     )
                 )
 
-                // ERROR
-                if (loginUiState.error.isNotEmpty()) {
+                if (uiState.error.isNotEmpty()) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = loginUiState.error,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 14.sp
+                        text = uiState.error,
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
 
                 Spacer(modifier = Modifier.height(28.dp))
 
-                // BOTON LOGIN
+                // BOTON REGISTER
                 Button(
                     onClick = {
-                        viewModel.onLoginButtonClick()
+                        viewModel.onRegisterClick()
                     },
 
                     modifier = Modifier
@@ -243,7 +307,7 @@ fun LoginScreen(
                     )
                 ) {
 
-                    if (loginUiState.loading) {
+                    if (uiState.loading) {
 
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
@@ -254,23 +318,11 @@ fun LoginScreen(
                     } else {
 
                         Text(
-                            text = "Iniciar Sesión",
+                            text = "Registrarse",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                TextButton(
-                    onClick = { }
-                ) {
-
-                    Text(
-                        text = "¿Olvidaste tu contraseña?",
-                        color = Color(0xFF003D9B)
-                    )
                 }
             }
         }
@@ -279,12 +331,12 @@ fun LoginScreen(
 
 @PreviewScreenSizes
 @Composable
-private fun LoginScreenPreview() {
+private fun RegisterScreenPreview() {
 
     GruYaTheme {
 
-        LoginScreen(
-            onLoginSuccess = {}
+        RegisterScreen(
+            onRegisterSuccess = {}
         )
     }
 }

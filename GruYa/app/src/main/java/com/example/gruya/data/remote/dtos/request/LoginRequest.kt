@@ -1,4 +1,4 @@
-package com.example.gruya.network.dtos.request
+package com.example.gruya.data.remote.dtos.request
 
 data class LoginRequest(
     val email : String,

@@ -1,4 +1,4 @@
-package com.example.gruya.models
+package com.example.gruya.domain.model
 
 data class User(
     val id : Int,

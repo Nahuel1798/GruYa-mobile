@@ -1,21 +1,16 @@
-package com.example.gruya.network
+package com.example.gruya.data.remote
 
-import com.example.gruya.network.service.AuthService
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import kotlin.jvm.java
 
 
 object ApiClient {
-    private const val BASE_URL = ""
+    private const val BASE_URL = Constants.BASE_URL
 
-    val api : AuthService by lazy {
-        Retrofit.Builder()
+    private val retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(AuthService::class.java)
+    val authService: AuthService = retrofit.create(AuthService::class.java)
     }
-
-
-}

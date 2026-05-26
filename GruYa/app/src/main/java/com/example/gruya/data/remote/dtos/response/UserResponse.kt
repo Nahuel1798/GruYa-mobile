@@ -1,6 +1,4 @@
-package com.example.gruya.network.dtos.response
-
-import com.example.gruya.models.Role
+package com.example.gruya.data.remote.dtos.response
 
 data class UserResponse (
     val id : Int,

@@ -22,25 +22,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gruya.ui.theme.GruYaTheme
 
 @Composable
-fun LoginScreen(
-    onLoginClick: (String, String) -> Unit
+fun LoginScreen(onLoginSuccess: () -> Unit, viewModel: LoginViewModel = viewModel()
 ) {
-
-    var email by remember {
-        mutableStateOf("")
+val loginUiState by viewModel.uiState.collectAsState()
+    LaunchedEffect(loginUiState.success) {
+        if (loginUiState.success){
+            onLoginSuccess()
+        }
     }
-
-    var password by remember {
-        mutableStateOf("")
-    }
-
-    var passwordVisible by remember {
-        mutableStateOf(false)
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -114,11 +107,9 @@ fun LoginScreen(
                 // EMAIL
                 OutlinedTextField(
 
-                    value = email,
+                    value = loginUiState.email,
 
-                    onValueChange = {
-                        email = it
-                    },
+                    onValueChange = { viewModel.onEmailChanged(it) },
 
                     label = {
                         Text("Correo electrónico")
@@ -143,10 +134,10 @@ fun LoginScreen(
                 // PASSWORD
                 OutlinedTextField(
 
-                    value = password,
+                    value = loginUiState.password,
 
                     onValueChange = {
-                        password = it
+                        viewModel.onPasswordChanged(it)
                     },
 
                     label = {
@@ -165,13 +156,13 @@ fun LoginScreen(
                         IconButton(
 
                             onClick = {
-                                passwordVisible = !passwordVisible
+                               viewModel.onPasswordVisibilityClick(!loginUiState.passwordVisible)
                             }
                         ) {
 
                             Icon(
 
-                                imageVector = if (passwordVisible)
+                                imageVector = if (loginUiState.passwordVisible)
                                     Icons.Default.Visibility
                                 else
                                     Icons.Default.VisibilityOff,
@@ -181,7 +172,7 @@ fun LoginScreen(
                         }
                     },
 
-                    visualTransformation = if (passwordVisible)
+                    visualTransformation = if (loginUiState.passwordVisible)
                         VisualTransformation.None
                     else
                         PasswordVisualTransformation(),
@@ -199,7 +190,7 @@ fun LoginScreen(
                 Button(
 
                     onClick = {
-                        onLoginClick(email, password)
+                        viewModel.onLoginButtonClick()
                     },
 
                     modifier = Modifier
@@ -244,7 +235,7 @@ private fun LoginScreenPreview() {
     GruYaTheme {
 
         LoginScreen(
-            onLoginClick = { _, _ -> }
+            onLoginSuccess = TODO()
         )
     }
 }

@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -21,12 +20,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.gruya.data.remote.ApiClient
-import com.example.gruya.data.remote.dtos.request.LoginRequest
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberNavBackStack
+import androidx.navigation3.ui.NavDisplay
+import com.example.gruya.ui.navigation.AppDest
+import com.example.gruya.ui.screens.AuthViewModel
 import com.example.gruya.ui.screens.HomeScreen
 import com.example.gruya.ui.screens.LoginScreen
 import com.example.gruya.ui.theme.GruYaTheme
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -46,97 +47,68 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun GruYaApp(viewModel: MainViewModel = viewModel()) {
+fun GruYaApp(authViewModel: AuthViewModel = viewModel()) {
+    val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
 
-    if (!viewModel.isLogged) {
-
-        LoginScreen(viewModel::onLoginSuccess)
-
-    } else {
-
-        var currentDestination by rememberSaveable {
-            mutableStateOf(AppDestinations.HOME)
-        }
-
-        NavigationSuiteScaffold(
-
-            navigationSuiteItems = {
-
-                AppDestinations.entries.forEach { destination ->
-
-                    item(
-
-                        icon = {
-
-                            when (destination) {
-
-                                AppDestinations.HOME -> {
-                                    Icon(
-                                        Icons.Default.Home,
-                                        contentDescription = destination.label
-                                    )
-                                }
-
-                                AppDestinations.FAVORITES -> {
-                                    Icon(
-                                        Icons.Default.Favorite,
-                                        contentDescription = destination.label
-                                    )
-                                }
-
-                                AppDestinations.PROFILE -> {
-                                    Icon(
-                                        Icons.Default.AccountCircle,
-                                        contentDescription = destination.label
-                                    )
-                                }
-                            }
-                        },
-
-                        label = {
-                            Text(destination.label)
-                        },
-
-                        selected = destination == currentDestination,
-
-                        onClick = {
-                            currentDestination = destination
-                        }
-                    )
-                }
+    val backstack = rememberNavBackStack(
+        if (isLoggedIn) AppDest.MainContent else AppDest.Login
+    )
+    NavDisplay(
+        backStack = backstack,
+        entryProvider = entryProvider {
+            entry<AppDest.Login> {
+                LoginScreen(onLoginSuccess = {
+                    authViewModel.onLoginSuccess()
+                    backstack.clear()
+                    backstack.add(AppDest.MainContent)
+                })
             }
-
-        ) {
-
-            when (currentDestination) {
-
-                AppDestinations.HOME -> {
-                    HomeScreen()
-                }
-
-                AppDestinations.FAVORITES -> {
-                    FavoriteScreen()
-                }
-
-                AppDestinations.PROFILE -> {
-                    ProfileScreen()
-                }
+            entry<AppDest.MainContent> {
+                MainNavigationSuite(onLogout = {
+                    authViewModel.logout()
+                    backstack.clear()
+                    backstack.add(AppDest.Login)
+                })
             }
         }
+    )
+}
+
+@Composable
+fun MainNavigationSuite(onLogout: () -> Unit) {
+    val tabBackStack = rememberNavBackStack(AppDest.TabKey.Home)
+    NavigationSuiteScaffold(
+
+        navigationSuiteItems = {
+            val tabs = listOf(
+                Triple(AppDest.TabKey.Home, "Inicio", Icons.Default.Home),
+                Triple(AppDest.TabKey.Favourites, "Favoritos", Icons.Default.Favorite),
+                Triple(AppDest.TabKey.Profile, "Perfil", Icons.Default.AccountCircle),
+            )
+
+            tabs.forEach { (key, label, icon) ->
+                item(
+                    icon = { Icon(icon, contentDescription = label) },
+                    label = { Text(label) },
+                    selected = tabBackStack.lastOrNull() == key,
+                    onClick = {
+                        tabBackStack.clear()
+                        tabBackStack.add(key)
+                    }
+                )
+            }
+        }
+    ) {
+        NavDisplay(
+            backStack = tabBackStack,
+            entryProvider = entryProvider {
+                entry<AppDest.TabKey.Home> { HomeScreen() }
+                entry<AppDest.TabKey.Favourites> { FavoriteScreen() }
+                entry<AppDest.TabKey.Profile> { ProfileScreen() }
+            }
+        )
     }
 }
-
-enum class AppDestinations(
-    val label: String
-) {
-
-    HOME("Inicio"),
-
-    FAVORITES("Favoritos"),
-
-    PROFILE("Perfil")
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoriteScreen() {
@@ -207,7 +179,7 @@ fun ProfileScreen() {
         }
     }
 }
-
+/*
 @PreviewScreenSizes
 @Preview(showBackground = true)
 @Composable
@@ -216,4 +188,82 @@ fun GruYaAppPreview() {
     GruYaTheme {
         GruYaApp()
     }
-}
+}*/
+
+    /*
+        AppDestinations.entries.forEach { destination ->
+
+            item(
+
+                icon = {
+
+                    when (destination) {
+
+                        AppDestinations.HOME -> {
+                            Icon(
+                                Icons.Default.Home,
+                                contentDescription = destination.label
+                            )
+                        }
+
+                        AppDestinations.FAVORITES -> {
+                            Icon(
+                                Icons.Default.Favorite,
+                                contentDescription = destination.label
+                            )
+                        }
+
+                        AppDestinations.PROFILE -> {
+                            Icon(
+                                Icons.Default.AccountCircle,
+                                contentDescription = destination.label
+                            )
+                        }
+                    }
+                },
+
+                label = {
+                    Text(destination.label)
+                },
+
+                selected = destination == currentDestination,
+
+                onClick = {
+                    currentDestination = destination
+                }
+            )
+        }
+    }
+
+    ) {
+
+        when (currentDestination) {
+
+            AppDestinations.HOME -> {
+                HomeScreen()
+            }
+
+            AppDestinations.FAVORITES -> {
+                FavoriteScreen()
+            }
+
+            AppDestinations.PROFILE -> {
+                ProfileScreen()
+            }
+        }
+    }
+    }
+    }
+
+
+    enum class AppDestinations(
+        val label: String
+    ) {
+
+        HOME("Inicio"),
+
+        FAVORITES("Favoritos"),
+
+        PROFILE("Perfil")
+    }*/
+

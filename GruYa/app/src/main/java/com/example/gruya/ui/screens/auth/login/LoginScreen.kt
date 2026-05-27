@@ -30,15 +30,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gruya.ui.theme.GruYaTheme
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.ui.NavDisplay
-import com.example.gruya.MainNavigationSuite
-import com.example.gruya.ui.navigation.AppDest
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit,
     viewModel: LoginViewModel = viewModel()
 ) {
 
@@ -268,29 +264,6 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                val backstack = rememberNavBackStack(
-                    AppDest.Register
-                )
-                NavDisplay(
-                    backStack = backstack,
-                    entryProvider = entryProvider {
-                        entry<AppDest.Register> {
-                            MainNavigationSuite(onLogout = {
-                                backstack.clear()
-                                backstack.add(AppDest.Register)
-                            })
-                        }
-                    }
-                )
-                TextButton(
-                    onClick = {  }
-                ) {
-
-                    Text(
-                        text = "¿Olvidaste tu contraseña?",
-                        color = Color(0xFF003D9B)
-                    )
-                }
                 TextButton(
                     onClick = { }
                 ) {
@@ -300,11 +273,20 @@ fun LoginScreen(
                         color = Color(0xFF003D9B)
                     )
                 }
+                TextButton(
+                    onClick = { onNavigateToRegister()}
+                ) {
+
+                    Text(
+                        text = "Registrarse",
+                        color = Color(0xFF003D9B)
+                    )
+                }
             }
         }
     }
 }
-
+/*
 @PreviewScreenSizes
 @Composable
 private fun LoginScreenPreview() {
@@ -315,4 +297,4 @@ private fun LoginScreenPreview() {
             onLoginSuccess = {}
         )
     }
-}
+}*/

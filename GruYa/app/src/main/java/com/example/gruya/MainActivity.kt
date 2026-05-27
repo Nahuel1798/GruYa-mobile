@@ -54,17 +54,20 @@ fun GruYaApp(authViewModel: AuthViewModel = viewModel()) {
             entry<AppDest.Login> {
                 LoginScreen(onLoginSuccess = {
                     authViewModel.onLoginSuccess()
+
                     backstack.clear()
                     backstack.add(AppDest.MainContent)
+                },
+                    onNavigateToRegister = {
+                        backstack.add(AppDest.Register)
+                    })
+            }
+            entry<AppDest.Register> {
+                RegisterScreen(onRegisterSuccess = {
+                    backstack.clear()
+                    backstack.add(AppDest.Login)
                 })
             }
-//            entry<AppDest.Register> {
-//                RegisterScreen(onLoginSuccess = {
-//                    authViewModel.onLoginSuccess()
-//                    backstack.clear()
-//                    backstack.add(AppDest.MainContent)
-//                })
-//            }
             entry<AppDest.MainContent> {
                 MainNavigationSuite(onLogout = {
                     authViewModel.logout()

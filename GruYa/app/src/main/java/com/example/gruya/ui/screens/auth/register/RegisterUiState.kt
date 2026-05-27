@@ -1,8 +1,12 @@
 package com.example.gruya.ui.screens.auth.register
 
+import com.example.gruya.domain.model.Role
+
 data class RegisterUiState(
 
-    val name: String = "",
+    val firstname: String = "",
+
+    val lastname: String = "",
 
     val phone: String = "",
 
@@ -11,6 +15,8 @@ data class RegisterUiState(
     val password: String = "",
 
     val passwordVisible: Boolean = false,
+
+    val role : Role = Role.USER,
 
     val loading: Boolean = false,
 

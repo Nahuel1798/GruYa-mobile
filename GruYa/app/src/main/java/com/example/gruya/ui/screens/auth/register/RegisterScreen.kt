@@ -123,14 +123,46 @@ fun RegisterScreen(
 
                 // NOMBRE
                 OutlinedTextField(
-                    value = uiState.name,
+                    value = uiState.firstname,
 
                     onValueChange = {
-                        viewModel.onNameChanged(it)
+                        viewModel.onfirsNameChanged(it)
                     },
 
                     label = {
-                        Text("Nombre completo")
+                        Text("Nombre")
+                    },
+
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = null
+                        )
+                    },
+
+                    modifier = Modifier.fillMaxWidth(),
+
+                    singleLine = true,
+
+                    shape = RoundedCornerShape(16.dp),
+
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // APELLIDO
+                OutlinedTextField(
+                    value = uiState.lastname,
+
+                    onValueChange = {
+                        viewModel.onlastNameChanged(it)
+                    },
+
+                    label = {
+                        Text("Apellido")
                     },
 
                     leadingIcon = {
@@ -293,7 +325,7 @@ fun RegisterScreen(
                 // BOTON REGISTER
                 Button(
                     onClick = {
-                        viewModel.onRegisterClick()
+                        viewModel.onRegisterButtonClick()
                     },
 
                     modifier = Modifier

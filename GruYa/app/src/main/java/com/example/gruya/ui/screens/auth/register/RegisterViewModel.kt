@@ -1,16 +1,26 @@
 package com.example.gruya.ui.screens.auth.register
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.gruya.data.repository.AuthRepository
+import com.example.gruya.domain.model.Role
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 class RegisterViewModel: ViewModel() {
+
+    private val authRepository = AuthRepository()
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState = _uiState.asStateFlow()
 
-    fun onNameChanged(value: String) {
-        _uiState.update { it.copy(name = value) }
+    fun onfirsNameChanged(value: String) {
+        _uiState.update { it.copy(firstname = value) }
+    }
+
+    fun onlastNameChanged(value: String) {
+        _uiState.update { it.copy(lastname = value) }
     }
 
     fun onPhoneChanged(value: String) {
@@ -29,12 +39,20 @@ class RegisterViewModel: ViewModel() {
         _uiState.update { it.copy(passwordVisible = value) }
     }
 
+    fun onRoleChangeed(value: Role) {
+        _uiState.update { it.copy() }
+    }
+
     fun onRegisterClick() {
         val currentState = _uiState.value
 
         when {
-            currentState.name.isBlank() -> {
+            currentState.firstname.isBlank() -> {
                 _uiState.update { it.copy(error = "Ingrese su nombre") }
+            }
+
+            currentState.lastname.isBlank() -> {
+                _uiState.update { it.copy(error = "Ingrese su apellido") }
             }
 
             currentState.phone.isBlank() -> {
@@ -51,6 +69,15 @@ class RegisterViewModel: ViewModel() {
             else -> {
                 _uiState.update { it.copy(error = "", loading = true) }
                 _uiState.update { it.copy(loading = false, success = true) }
+            }
+        }
+    }
+
+    fun onRegisterButtonClick(){
+        viewModelScope.launch {
+            val result = authRepository.register(_uiState.value.firstname, _uiState.value.lastname,_uiState.value.email,_uiState.value.password,_uiState.value.phone,_uiState.value.role)
+            _uiState.update { currentValue ->
+                currentValue.copy(success = result)
             }
         }
     }

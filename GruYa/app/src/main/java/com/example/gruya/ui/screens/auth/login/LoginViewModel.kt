@@ -1,4 +1,4 @@
-package com.example.gruya.ui.screens
+package com.example.gruya.ui.screens.auth.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

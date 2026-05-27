@@ -1,4 +1,4 @@
-package com.example.gruya.ui.screens
+package com.example.gruya.ui.screens.auth.login
 
 data class LoginUiState(
     val email: String = "",

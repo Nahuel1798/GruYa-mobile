@@ -1,4 +1,4 @@
-package com.example.gruya.ui.screens
+package com.example.gruya.ui.screens.auth.register
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

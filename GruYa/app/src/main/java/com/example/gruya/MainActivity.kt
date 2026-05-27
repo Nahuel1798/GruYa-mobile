@@ -4,8 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
@@ -13,20 +11,17 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.ui.navigation.AppDest
-import com.example.gruya.ui.screens.AuthViewModel
+import com.example.gruya.ui.screens.auth.AuthViewModel
+import com.example.gruya.ui.screens.favorites.FavoritesScreen
 import com.example.gruya.ui.screens.HomeScreen
-import com.example.gruya.ui.screens.LoginScreen
+import com.example.gruya.ui.screens.auth.login.LoginScreen
+import com.example.gruya.ui.screens.ProfileScreen
+import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.theme.GruYaTheme
 
 class MainActivity : ComponentActivity() {
@@ -63,6 +58,13 @@ fun GruYaApp(authViewModel: AuthViewModel = viewModel()) {
                     backstack.add(AppDest.MainContent)
                 })
             }
+//            entry<AppDest.Register> {
+//                RegisterScreen(onLoginSuccess = {
+//                    authViewModel.onLoginSuccess()
+//                    backstack.clear()
+//                    backstack.add(AppDest.MainContent)
+//                })
+//            }
             entry<AppDest.MainContent> {
                 MainNavigationSuite(onLogout = {
                     authViewModel.logout()
@@ -103,82 +105,15 @@ fun MainNavigationSuite(onLogout: () -> Unit) {
             backStack = tabBackStack,
             entryProvider = entryProvider {
                 entry<AppDest.TabKey.Home> { HomeScreen() }
-                entry<AppDest.TabKey.Favourites> { FavoriteScreen() }
+                entry<AppDest.TabKey.Favourites> { FavoritesScreen() }
                 entry<AppDest.TabKey.Profile> { ProfileScreen() }
             }
         )
     }
 }
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FavoriteScreen() {
 
-    Scaffold(
 
-        topBar = {
 
-            TopAppBar(
-
-                title = {
-
-                    Text(
-                        "Servicios Favoritos"
-                    )
-                }
-            )
-        }
-
-    ) { padding ->
-
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(20.dp),
-
-            color = Color(0xFFF9F9FF)
-        ) {
-
-            Text(
-                text = "Todavía no tienes servicios guardados."
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ProfileScreen() {
-
-    Scaffold(
-
-        topBar = {
-
-            TopAppBar(
-
-                title = {
-                    Text("Mi Perfil")
-                }
-            )
-        }
-
-    ) { padding ->
-
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(20.dp),
-
-            color = Color(0xFFF9F9FF)
-        ) {
-
-            Text(
-                text = "Información del usuario."
-            )
-        }
-    }
-}
 /*
 @PreviewScreenSizes
 @Preview(showBackground = true)

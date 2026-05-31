@@ -5,6 +5,7 @@ import com.example.gruya.data.remote.ApiClient
 import com.example.gruya.data.remote.dtos.request.LoginRequest
 import com.example.gruya.data.remote.dtos.request.RegisterRequest
 import com.example.gruya.data.remote.dtos.response.AuthResponse
+import com.example.gruya.data.remote.dtos.response.UserResponse
 import com.example.gruya.domain.model.Role
 import retrofit2.Response
 
@@ -28,5 +29,20 @@ class AuthRepository {
         val response = ApiClient.authService.register(request)
         Log.d("API",response.toString())
         return response.isSuccessful
+    }
+
+    suspend fun getProfile(token: String): Result<UserResponse> {
+        return try {
+            val response = ApiClient.authService.profile("Bearer $token")
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    Result.success(it)
+                } ?: Result.failure(Exception("Cuerpo de respuesta nulo"))
+            } else {
+                Result.failure(Exception("Error: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

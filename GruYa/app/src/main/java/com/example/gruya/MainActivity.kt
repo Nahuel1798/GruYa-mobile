@@ -20,8 +20,8 @@ import com.example.gruya.ui.screens.auth.AuthViewModel
 import com.example.gruya.ui.screens.favorites.FavoritesScreen
 import com.example.gruya.ui.screens.HomeScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
-import com.example.gruya.ui.screens.ProfileScreen
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
+import com.example.gruya.ui.screens.profile.ProfileScreen
 import com.example.gruya.ui.theme.GruYaTheme
 
 class MainActivity : ComponentActivity() {
@@ -109,7 +109,7 @@ fun MainNavigationSuite(onLogout: () -> Unit) {
             entryProvider = entryProvider {
                 entry<AppDest.TabKey.Home> { HomeScreen() }
                 entry<AppDest.TabKey.Favourites> { FavoritesScreen() }
-                entry<AppDest.TabKey.Profile> { ProfileScreen() }
+                entry<AppDest.TabKey.Profile> { ProfileScreen(onLogout) }
             }
         )
     }

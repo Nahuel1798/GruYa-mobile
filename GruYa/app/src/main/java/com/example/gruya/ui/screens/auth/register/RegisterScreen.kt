@@ -41,6 +41,14 @@ fun RegisterScreen(
 
     val uiState by viewModel.uiState.collectAsState()
 
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = MaterialTheme.colorScheme.primary,
+        focusedLabelColor = MaterialTheme.colorScheme.primary,
+        cursorColor = MaterialTheme.colorScheme.primary,
+        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+        focusedTrailingIconColor = MaterialTheme.colorScheme.primary
+    )
+
     LaunchedEffect(uiState.success) {
         if (uiState.success) {
             onRegisterSuccess()
@@ -53,8 +61,8 @@ fun RegisterScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFEEF2FF),
-                        Color(0xFFDCE7FF)
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                     )
                 )
             )
@@ -67,6 +75,10 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
+
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
 
             shape = RoundedCornerShape(30.dp),
 
@@ -88,7 +100,9 @@ fun RegisterScreen(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE8EDFF)),
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ),
 
                     contentAlignment = Alignment.Center
                 ) {
@@ -97,7 +111,7 @@ fun RegisterScreen(
                         imageVector = Icons.Default.Warning,
                         contentDescription = null,
 
-                        tint = Color(0xFF003D9B),
+                        tint = MaterialTheme.colorScheme.primary,
 
                         modifier = Modifier.size(45.dp)
                     )
@@ -107,16 +121,16 @@ fun RegisterScreen(
 
                 Text(
                     text = "Crear Cuenta",
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003D9B)
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Registrate para usar GruYa",
-                    color = Color.Gray
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
 
                 Spacer(modifier = Modifier.height(30.dp))
@@ -139,6 +153,8 @@ fun RegisterScreen(
                             contentDescription = null
                         )
                     },
+
+                    colors = textFieldColors,
 
                     modifier = Modifier.fillMaxWidth(),
 
@@ -172,6 +188,8 @@ fun RegisterScreen(
                         )
                     },
 
+                    colors = textFieldColors,
+
                     modifier = Modifier.fillMaxWidth(),
 
                     singleLine = true,
@@ -203,6 +221,8 @@ fun RegisterScreen(
                             contentDescription = null
                         )
                     },
+
+                    colors = textFieldColors,
 
                     modifier = Modifier.fillMaxWidth(),
 
@@ -237,6 +257,8 @@ fun RegisterScreen(
                         )
                     },
 
+                    colors = textFieldColors,
+
                     modifier = Modifier.fillMaxWidth(),
 
                     singleLine = true,
@@ -269,6 +291,8 @@ fun RegisterScreen(
                             contentDescription = null
                         )
                     },
+
+                    colors = textFieldColors,
 
                     trailingIcon = {
 
@@ -335,7 +359,8 @@ fun RegisterScreen(
                     shape = RoundedCornerShape(18.dp),
 
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF003D9B)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
 
@@ -344,15 +369,14 @@ fun RegisterScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.dp,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onSecondary
                         )
 
                     } else {
-
                         Text(
-                            text = "Registrarse",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold
+                            text = uiState.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }

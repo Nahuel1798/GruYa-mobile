@@ -41,15 +41,16 @@ fun HomeScreen() {
                 title = {
                     Text(
                         text = "GruYa",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = {}) {
                         Icon(
                             Icons.Default.Menu,
-                            contentDescription = null
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
@@ -57,16 +58,17 @@ fun HomeScreen() {
                     IconButton(onClick = {}) {
                         Icon(
                             Icons.Default.Notifications,
-                            contentDescription = null
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
-        containerColor = Color(0xFFF9F9FF)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
 
         Box(
@@ -100,6 +102,9 @@ fun HomeScreen() {
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(
                         defaultElevation = 6.dp
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 ) {
                     Row(
@@ -110,7 +115,8 @@ fun HomeScreen() {
                     ) {
                         Icon(
                             Icons.Default.Search,
-                            contentDescription = null
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         TextField(
@@ -123,14 +129,16 @@ fun HomeScreen() {
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
-                                disabledContainerColor = Color.Transparent,
+
                                 focusedIndicatorColor = Color.Transparent,
-                                unfocusedIndicatorColor = Color.Transparent
+                                unfocusedIndicatorColor = Color.Transparent,
+
+                                cursorColor = MaterialTheme.colorScheme.primary
                             )
                         )
                         Text(
                             text = "Mapa",
-                            color = Color(0xFF003D9B),
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -146,6 +154,9 @@ fun HomeScreen() {
                     shape = RoundedCornerShape(24.dp),
                     elevation = CardDefaults.cardElevation(
                         defaultElevation = 10.dp
+                    ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 ) {
                     Column(
@@ -156,7 +167,7 @@ fun HomeScreen() {
                                 .width(50.dp)
                                 .height(5.dp)
                                 .background(
-                                    Color.LightGray,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
                                     RoundedCornerShape(50)
                                 )
                                 .align(Alignment.CenterHorizontally)
@@ -166,15 +177,15 @@ fun HomeScreen() {
 
                         Text(
                             text = "¿Qué necesitas hoy?",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
                             text = "Selecciona un servicio para recibir asistencia inmediata.",
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
 
                         Spacer(modifier = Modifier.height(20.dp))
@@ -188,14 +199,15 @@ fun HomeScreen() {
                                 .fillMaxWidth()
                                 .height(55.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFFFC107),
-                                contentColor = Color.Black
+                                containerColor = MaterialTheme.colorScheme.secondary,
+                                contentColor = MaterialTheme.colorScheme.onSecondary
                             ),
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Icon(
                                 Icons.Default.Warning,
-                                contentDescription = null
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSecondary
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
@@ -254,7 +266,7 @@ fun HomeScreen() {
                             showDialog = false
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Red
+                            containerColor = MaterialTheme.colorScheme.secondary
                         )
                     ) {
                         Text("Confirmar y Pedir Grúa")
@@ -270,11 +282,16 @@ fun HomeScreen() {
                     }
                 },
                 title = {
-                    Text("Confirmar Auxilio")
+                    Text(
+                        "Confirmar Auxilio",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleLarge
+                    )
                 },
                 text = {
                     Text(
-                        "Estamos por enviar una unidad de emergencia a tu ubicación actual."
+                        "Estamos por enviar una unidad de emergencia a tu ubicación actual.",
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             )
@@ -286,15 +303,16 @@ fun HomeScreen() {
 fun ServiceChip(
     text: String
 ) {
-
     Box(
         modifier = Modifier
             .padding(end = 8.dp)
             .clip(RoundedCornerShape(50))
-            .background(Color(0xFFE8EDFF))
+            .background(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+            )
             .border(
                 1.dp,
-                Color.LightGray,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
                 RoundedCornerShape(50)
             )
             .padding(
@@ -302,10 +320,10 @@ fun ServiceChip(
                 vertical = 10.dp
             )
     ) {
-
         Text(
             text = text,
-            color = Color.DarkGray
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }

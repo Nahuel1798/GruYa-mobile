@@ -1,6 +1,7 @@
 package com.example.gruya.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -51,16 +52,16 @@ fun ProfileContent(
                 title = {
                     Text(
                         text = "Mi Perfil",
-                        fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
-        containerColor = Color(0xFFF9F9FF)
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -76,9 +77,16 @@ fun ProfileContent(
                 modifier = Modifier
                     .size(120.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE2E8F0)),
+                    .border(
+                        3.dp,
+                        MaterialTheme.colorScheme.primary,
+                        CircleShape
+                    )
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                    ),
                 contentAlignment = Alignment.Center
-            ) {
+            ){
                 if (uiState.avatarUrl != null) {
                     AsyncImage(
                         model = uiState.avatarUrl,
@@ -90,7 +98,7 @@ fun ProfileContent(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
                         modifier = Modifier.size(70.dp),
-                        tint = Color(0xFF94A3B8)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -99,15 +107,14 @@ fun ProfileContent(
 
             Text(
                 text = uiState.name.ifEmpty { "Cargando..." },
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B)
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
                 text = uiState.email,
                 fontSize = 16.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -116,15 +123,16 @@ fun ProfileContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text(
                         text = "Información de la cuenta",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color(0xFF1E293B)
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     
                     Spacer(modifier = Modifier.height(16.dp))
@@ -134,15 +142,24 @@ fun ProfileContent(
                         label = "Nombre",
                         value = uiState.user?.firstName ?: "-"
                     )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    )
                     ProfileInfoRow(
                         icon = Icons.Default.PersonOutline,
                         label = "Apellido",
                         value = uiState.user?.lastName ?: "-"
                     )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    )
                     ProfileInfoRow(
                         icon = Icons.Default.Email,
                         label = "Email",
                         value = uiState.email
+                    )
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                     )
                     ProfileInfoRow(
                         icon = Icons.Default.Phone,
@@ -169,8 +186,8 @@ fun ProfileContent(
                     .fillMaxWidth()
                     .height(55.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFEE2E2),
-                    contentColor = Color(0xFFDC2626)
+                    containerColor = MaterialTheme.colorScheme.secondary,
+                    contentColor = MaterialTheme.colorScheme.onSecondary
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -187,10 +204,14 @@ fun ProfileContent(
 
         if (uiState.isLoading) {
             Box(
-                modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.1f)),
+                modifier = Modifier.fillMaxSize().background(
+                    MaterialTheme.colorScheme.scrim.copy(alpha = 0.2f)
+                ),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFFFFC107))
+                CircularProgressIndicator(
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
         }
     }
@@ -211,7 +232,7 @@ fun ProfileInfoRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF64748B),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -219,13 +240,13 @@ fun ProfileInfoRow(
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
             )
             Text(
                 text = value,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

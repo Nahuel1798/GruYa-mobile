@@ -50,25 +50,23 @@ fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFFEEF2FF),
-                        Color(0xFFDCE7FF)
-                    )
+            Brush.verticalGradient(
+                colors = listOf(
+                    MaterialTheme.colorScheme.background,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
                 )
             )
+        )
             .verticalScroll(rememberScrollState()),
 
         contentAlignment = Alignment.Center
     ) {
 
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
             shape = RoundedCornerShape(30.dp),
-
             elevation = CardDefaults.cardElevation(
                 defaultElevation = 10.dp
             )
@@ -87,7 +85,9 @@ fun LoginScreen(
                     modifier = Modifier
                         .size(90.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE8EDFF)),
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ),
 
                     contentAlignment = Alignment.Center
                 ) {
@@ -96,7 +96,7 @@ fun LoginScreen(
                         imageVector = Icons.Default.Warning,
                         contentDescription = "Logo GruYa",
 
-                        tint = Color(0xFF003D9B),
+                        tint = MaterialTheme.colorScheme.primary,
 
                         modifier = Modifier.size(45.dp)
                     )
@@ -106,16 +106,15 @@ fun LoginScreen(
 
                 Text(
                     text = "GruYa",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF003D9B)
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = "Accede para solicitar asistencia vial",
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     fontSize = 14.sp
                 )
 
@@ -149,6 +148,12 @@ fun LoginScreen(
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Next
+                    ) ,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        cursorColor = MaterialTheme.colorScheme.primary,
+                        focusedLeadingIconColor = MaterialTheme.colorScheme.primary
                     )
                 )
 
@@ -240,7 +245,8 @@ fun LoginScreen(
                     shape = RoundedCornerShape(18.dp),
 
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF003D9B)
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
 
@@ -249,7 +255,7 @@ fun LoginScreen(
                         CircularProgressIndicator(
                             modifier = Modifier.size(22.dp),
                             strokeWidth = 2.dp,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
 
                     } else {
@@ -270,7 +276,7 @@ fun LoginScreen(
 
                     Text(
                         text = "¿Olvidaste tu contraseña?",
-                        color = Color(0xFF003D9B)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
                 TextButton(

@@ -7,8 +7,7 @@ import kotlin.jvm.java
 
 
 object ApiClient {
-    private const val BASE_URL = Constants.BASE_URL
-
+    private val BASE_URL = Constants.BASE_URL
     private val retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
             .addConverterFactory(GsonConverterFactory.create())

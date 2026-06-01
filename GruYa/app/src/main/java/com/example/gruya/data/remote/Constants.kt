@@ -1,6 +1,8 @@
 package com.example.gruya.data.remote
 
+import com.example.gruya.BuildConfig
+
 object Constants {
-    const val BASE_URL = "http://192.168.1.39:5082"
+    val BASE_URL = BuildConfig.BASE_URL
     const val AUTH_PATH = "/api/auth"
 }

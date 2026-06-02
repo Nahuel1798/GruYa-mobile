@@ -4,6 +4,8 @@ import com.example.gruya.domain.model.Role
 
 data class RegisterUiState(
 
+    val step: RegisterStep = RegisterStep.Form,
+
     val firstname: String = "",
 
     val lastname: String = "",
@@ -16,7 +18,7 @@ data class RegisterUiState(
 
     val passwordVisible: Boolean = false,
 
-    val role : Role = Role.USER,
+    val role: Role = Role.USER,
 
     val loading: Boolean = false,
 
@@ -24,3 +26,5 @@ data class RegisterUiState(
 
     val error: String = ""
 )
+
+enum class RegisterStep { Form, RoleSelector }

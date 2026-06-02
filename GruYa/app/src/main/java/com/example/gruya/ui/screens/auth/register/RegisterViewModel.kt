@@ -44,41 +44,33 @@ class RegisterViewModel: ViewModel() {
     }
 
     fun onRegisterClick() {
-        val currentState = _uiState.value
-
-        when {
-            currentState.firstname.isBlank() -> {
-                _uiState.update { it.copy(error = "Ingrese su nombre") }
-            }
-
-            currentState.lastname.isBlank() -> {
-                _uiState.update { it.copy(error = "Ingrese su apellido") }
-            }
-
-            currentState.phone.isBlank() -> {
-                _uiState.update { it.copy(error = "Ingrese su telefono") }
-            }
-
-            currentState.email.isBlank() -> {
-                _uiState.update { it.copy(error = "Ingrese su email") }
-            }
-
-            currentState.password.length < 6  -> {
-                _uiState.update { it.copy(error = "La cantraseña debe tener al menos 6 caracteres") }
-            }
-            else -> {
-                _uiState.update { it.copy(error = "", loading = true) }
-                _uiState.update { it.copy(loading = false, success = true) }
-            }
-        }
-    }
-
-    fun onRegisterButtonClick(){
         viewModelScope.launch {
-            val result = authRepository.register(_uiState.value.firstname, _uiState.value.lastname,_uiState.value.email,_uiState.value.password,_uiState.value.phone,_uiState.value.role)
+            val result = authRepository.register(
+                firstname = _uiState.value.firstname,
+                lastname = _uiState.value.lastname,
+                email = _uiState.value.email,
+                phone = _uiState.value.phone,
+                password = _uiState.value.password,
+                role = _uiState.value.role)
+
             _uiState.update { currentValue ->
                 currentValue.copy(success = result)
             }
         }
+
+    }
+
+    fun onContinueClick(){
+        val s = _uiState.value
+        val error = when {
+            s.firstname.isEmpty() -> "Ingrese sun nombre"
+            s.lastname.isEmpty() -> "Ingrese su apellido"
+            s.phone.isEmpty() -> "Ingrese su teléfono"
+            s.email.isEmpty() -> "Ingrese su email"
+            s.password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
+            else -> null
+        }
+        _uiState.update { it.copy(step = RegisterStep.RoleSelector) }
+
     }
 }

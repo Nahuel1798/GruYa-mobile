@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
+import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.repository.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,8 +70,65 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateProfile(
+        firstName: String,
+        lastName: String,
+        email: String,
+        phone: String
+    ) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+
+            try {
+                val token = sessionManager.getJwt()
+                if (token.isEmpty()) throw Exception("Token vacío")
+                
+                val request = UpdateUserRequest(
+                    firstName = firstName,
+                    lastName = lastName,
+                    email = email,
+                    phone = phone
+                )
+
+                val result = authRepository.editProfile(token, request)
+
+                result.onSuccess { updatedUser ->
+                    Log.d("ProfileVM", "Perfil actualizado correctamente")
+                    _uiState.update { currentState ->
+                        // Si el servidor no devolvió el usuario, usamos los datos que enviamos
+                        // Usamos copy solo si el usuario actual existe para evitar el NPE con 'role'
+                        val newUser = updatedUser ?: currentState.user?.let { current ->
+                            current.copy(
+                                firstName = firstName,
+                                lastName = lastName,
+                                email = email,
+                                phone = phone
+                            )
+                        }
+                        
+                        currentState.copy(
+                            isLoading = false,
+                            user = newUser,
+                            name = "${newUser?.firstName ?: firstName} ${newUser?.lastName ?: lastName}",
+                            email = newUser?.email ?: email
+                        )
+                    }
+                }.onFailure { error ->
+                    Log.e("ProfileVM", "Error actualizando perfil", error)
+                    _uiState.update {
+                        it.copy(isLoading = false, error = error.message ?: "Error al actualizar")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileVM", "Excepción en updateProfile", e)
+                _uiState.update {
+                    it.copy(isLoading = false, error = "Error inesperado (${e.javaClass.simpleName}): ${e.message}")
+                }
+            }
+        }
+    }
+
     fun logout() {
         sessionManager.clearSession()
-        // Aquí podrías actualizar un estado global para navegar al login
     }
 }

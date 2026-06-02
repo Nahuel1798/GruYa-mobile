@@ -36,6 +36,9 @@ fun ProfileScreen(
         onLogout = {
             viewModel.logout()
             onLogout()
+        },
+        onUpdateProfile = { fName, lName, email, phone ->
+            viewModel.updateProfile(fName, lName, email, phone)
         }
     )
 }
@@ -44,17 +47,41 @@ fun ProfileScreen(
 @Composable
 fun ProfileContent(
     uiState: ProfileUiState,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onUpdateProfile: (String, String, String, String) -> Unit
 ) {
+    var isEditing by remember { mutableStateOf(false) }
+    var editedFirstName by remember(uiState.user) { mutableStateOf(uiState.user?.firstName ?: "") }
+    var editedLastName by remember(uiState.user) { mutableStateOf(uiState.user?.lastName ?: "") }
+    var editedEmail by remember(uiState.email) { mutableStateOf(uiState.email) }
+    var editedPhone by remember(uiState.user) { mutableStateOf(uiState.user?.phone ?: "") }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Mi Perfil",
+                        text = if (isEditing) "Editar Perfil" else "Mi Perfil",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
+                },
+                actions = {
+                    if (isEditing) {
+                        IconButton(onClick = { isEditing = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Cancelar", tint = MaterialTheme.colorScheme.error)
+                        }
+                        IconButton(onClick = {
+                            onUpdateProfile(editedFirstName, editedLastName, editedEmail, editedPhone)
+                            isEditing = false
+                        }) {
+                            Icon(Icons.Default.Check, contentDescription = "Guardar", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    } else {
+                        IconButton(onClick = { isEditing = true }) {
+                            Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
@@ -140,7 +167,9 @@ fun ProfileContent(
                     ProfileInfoRow(
                         icon = Icons.Default.Badge,
                         label = "Nombre",
-                        value = uiState.user?.firstName ?: "-"
+                        value = if (isEditing) editedFirstName else uiState.user?.firstName ?: "-",
+                        isEditing = isEditing,
+                        onValueChange = { editedFirstName = it }
                     )
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
@@ -148,7 +177,9 @@ fun ProfileContent(
                     ProfileInfoRow(
                         icon = Icons.Default.PersonOutline,
                         label = "Apellido",
-                        value = uiState.user?.lastName ?: "-"
+                        value = if (isEditing) editedLastName else uiState.user?.lastName ?: "-",
+                        isEditing = isEditing,
+                        onValueChange = { editedLastName = it }
                     )
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
@@ -156,7 +187,9 @@ fun ProfileContent(
                     ProfileInfoRow(
                         icon = Icons.Default.Email,
                         label = "Email",
-                        value = uiState.email
+                        value = if (isEditing) editedEmail else uiState.email,
+                        isEditing = isEditing,
+                        onValueChange = { editedEmail = it }
                     )
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
@@ -164,7 +197,9 @@ fun ProfileContent(
                     ProfileInfoRow(
                         icon = Icons.Default.Phone,
                         label = "Teléfono",
-                        value = uiState.user?.phone ?: "No registrado"
+                        value = if (isEditing) editedPhone else uiState.user?.phone ?: "No registrado",
+                        isEditing = isEditing,
+                        onValueChange = { editedPhone = it }
                     )
                 }
             }
@@ -173,7 +208,7 @@ fun ProfileContent(
 
             if (uiState.error != null) {
                 Text(
-                    text = uiState.error!!,
+                    text = uiState.error,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
@@ -221,12 +256,14 @@ fun ProfileContent(
 fun ProfileInfoRow(
     icon: ImageVector,
     label: String,
-    value: String
+    value: String,
+    isEditing: Boolean = false,
+    onValueChange: (String) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = if (isEditing) 4.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -236,18 +273,36 @@ fun ProfileInfoRow(
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = label,
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f)
             )
-            Text(
-                text = value,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            if (isEditing) {
+                TextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                    ),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    singleLine = true
+                )
+            } else {
+                Text(
+                    text = value,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
@@ -263,7 +318,8 @@ fun ProfileScreenPreview() {
                 email = "juan.perez@example.com",
                 isLoading = false
             ),
-            onLogout = {}
+            onLogout = {},
+            onUpdateProfile = { _, _, _, _ -> }
         )
     }
 }

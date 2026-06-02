@@ -140,7 +140,7 @@ fun RegisterScreen(
                     value = uiState.firstname,
 
                     onValueChange = {
-                        viewModel.onfirsNameChanged(it)
+                        viewModel.onFirstNameChanged(it)
                     },
 
                     label = {
@@ -174,7 +174,7 @@ fun RegisterScreen(
                     value = uiState.lastname,
 
                     onValueChange = {
-                        viewModel.onlastNameChanged(it)
+                        viewModel.onLastNameChanged(it)
                     },
 
                     label = {
@@ -374,9 +374,9 @@ fun RegisterScreen(
 
                     } else {
                         Text(
-                            text = uiState.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
+                            text = "Registrarse",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
                 }

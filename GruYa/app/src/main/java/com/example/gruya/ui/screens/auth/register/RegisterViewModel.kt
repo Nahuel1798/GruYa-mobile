@@ -15,11 +15,11 @@ class RegisterViewModel: ViewModel() {
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState = _uiState.asStateFlow()
 
-    fun onfirsNameChanged(value: String) {
+    fun onFirstNameChanged(value: String) {
         _uiState.update { it.copy(firstname = value) }
     }
 
-    fun onlastNameChanged(value: String) {
+    fun onLastNameChanged(value: String) {
         _uiState.update { it.copy(lastname = value) }
     }
 
@@ -39,8 +39,8 @@ class RegisterViewModel: ViewModel() {
         _uiState.update { it.copy(passwordVisible = value) }
     }
 
-    fun onRoleChangeed(value: Role) {
-        _uiState.update { it.copy() }
+    fun onRoleChanged(value: Role) {
+        _uiState.update { it.copy(role = value) }
     }
 
     fun onRegisterClick() {

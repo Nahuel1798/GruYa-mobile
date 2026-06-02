@@ -1,6 +1,13 @@
 package com.example.gruya.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.animateContentSize
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,6 +28,9 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import com.example.gruya.ui.theme.GruYaTheme
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,14 +84,25 @@ fun HomeScreen() {
         ) {
 
             // MAPA (Fondo)
-            Image(
-                painter = rememberAsyncImagePainter(
-                    "https://lh3.googleusercontent.com/aida-public/AB6AXuBYlUjKISAZxn-TxkaXyBFQLKlDQJ7Kfl2sUKgFRbxIVvQ4fD2j1cUUNtE3mvrIGjNe_PGbkMn2riGuniLx5qS3FRK7OoxeicCudzvjef44vUCIrUIMoWRvqtkrJSnCFtwMeuk5E_18vyKWPChM8rw4MBhP67-aocM1pDeup1h87thSOXIA2ggAQftuL599fBvzHBzpmBzkOHG1csAFFdKqA4I_f6HsZB5R92lfqvE7rBPvuuBVQ3HRErXTXzxVErPLi26HGjo4Fm3s"
-                ),
-                contentDescription = "Mapa",
+            val sanLuis = LatLng(-33.2950, -66.3356)
+
+            val cameraPositionState = rememberCameraPositionState {
+                position = CameraPosition.fromLatLngZoom(
+                    sanLuis,
+                    14f
+                )
+            }
+
+            GoogleMap(
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+                cameraPositionState = cameraPositionState
+            ) {
+
+//                Marker(
+//                    state = MarkerState(position = sanLuis),
+//                    title = "Mi ubicación"
+//                )
+            }
 
             Column(
                 modifier = Modifier
@@ -143,181 +164,205 @@ fun HomeScreen() {
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // PANEL INFERIOR
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    elevation = CardDefaults.cardElevation(
-                        defaultElevation = 10.dp
-                    ),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(50.dp)
-                                .height(5.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                                    RoundedCornerShape(50)
-                                )
-                                .align(Alignment.CenterHorizontally)
-                        )
+                var startAnimation by remember {
+                    mutableStateOf(false)
+                }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                LaunchedEffect(Unit) {
+                    startAnimation = true
+                }
 
-                        Text(
-                            text = "¿Qué necesitas hoy?",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                // Estado para animación
+                var panelVisible by remember { mutableStateOf(false) }
 
-                        Text(
-                            text = "Selecciona un servicio para recibir asistencia inmediata.",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
+                LaunchedEffect(Unit) {
+                    panelVisible = true
+                }
 
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // BOTON AUXILIO
-                        Button(
-                            onClick = {
-                                showDialog = true
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(55.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary,
-                                contentColor = MaterialTheme.colorScheme.onSecondary
+                AnimatedVisibility(
+                    visible = panelVisible,
+                    enter = slideInVertically(
+                        initialOffsetY = { fullHeight -> fullHeight }
+                    ) +
+                            fadeIn() +
+                            scaleIn(
+                                initialScale = 0.9f
                             ),
-                            shape = RoundedCornerShape(16.dp)
+                    exit = slideOutVertically(
+                        targetOffsetY = { fullHeight -> fullHeight }
+                    ) + fadeOut()
+                ) {
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .animateContentSize(),
+                        shape = RoundedCornerShape(24.dp),
+                        elevation = CardDefaults.cardElevation(
+                            defaultElevation = 10.dp
+                        ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp)
                         ) {
-                            Icon(
-                                Icons.Default.Warning,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSecondary
+
+                            Box(
+                                modifier = Modifier
+                                    .width(50.dp)
+                                    .height(5.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                        RoundedCornerShape(50)
+                                    )
+                                    .align(Alignment.CenterHorizontally)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Spacer(modifier = Modifier.height(20.dp))
+
                             Text(
-                                text = "Solicitar Auxilio",
-                                fontWeight = FontWeight.Bold
+                                text = "¿Qué necesitas hoy?",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
-                        }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
-                        // BOTON MECANICO
-                        OutlinedButton(
-                            onClick = {},
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(55.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Build,
-                                contentDescription = null
+                            Text(
+                                text = "Selecciona un servicio para recibir asistencia inmediata.",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Servicios Mecánicos")
-                        }
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
+
+                            Button(
+                                onClick = {
+                                    showDialog = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(55.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary,
+                                    contentColor = MaterialTheme.colorScheme.onSecondary
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Text(
+                                    text = "Solicitar Auxilio",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(55.dp),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Build,
+                                    contentDescription = null
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Text("Servicios Mecánicos")
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
+                        }
                     }
                 }
             }
-        }
 
-        // DIALOGO
-        AnimatedVisibility(
-            visible = showDialog
-        ) {
-            AlertDialog(
-                onDismissRequest = {
-                    showDialog = false
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDialog = false
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary
-                        )
-                    ) {
-                        Text("Confirmar y Pedir Grúa")
-                    }
-                },
-                dismissButton = {
-                    OutlinedButton(
-                        onClick = {
-                            showDialog = false
+            // DIALOGO
+            AnimatedVisibility(
+                visible = showDialog
+            ) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showDialog = false
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showDialog = false
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Text("Confirmar y Pedir Grúa")
                         }
-                    ) {
-                        Text("Cancelar")
+                    },
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = {
+                                showDialog = false
+                            }
+                        ) {
+                            Text("Cancelar")
+                        }
+                    },
+                    title = {
+                        Text(
+                            "Confirmar Auxilio",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    },
+                    text = {
+                        Text(
+                            "Estamos por enviar una unidad de emergencia a tu ubicación actual.",
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                },
-                title = {
-                    Text(
-                        "Confirmar Auxilio",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleLarge
-                    )
-                },
-                text = {
-                    Text(
-                        "Estamos por enviar una unidad de emergencia a tu ubicación actual.",
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            )
+                )
+            }
         }
     }
-}
 
-@Composable
-fun ServiceChip(
-    text: String
-) {
-    Box(
-        modifier = Modifier
-            .padding(end = 8.dp)
-            .clip(RoundedCornerShape(50))
-            .background(
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
-            )
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                RoundedCornerShape(50)
-            )
-            .padding(
-                horizontal = 16.dp,
-                vertical = 10.dp
-            )
+    @Composable
+    fun ServiceChip(
+        text: String
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
-
-@PreviewScreenSizes
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    GruYaTheme {
-        HomeScreen()
+        Box(
+            modifier = Modifier
+                .padding(end = 8.dp)
+                .clip(RoundedCornerShape(50))
+                .background(
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                )
+                .border(
+                    1.dp,
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                    RoundedCornerShape(50)
+                )
+                .padding(
+                    horizontal = 16.dp,
+                    vertical = 10.dp
+                )
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
     }
 }

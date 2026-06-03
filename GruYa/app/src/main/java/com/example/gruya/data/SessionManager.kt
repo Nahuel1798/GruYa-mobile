@@ -15,8 +15,8 @@ class SessionManager(context: Context) {
             .apply()
     }
 
-    fun getJwt() : String{
-        return prefs.getString("jwt", null)!!
+    fun getJwt(): String {
+        return prefs.getString("jwt", "") ?: ""
     }
 
     fun clearSession() {

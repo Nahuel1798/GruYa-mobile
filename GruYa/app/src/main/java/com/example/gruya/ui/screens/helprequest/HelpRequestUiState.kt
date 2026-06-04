@@ -1,6 +1,6 @@
-package com.example.gruya.ui.screens.requestaux
+package com.example.gruya.ui.screens.helprequest
 
-data class RequestAuxUiState (
+data class HelpRequestUiState (
     val id: Int,
     val driverName: String,
     val latitude: Double,

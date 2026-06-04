@@ -23,7 +23,7 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.ui.navigation.AppDest
-import com.example.gruya.ui.screens.HomeScreen
+import com.example.gruya.ui.screens.home.HomeScreen
 import com.example.gruya.ui.screens.auth.AuthViewModel
 import com.example.gruya.ui.screens.auth.login.LoginScreen
 import com.example.gruya.ui.screens.auth.register.RegisterScreen

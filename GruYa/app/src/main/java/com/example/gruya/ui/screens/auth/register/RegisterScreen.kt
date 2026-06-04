@@ -33,6 +33,8 @@ fun RegisterScreen(
             onConfirm = viewModel::onRegisterClick,
             onRoleSelected = viewModel::onRoleChanged
         )
+
+        RegisterStep.ProviderProfile -> ProviderProfile()
     }
 
 

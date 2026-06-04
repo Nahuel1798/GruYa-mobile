@@ -1,4 +1,4 @@
-package com.example.gruya.ui.screens.home
+package com.example.gruya.ui.screens.home_user
 
 import androidx.lifecycle.ViewModel
 import org.maplibre.spatialk.geojson.Position

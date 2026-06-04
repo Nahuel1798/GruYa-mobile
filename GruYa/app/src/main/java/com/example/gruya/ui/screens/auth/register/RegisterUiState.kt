@@ -27,4 +27,4 @@ data class RegisterUiState(
     val error: String = ""
 )
 
-enum class RegisterStep { Form, RoleSelector }
+enum class RegisterStep { Form, RoleSelector, ProviderProfile }

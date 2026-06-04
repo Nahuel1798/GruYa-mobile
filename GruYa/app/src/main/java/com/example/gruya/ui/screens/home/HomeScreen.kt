@@ -24,17 +24,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.android.gms.maps.model.MapStyleOptions
-import com.google.maps.android.compose.*
 import android.annotation.SuppressLint
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.platform.LocalContext
-import com.google.android.gms.location.LocationServices
 import androidx.compose.material.icons.automirrored.filled.Help
+import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.gms.rememberFusedLocationProvider
+import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.location.LocationPuck
+import org.maplibre.compose.location.LocationTrackingEffect
+import org.maplibre.compose.location.rememberUserLocationState
+import org.maplibre.compose.map.MapOptions
+import org.maplibre.compose.map.OrnamentOptions
+import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.style.BaseStyle
+import org.maplibre.spatialk.geojson.Feature
+import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.Point
+import org.maplibre.spatialk.geojson.Position
 
 
 @SuppressLint("MissingPermission")
@@ -44,36 +56,27 @@ fun HomeScreen(
     viewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
-
-    val fusedLocationClient = remember {
-        LocationServices.getFusedLocationProviderClient(context)
-    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         viewModel.onLocationPermissionChanged(granted)
-        if (granted) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                location?.let {
-                    viewModel.updateUserLocation(it.latitude, it.longitude)
-                }
-            }
-        }
     }
 
     LaunchedEffect(Unit) {
         if (!uiState.hasLocationPermission) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        } else {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-                location?.let {
-                    viewModel.updateUserLocation(it.latitude, it.longitude)
-                }
-            }
         }
     }
+
+    // MapLibre location provider (wraps FusedLocationProviderClient)
+    val locationProvider = rememberFusedLocationProvider()
+    val locationState = if (uiState.hasLocationPermission) {
+        rememberUserLocationState(locationProvider = locationProvider)
+    } else {
+        null
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -145,52 +148,91 @@ fun HomeScreen(
             // MAPA (Fondo)
             val isDarkTheme = isSystemInDarkTheme()
             val defaultLocation =
-                LatLng(-33.2950, -66.3356)
+                Position(-66.3356, -33.2950)
 
-            val cameraPositionState =
-                rememberCameraPositionState {
-                    position =
-                        CameraPosition.fromLatLngZoom(
-                            defaultLocation,
-                            14f
-                        )
-                }
+            val cameraState =
+                rememberCameraState(
+                    firstPosition = CameraPosition(
+                        target = defaultLocation,
+                        zoom = 14.0
+                    )
+                )
 
-            LaunchedEffect(uiState.userLocation) {
-                uiState.userLocation?.let {
-                    cameraPositionState.position = CameraPosition.fromLatLngZoom(it, 16f)
+            // Sync MapLibre location to ViewModel for UI state
+            LaunchedEffect(locationState?.location) {
+                locationState?.location?.let { location ->
+                    viewModel.updateUserLocation(
+                        latitud = location.position.value.latitude,
+                        longitud = location.position.value.longitude
+                    )
                 }
             }
 
-            GoogleMap(
+            MaplibreMap(
                 modifier = Modifier.fillMaxSize(),
-                cameraPositionState = cameraPositionState,
-                properties = MapProperties(
-                    isMyLocationEnabled = uiState.hasLocationPermission,
-                    mapStyleOptions = if (isDarkTheme) {
-                        MapStyleOptions(MAP_STYLE_DARK)
-                    } else null
-                ),
-                uiSettings = MapUiSettings(
-                    zoomControlsEnabled = true,
-                    myLocationButtonEnabled = true,
-                    compassEnabled = true
+                cameraState = cameraState,
+                baseStyle = if (isDarkTheme) {
+                    BaseStyle.Uri(DARK_STYLE_URL)
+                } else {
+                    BaseStyle.Uri(LIGHT_STYLE_URL)
+                },
+                options = MapOptions(
+                    ornamentOptions = OrnamentOptions(
+                        isCompassEnabled = true,
+                        isScaleBarEnabled = true,
+                        isAttributionEnabled = true,
+                        isLogoEnabled = true
+                    )
                 )
             ) {
-                uiState.userLocation?.let {
-                    Marker(
-                        state = MarkerState(it),
-                        title = "Mi ubicación"
+                // Tow truck GeoJSON source
+                val towTruckSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = uiState.nearbyTowTrucks.map { pos ->
+                                Feature(
+                                    geometry = Point(
+                                        longitude = pos.longitude,
+                                        latitude = pos.latitude
+                                    ),
+                                    properties = null
+                                )
+                            }
+                        )
                     )
+                )
+
+                locationState?.let { state ->
+                    LocationPuck(
+                        idPrefix = "user",
+                        location = state.location,
+                        cameraState = cameraState
+                    )
+
+                    LocationTrackingEffect(
+                        locationState = state,
+                        enabled = uiState.hasLocationPermission
+                    ) {
+                        state.location?.let { location ->
+                            cameraState.animateTo(
+                                CameraPosition(
+                                    target = location.position.value,
+                                    zoom = 16.0
+                                )
+                            )
+                        }
+                    }
                 }
 
-                // Grúas desde el ViewModel
-                uiState.nearbyTowTrucks.forEach { grua ->
-                    Marker(
-                        state = MarkerState(grua),
-                        title = "GruYa"
-                    )
-                }
+                // Tow truck circles
+                CircleLayer(
+                    id = "tow-trucks",
+                    source = towTruckSource,
+                    color = const(Color(0xFFFF6D00)),
+                    radius = const(8.dp),
+                    strokeColor = const(Color.White),
+                    strokeWidth = const(2.dp)
+                )
             }
 
             Column(
@@ -424,166 +466,6 @@ fun HomeScreen(
     }
 }
 
-const val MAP_STYLE_DARK = """
-[
-  {
-    "elementType": "geometry",
-    "stylers": [
-      {
-        "color": "#242f3e"
-      }
-    ]
-  },
-  {
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#746855"
-      }
-    ]
-  },
-  {
-    "elementType": "labels.text.stroke",
-    "stylers": [
-      {
-        "color": "#242f3e"
-      }
-    ]
-  },
-  {
-    "featureType": "administrative.locality",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#d59563"
-      }
-    ]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#d59563"
-      }
-    ]
-  },
-  {
-    "featureType": "poi.park",
-    "elementType": "geometry",
-    "stylers": [
-      {
-        "color": "#263c3f"
-      }
-    ]
-  },
-  {
-    "featureType": "poi.park",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#6b9a76"
-      }
-    ]
-  },
-  {
-    "featureType": "road",
-    "elementType": "geometry",
-    "stylers": [
-      {
-        "color": "#38414e"
-      }
-    ]
-  },
-  {
-    "featureType": "road",
-    "elementType": "geometry.stroke",
-    "stylers": [
-      {
-        "color": "#212a37"
-      }
-    ]
-  },
-  {
-    "featureType": "road",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#9ca5b3"
-      }
-    ]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [
-      {
-        "color": "#746855"
-      }
-    ]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry.stroke",
-    "stylers": [
-      {
-        "color": "#1f2835"
-      }
-    ]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#f3d19c"
-      }
-    ]
-  },
-  {
-    "featureType": "transit",
-    "elementType": "geometry",
-    "stylers": [
-      {
-        "color": "#2f3948"
-      }
-    ]
-  },
-  {
-    "featureType": "transit.station",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#d59563"
-      }
-    ]
-  },
-  {
-    "featureType": "water",
-    "elementType": "geometry",
-    "stylers": [
-      {
-        "color": "#17263c"
-      }
-    ]
-  },
-  {
-    "featureType": "water",
-    "elementType": "labels.text.fill",
-    "stylers": [
-      {
-        "color": "#515c6d"
-      }
-    ]
-  },
-  {
-    "featureType": "water",
-    "elementType": "labels.text.stroke",
-    "stylers": [
-      {
-        "color": "#17263c"
-      }
-    ]
-  }
-]
-"""
+// OpenFreeMap style URLs
+private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
+private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"

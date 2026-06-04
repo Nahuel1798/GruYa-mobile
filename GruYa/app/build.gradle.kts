@@ -3,7 +3,7 @@ import java.io.FileInputStream
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    kotlin("plugin.serialization") version "2.3.21"
+    alias(libs.plugins.kotlin.serialization)
 }
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
@@ -74,9 +74,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.compose)
-    implementation(libs.maps.compose)
     implementation(libs.play.services.location)
-    implementation(libs.play.services.maps)
+    implementation(libs.maplibre.compose)
+    implementation(libs.maplibre.compose.gms)
     implementation(libs.retrofit)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

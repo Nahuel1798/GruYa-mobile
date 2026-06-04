@@ -1,7 +1,7 @@
 package com.example.gruya.ui.screens.home
 
 import androidx.lifecycle.ViewModel
-import com.google.android.gms.maps.model.LatLng
+import org.maplibre.spatialk.geojson.Position
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,9 +31,9 @@ class HomeViewModel : ViewModel() {
     ) {
         _uiState.update {
             it.copy(
-                userLocation = LatLng(
-                    latitud,
-                    longitud
+                userLocation = Position(
+                    longitud,
+                    latitud
                 )
             )
         }
@@ -100,7 +100,7 @@ class HomeViewModel : ViewModel() {
     }
 
     fun loadTowTruks(
-        truks: List<LatLng>
+        truks: List<Position>
     ) {
         _uiState.update {
             it.copy(

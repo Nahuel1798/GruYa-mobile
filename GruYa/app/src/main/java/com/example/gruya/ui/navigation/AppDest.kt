@@ -27,6 +27,8 @@ sealed interface AppDest : NavKey {
         @Serializable
         data object Home : TabKey
         @Serializable
+        data object Vehicle : TabKey
+        @Serializable
         data object Favourites : TabKey
         @Serializable
         data object Profile : TabKey

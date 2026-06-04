@@ -398,25 +398,6 @@ fun HomeScreen(
                                 Text("Ver Gruas Cercanas")
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            OutlinedButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(55.dp),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Build,
-                                    contentDescription = null
-                                )
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                Text("Servicios Mecánicos Cercanos")
-                            }
-
                             Spacer(modifier = Modifier.height(20.dp))
                         }
                     }

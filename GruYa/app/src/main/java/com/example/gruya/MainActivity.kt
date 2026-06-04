@@ -7,17 +7,25 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CarRental
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -103,6 +111,13 @@ fun GruYaApp(
     )
 }
 
+private data class NavItem(
+    val key: AppDest.TabKey,
+    val label: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+)
+
 @Composable
 fun MainNavigationSuite(
     onLogout: () -> Unit
@@ -111,31 +126,53 @@ fun MainNavigationSuite(
         AppDest.TabKey.Home
     )
 
+    val navItems = listOf(
+        NavItem(
+            key = AppDest.TabKey.Home,
+            label = "Inicio",
+            selectedIcon = Icons.Filled.Home,
+            unselectedIcon = Icons.Outlined.Home
+        ),
+        NavItem(
+            key = AppDest.TabKey.Favourites,
+            label = "Favoritos",
+            selectedIcon = Icons.Filled.Favorite,
+            unselectedIcon = Icons.Outlined.FavoriteBorder
+        ),
+        NavItem(
+            key = AppDest.TabKey.Vehicle,
+            label = "Vehiculos",
+            selectedIcon = Icons.Filled.CarRental,
+            unselectedIcon = Icons.Outlined.FavoriteBorder
+        ),
+        NavItem(
+            key = AppDest.TabKey.Profile,
+            label = "Perfil",
+            selectedIcon = Icons.Filled.AccountCircle,
+            unselectedIcon = Icons.Outlined.AccountCircle
+        )
+    )
+
+    val navSuiteItemColors = NavigationSuiteDefaults.itemColors(
+        navigationBarItemColors = NavigationBarItemDefaults.colors(
+            selectedIconColor = MaterialTheme.colorScheme.primary,
+            selectedTextColor = MaterialTheme.colorScheme.primary,
+            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+        )
+    )
+
     NavigationSuiteScaffold(
+        navigationSuiteColors = NavigationSuiteDefaults.colors(
+            navigationBarContainerColor = MaterialTheme.colorScheme.surface,
+        ),
         navigationSuiteItems = {
 
-            val tabs = listOf(
-                Triple(
-                    AppDest.TabKey.Home,
-                    "Inicio",
-                    Icons.Default.Home
-                ),
-                Triple(
-                    AppDest.TabKey.Favourites,
-                    "Seguimiento",
-                    Icons.Default.Add
-                ),
-                Triple(
-                    AppDest.TabKey.Profile,
-                    "Perfil",
-                    Icons.Default.AccountCircle
-                )
-            )
-
-            tabs.forEach { (key, label, icon) ->
+            navItems.forEach { item ->
 
                 val selected =
-                    tabBackStack.lastOrNull() == key
+                    tabBackStack.lastOrNull() == item.key
 
                 item(
                     selected = selected,
@@ -143,23 +180,26 @@ fun MainNavigationSuite(
                     onClick = {
                         if (!selected) {
                             tabBackStack.clear()
-                            tabBackStack.add(key)
+                            tabBackStack.add(item.key)
                         }
                     },
 
                     icon = {
                         Icon(
-                            imageVector = icon,
-                            contentDescription = label
+                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label
                         )
                     },
 
                     label = {
                         Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelMedium
+                            text = item.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
                         )
-                    }
+                    },
+
+                    colors = navSuiteItemColors
                 )
             }
         }

@@ -6,7 +6,7 @@ import com.example.gruya.data.remote.dtos.response.HelpRequestResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
 
-class HelpRequestService {
+interface HelpRequestService {
     // Crear HelpRequest
     //@POST(Constants.AUTH_PATH + "/service/request")
     //suspend fun helprequest(@Body requestService: HelpRequestService) : HelpRequestResponse

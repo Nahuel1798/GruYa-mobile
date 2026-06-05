@@ -18,6 +18,11 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
+    data object ProviderProfile : AppDest {
+        override val requieresAuth = false
+    }
+
+    @Serializable
     data object MainContent : AppDest {
         override val requieresAuth = false
     }

@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -30,10 +31,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.screens.home_user.HomeScreen
 import com.example.gruya.ui.screens.auth.AuthViewModel
 import com.example.gruya.ui.screens.auth.login.LoginScreen
+import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
+import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.screens.favorites.FavoritesScreen
 import com.example.gruya.ui.screens.profile.ProfileScreen
@@ -90,9 +94,41 @@ fun GruYaApp(
 
             entry<AppDest.Register> {
                 RegisterScreen(
-                    onRegisterSuccess = {
+                    onRegisterSuccess = { role ->
+                        if (role == Role.PROVIDER) {
+                            backStack.add(AppDest.ProviderProfile)
+                        } else {
+                            backStack.clear()
+                            backStack.add(AppDest.Login)
+                        }
+                    }
+                )
+            }
+
+            entry<AppDest.ProviderProfile> {
+                val providerViewModel: ProviderProfileViewModel = viewModel()
+                val providerUiState by providerViewModel.uiState.collectAsState()
+
+                LaunchedEffect(providerUiState.success) {
+                    if (providerUiState.success) {
                         backStack.clear()
                         backStack.add(AppDest.Login)
+                    }
+                }
+
+                ProviderProfileScreen(
+                    uiState = providerUiState,
+                    onBack = {
+                        if (backStack.size > 1) {
+                            backStack.removeAt(backStack.size - 1)
+                        }
+                    },
+                    onServiceTypeChange = providerViewModel::onServiceTypeChange,
+                    onDescriptionChange = providerViewModel::onDescriptionChange,
+                    onAvailableChange = providerViewModel::onAvailableChange,
+                    onAddressChange = providerViewModel::onAddressChange,
+                    onConfirm = {
+                        providerViewModel.createProfile()
                     }
                 )
             }

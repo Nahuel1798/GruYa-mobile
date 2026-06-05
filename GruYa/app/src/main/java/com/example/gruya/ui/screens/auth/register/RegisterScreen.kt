@@ -5,16 +5,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.gruya.domain.model.Role
 
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel = viewModel(),
-    onRegisterSuccess: () -> Unit
+    onRegisterSuccess: (Role) -> Unit
 ){
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(uiState.success) {
-        if (uiState.success) onRegisterSuccess()
+        if (uiState.success) onRegisterSuccess(uiState.role)
     }
 
     when (uiState.step) {
@@ -33,8 +34,6 @@ fun RegisterScreen(
             onConfirm = viewModel::onRegisterClick,
             onRoleSelected = viewModel::onRoleChanged
         )
-
-        RegisterStep.ProviderProfile -> ProviderProfile()
     }
 
 

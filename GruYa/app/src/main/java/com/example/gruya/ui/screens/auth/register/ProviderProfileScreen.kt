@@ -1,7 +1,11 @@
 package com.example.gruya.ui.screens.auth.register
 
-import androidx.compose.foundation.background
+import android.Manifest
+import android.annotation.SuppressLint
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,15 +18,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.TireRepair
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,6 +44,11 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +56,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.ServiceType
+import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.gms.rememberFusedLocationProvider
+import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.location.LocationPuck
+import org.maplibre.compose.location.rememberUserLocationState
+import org.maplibre.compose.map.MapOptions
+import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.map.OrnamentOptions
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.util.ClickResult
+import org.maplibre.spatialk.geojson.Feature
+import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.Point
+import org.maplibre.spatialk.geojson.Position
+
+private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
+private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/bright"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,8 +87,20 @@ fun ProviderProfileScreen(
     onDescriptionChange: (String) -> Unit,
     onAvailableChange: (Boolean) -> Unit,
     onAddressChange: (String) -> Unit,
+    onLocationChange: (Double, Double) -> Unit,
     onConfirm: () -> Unit
 ) {
+    var hasLocationPermission by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasLocationPermission = granted
+    }
+
+    LaunchedEffect(Unit) {
+        locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
 
     Scaffold(
         topBar = {
@@ -83,7 +129,8 @@ fun ProviderProfileScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
@@ -179,7 +226,12 @@ fun ProviderProfileScreen(
                 style = MaterialTheme.typography.labelLarge
             )
 
-            MapPlaceholder()
+            InteractiveMap(
+                latitude = uiState.latitude,
+                longitude = uiState.longitude,
+                hasPermission = hasLocationPermission,
+                onLocationSelected = onLocationChange
+            )
 
             OutlinedTextField(
                 value = uiState.address,
@@ -297,51 +349,135 @@ fun ServiceCard(
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
-fun MapPlaceholder() {
+fun InteractiveMap(
+    latitude: Double?,
+    longitude: Double?,
+    hasPermission: Boolean,
+    onLocationSelected: (Double, Double) -> Unit
+) {
+    val isDarkTheme = isSystemInDarkTheme()
+    val cameraState = rememberCameraState(
+        firstPosition = CameraPosition(
+            target = if (latitude != null && longitude != null) {
+                Position(longitude, latitude)
+            } else {
+                Position(-58.3816, -34.6037) // Buenos Aires
+            },
+            zoom = 12.0
+        )
+    )
+
+    val locationProvider = rememberFusedLocationProvider()
+    val userLocationState = if (hasPermission) {
+        rememberUserLocationState(locationProvider)
+    } else {
+        null
+    }
+
+    LaunchedEffect(latitude, longitude) {
+        if (latitude != null && longitude != null) {
+            cameraState.animateTo(
+                CameraPosition(
+                    target = Position(longitude, latitude),
+                    zoom = 15.0
+                )
+            )
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp)
+            .height(300.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .border(
-                1.dp,
-                MaterialTheme.colorScheme.outline,
-                RoundedCornerShape(16.dp)
-            ),
-        contentAlignment = Alignment.Center
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
     ) {
-
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
+        MaplibreMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraState = cameraState,
+            baseStyle = if (isDarkTheme) {
+                BaseStyle.Uri(DARK_STYLE_URL)
+            } else {
+                BaseStyle.Uri(LIGHT_STYLE_URL)
+            },
+            onMapClick = { position, _ ->
+                onLocationSelected(position.latitude, position.longitude)
+                ClickResult.Consume
+            },
+            options = MapOptions(
+                ornamentOptions = OrnamentOptions(
+                    isCompassEnabled = true,
+                    isScaleBarEnabled = true,
+                    isAttributionEnabled = false,
+                    isLogoEnabled = false
+                )
+            )
         ) {
-
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primary,
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-
-                Icon(
-                    Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = Color.White
+            if (hasPermission) {
+                LocationPuck(
+                    idPrefix = "user",
+                    location = userLocationState?.location,
+                    cameraState = cameraState
                 )
             }
 
-            Spacer(
-                modifier = Modifier.height(12.dp)
-            )
+            if (latitude != null && longitude != null) {
+                val selectedLocationSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = Point(
+                                        coordinates = Position(longitude, latitude)
+                                    ),
+                                    properties = null
+                                )
+                            )
+                        )
+                    )
+                )
 
-            Text(
-                text = "Mapa próximamente"
-            )
+                CircleLayer(
+                    id = "selected-location",
+                    source = selectedLocationSource,
+                    color = const(MaterialTheme.colorScheme.primary),
+                    radius = const(10.dp),
+                    strokeColor = const(Color.White),
+                    strokeWidth = const(2.dp)
+                )
+            }
+        }
+
+        // Overlay buttons
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (hasPermission) {
+                Button(
+                    onClick = {
+                        userLocationState?.location?.let {
+                            onLocationSelected(
+                                it.position.value.latitude,
+                                it.position.value.longitude
+                            )
+                        }
+                    },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                    shape = CircleShape,
+                    modifier = Modifier.size(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                }
+            }
         }
     }
 }

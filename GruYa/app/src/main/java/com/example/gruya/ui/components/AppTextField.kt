@@ -33,7 +33,7 @@ fun AppTextField(
     modifier: Modifier = Modifier,
     errorMessage: String? = null,
     imeAction: ImeAction = ImeAction.Next,
-    capitalization: KeyboardCapitalization = KeyboardCapitalization.Characters,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: @Composable (() -> Unit)? = null

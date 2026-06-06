@@ -1,7 +1,10 @@
 package com.example.gruya.ui.screens.auth.register
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.AuthRepository
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.ServiceType
@@ -10,8 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-class RegisterViewModel: ViewModel() {
+class RegisterViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val sessionManager = SessionManager(application)
     private val authRepository = AuthRepository()
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState = _uiState.asStateFlow()
@@ -55,7 +59,11 @@ class RegisterViewModel: ViewModel() {
                 role = _uiState.value.role)
 
             _uiState.update { currentValue ->
-                currentValue.copy(success = result)
+                currentValue.copy(success = result.isSuccessful)
+            }
+
+            if (result.isSuccessful) {
+                sessionManager.saveJwt(result.body()!!.token)
             }
         }
 

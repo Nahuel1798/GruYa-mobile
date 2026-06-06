@@ -130,6 +130,7 @@ fun GruYaApp(
                     onDescriptionChange = providerViewModel::onDescriptionChange,
                     onAvailableChange = providerViewModel::onAvailableChange,
                     onAddressChange = providerViewModel::onAddressChange,
+                    onLocationChange = providerViewModel::onLocationChange,
                     onConfirm = {
                         providerViewModel.createProfile()
                     }

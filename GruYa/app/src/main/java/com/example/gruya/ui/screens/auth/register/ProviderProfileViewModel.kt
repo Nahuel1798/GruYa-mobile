@@ -1,7 +1,10 @@
 package com.example.gruya.ui.screens.auth.register
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.ServiceType
@@ -11,8 +14,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 
-class ProviderProfileViewModel: ViewModel(){
-    
+class ProviderProfileViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val sessionManager = SessionManager(application)
     private val providerRepository = ProviderRepository()
     private val _uiState = MutableStateFlow(ProviderProfileUiState())
     val uiState = _uiState.asStateFlow()
@@ -33,8 +37,12 @@ class ProviderProfileViewModel: ViewModel(){
         _uiState.update { it.copy(address = value) }
     }
 
-    fun onLocationChange(value: Location) {
-        _uiState.update { it.copy(location = value) }
+    fun onLocationChange(lat: Double, lng: Double) {
+        _uiState.update { it.copy(
+            location = Location(0, lat.toString(), lng.toString()),
+            latitude = lat,
+            longitude = lng
+        ) }
     }
 
     fun createProfile(){
@@ -45,6 +53,7 @@ class ProviderProfileViewModel: ViewModel(){
         viewModelScope.launch { 
             _uiState.update { it.copy(loading = true) }
             val result = providerRepository.create(
+                token = sessionManager.getJwt(),
                 serviceType = serviceType,
                 description = currentState.description,
                 location = location

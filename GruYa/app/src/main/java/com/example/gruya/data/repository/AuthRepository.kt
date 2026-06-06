@@ -17,7 +17,7 @@ class AuthRepository {
         return response
     }
 
-    suspend fun register(firstname: String, lastname: String, email: String, password: String, phone: String, role: Role): Boolean{
+    suspend fun register(firstname: String, lastname: String, email: String, password: String, phone: String, role: Role): Response<AuthResponse>{
         val request = RegisterRequest(
             firstName = firstname,
             lastName = lastname,
@@ -28,7 +28,7 @@ class AuthRepository {
         )
         val response = ApiClient.authService.register(request)
         Log.d("API",response.toString())
-        return response.isSuccessful
+        return response
     }
 
     suspend fun getProfile(token: String): Result<UserResponse> {

@@ -220,7 +220,8 @@ fun AddVehicleScreen(
                     onValueChange = onPlateChange,
                     placeholder = "Ej: AA 123 BB",
                     leadingIcon = Icons.Outlined.Badge,
-                    errorMessage = uiState.plateError
+                    errorMessage = uiState.plateError,
+                    capitalization = KeyboardCapitalization.Characters
                 )
             }
 

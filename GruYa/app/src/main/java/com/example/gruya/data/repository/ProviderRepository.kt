@@ -8,13 +8,16 @@ import com.example.gruya.domain.model.ServiceType
 
 
 class ProviderRepository {
-    suspend fun create(serviceType: ServiceType,description: String, location: Location): Boolean{
+    suspend fun create(token: String ,serviceType: ServiceType,description: String, location: Location): Boolean{
         val request = CreateProviderProfileRequest(
             serviceType = serviceType,
             description = description,
             location = location
         )
-        val response = ApiClient.providerService.create(request)
+        val response = ApiClient.providerService.create(
+            "Bearer "+ token ,
+            request
+        )
         Log.d("API",response.toString())
         return response.isSuccessful
     }

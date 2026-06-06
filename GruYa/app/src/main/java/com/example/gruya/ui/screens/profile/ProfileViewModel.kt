@@ -82,7 +82,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val token = sessionManager.getJwt()
                 if (token.isEmpty()) throw Exception("Token vacío")
-                
+
                 val request = UpdateUserRequest(
                     firstName = firstName,
                     lastName = lastName,

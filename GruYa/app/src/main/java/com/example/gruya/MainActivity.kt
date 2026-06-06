@@ -40,6 +40,9 @@ import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.screens.favorites.FavoritesScreen
+import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
+import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
+import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.screens.profile.ProfileScreen
 import com.example.gruya.ui.theme.GruYaTheme
 
@@ -176,7 +179,7 @@ fun MainNavigationSuite(
             unselectedIcon = Icons.Outlined.FavoriteBorder
         ),
         NavItem(
-            key = AppDest.TabKey.Vehicle,
+            key = AppDest.TabKey.Vehicles,
             label = "Vehiculos",
             selectedIcon = Icons.Filled.CarRental,
             unselectedIcon = Icons.Outlined.FavoriteBorder
@@ -258,9 +261,56 @@ fun MainNavigationSuite(
                         FavoritesScreen()
                     }
 
+                    entry<AppDest.TabKey.Vehicles> {
+                        VehiclesScreen(
+                            onAddVehicle = {
+                                tabBackStack.add(AppDest.AddVehicle())
+                            },
+                            onEditVehicle = { vehicleId ->
+                                tabBackStack.add(AppDest.AddVehicle(vehicleId))
+                            }
+                        )
+                    }
+
                     entry<AppDest.TabKey.Profile> {
                         ProfileScreen(
                             onLogout = onLogout
+                        )
+                    }
+
+                    entry<AppDest.AddVehicle> {
+                        val addVehicleViewModel: AddVehicleViewModel = viewModel()
+                        val addVehicleUiState by addVehicleViewModel.uiState.collectAsState()
+
+                        val currentEntry = tabBackStack.findLast { it is AppDest.AddVehicle }
+                        val vehicleId = (currentEntry as? AppDest.AddVehicle)?.vehicleId
+
+                        LaunchedEffect(vehicleId) {
+                            vehicleId?.let { addVehicleViewModel.loadVehicle(it) }
+                        }
+
+                        AddVehicleScreen(
+                            uiState = addVehicleUiState,
+                            onTypeSelected = addVehicleViewModel::onTypeSelected,
+                            onPlateChange = addVehicleViewModel::onPlateChange,
+                            onBrandChange = addVehicleViewModel::onBrandChange,
+                            onModelChange = addVehicleViewModel::onModelChange,
+                            onInsurerChange = addVehicleViewModel::onInsurerChange,
+                            onColorChange = addVehicleViewModel::onColorChange,
+                            onSave = {
+                                addVehicleViewModel.onSave(
+                                    onSuccess = {
+                                        if (tabBackStack.size > 1) {
+                                            tabBackStack.removeAt(tabBackStack.size - 1)
+                                        }
+                                    }
+                                )
+                            },
+                            onNavigateBack = {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            }
                         )
                     }
                 }

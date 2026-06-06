@@ -1,7 +1,12 @@
 package com.example.gruya.domain.model
 
-enum class ServiceType{
+import com.google.gson.annotations.SerializedName
+
+enum class ServiceType {
+    @SerializedName("Auxilio")
     AUXILIO,
+    @SerializedName("Gomeria")
     GOMERIA,
+    @SerializedName("Mecanico")
     MECANICO
 }

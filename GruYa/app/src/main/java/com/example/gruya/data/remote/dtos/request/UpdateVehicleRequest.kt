@@ -1,7 +1,8 @@
-package com.example.gruya.domain.model
+package com.example.gruya.data.remote.dtos.request
 
-data class Vehicle(
-    val id: Int,
+import com.example.gruya.domain.model.VehicleType
+
+data class UpdateVehicleRequest(
     val type: VehicleType,
     val licensePlate: String,
     val brand: String,

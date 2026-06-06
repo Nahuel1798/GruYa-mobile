@@ -37,7 +37,7 @@ val TertiaryDark = Color(0xFF6B7280)
 val OnTertiaryDark = Color(0xFFFFFFFF)
 
 val BackgroundDark = Color(0xFF0F172A)
-val SurfaceDark = Color(0xFF111827)
+val SurfaceDark = Color(0xFF1E293B)
 
 val OnBackgroundDark = Color(0xFFF9FAFB)
 val OnSurfaceDark = Color(0xFFF9FAFB)

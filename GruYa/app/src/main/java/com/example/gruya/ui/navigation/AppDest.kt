@@ -23,6 +23,11 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
+    data class AddVehicle(val vehicleId: Int? = null) : AppDest {
+        override val requieresAuth = true
+    }
+
+    @Serializable
     data object MainContent : AppDest {
         override val requieresAuth = false
     }
@@ -32,7 +37,7 @@ sealed interface AppDest : NavKey {
         @Serializable
         data object Home : TabKey
         @Serializable
-        data object Vehicle : TabKey
+        data object Vehicles : TabKey
         @Serializable
         data object Favourites : TabKey
         @Serializable

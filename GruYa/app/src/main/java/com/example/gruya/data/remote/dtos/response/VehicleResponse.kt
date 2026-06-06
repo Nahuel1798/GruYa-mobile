@@ -1,12 +1,13 @@
-package com.example.gruya.data.remote.dtos.request
+package com.example.gruya.data.remote.dtos.response
 
 import com.example.gruya.domain.model.VehicleType
 
-data class CreateVehicleRequest (
+data class VehicleResponse(
+    val id: Int,
     val type: VehicleType,
     val licensePlate: String,
     val brand: String,
     val model: String,
     val insurance: String,
-    val color: String
+    val color: String,
 )

@@ -30,7 +30,7 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.foundation.text.KeyboardOptions
+import com.example.gruya.ui.components.AppTextField
 import com.example.gruya.ui.theme.GruYaTheme
 
 @Composable
@@ -44,14 +44,6 @@ fun RegisterForm(
     onPasswordVisibilityChanged: (Boolean) -> Unit,
     onContinue: () -> Unit,
 ) {
-
-    val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = MaterialTheme.colorScheme.primary,
-        focusedLabelColor = MaterialTheme.colorScheme.primary,
-        cursorColor = MaterialTheme.colorScheme.primary,
-        focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-        focusedTrailingIconColor = MaterialTheme.colorScheme.primary
-    )
 
     Box(
         modifier = Modifier
@@ -134,202 +126,78 @@ fun RegisterForm(
                 Spacer(modifier = Modifier.height(30.dp))
 
                 // NOMBRE
-                OutlinedTextField(
+                AppTextField(
                     value = uiState.firstname,
-
-                    onValueChange = {
-                        onFirstNameChanged(it)
-                    },
-
-                    label = {
-                        Text("Nombre")
-                    },
-
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null
-                        )
-                    },
-
-                    colors = textFieldColors,
-
-                    modifier = Modifier.fillMaxWidth(),
-
-                    singleLine = true,
-
-                    shape = RoundedCornerShape(16.dp),
-
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next
-                    )
+                    onValueChange = onFirstNameChanged,
+                    placeholder = "Nombre",
+                    leadingIcon = Icons.Default.Person,
+                    imeAction = ImeAction.Next
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // APELLIDO
-                OutlinedTextField(
+                AppTextField(
                     value = uiState.lastname,
-
-                    onValueChange = {
-                        onLastNameChanged(it)
-                    },
-
-                    label = {
-                        Text("Apellido")
-                    },
-
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null
-                        )
-                    },
-
-                    colors = textFieldColors,
-
-                    modifier = Modifier.fillMaxWidth(),
-
-                    singleLine = true,
-
-                    shape = RoundedCornerShape(16.dp),
-
-                    keyboardOptions = KeyboardOptions(
-                        imeAction = ImeAction.Next
-                    )
+                    onValueChange = onLastNameChanged,
+                    placeholder = "Apellido",
+                    leadingIcon = Icons.Default.Person,
+                    imeAction = ImeAction.Next
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // TELEFONO
-                OutlinedTextField(
+                AppTextField(
                     value = uiState.phone,
-
-                    onValueChange = {
-                        onPhoneChanged(it)
-                    },
-
-                    label = {
-                        Text("Teléfono")
-                    },
-
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Phone,
-                            contentDescription = null
-                        )
-                    },
-
-                    colors = textFieldColors,
-
-                    modifier = Modifier.fillMaxWidth(),
-
-                    singleLine = true,
-
-                    shape = RoundedCornerShape(16.dp),
-
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Phone,
-                        imeAction = ImeAction.Next
-                    )
+                    onValueChange = onPhoneChanged,
+                    placeholder = "Teléfono",
+                    leadingIcon = Icons.Default.Phone,
+                    imeAction = ImeAction.Next,
+                    keyboardType = KeyboardType.Phone
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // EMAIL
-                OutlinedTextField(
+                AppTextField(
                     value = uiState.email,
-
-                    onValueChange = {
-                        onEmailChanged(it)
-                    },
-
-                    label = {
-                        Text("Correo electrónico")
-                    },
-
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Email,
-                            contentDescription = null
-                        )
-                    },
-
-                    colors = textFieldColors,
-
-                    modifier = Modifier.fillMaxWidth(),
-
-                    singleLine = true,
-
-                    shape = RoundedCornerShape(16.dp),
-
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Email,
-                        imeAction = ImeAction.Next
-                    )
+                    onValueChange = onEmailChanged,
+                    placeholder = "Correo electrónico",
+                    leadingIcon = Icons.Default.Email,
+                    imeAction = ImeAction.Next,
+                    keyboardType = KeyboardType.Email
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // PASSWORD
-                OutlinedTextField(
+                AppTextField(
                     value = uiState.password,
-
-                    onValueChange = {
-                        onPasswordChanged(it)
-                    },
-
-                    label = {
-                        Text("Contraseña")
-                    },
-
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null
-                        )
-                    },
-
-                    colors = textFieldColors,
-
+                    onValueChange = onPasswordChanged,
+                    placeholder = "Contraseña",
+                    leadingIcon = Icons.Default.Lock,
+                    imeAction = ImeAction.Done,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = if (uiState.passwordVisible)
+                        VisualTransformation.None
+                    else
+                        PasswordVisualTransformation(),
                     trailingIcon = {
-
                         IconButton(
                             onClick = {
-                                onPasswordVisibilityChanged(
-                                    !uiState.passwordVisible
-                                )
+                                onPasswordVisibilityChanged(!uiState.passwordVisible)
                             }
                         ) {
-
                             Icon(
-                                imageVector =
-                                    if (uiState.passwordVisible)
-                                        Icons.Default.Visibility
-                                    else
-                                        Icons.Default.VisibilityOff,
-
+                                imageVector = if (uiState.passwordVisible)
+                                    Icons.Default.Visibility
+                                else
+                                    Icons.Default.VisibilityOff,
                                 contentDescription = null
                             )
                         }
-                    },
-
-                    visualTransformation =
-                        if (uiState.passwordVisible)
-                            VisualTransformation.None
-                        else
-                            PasswordVisualTransformation(),
-
-                    modifier = Modifier.fillMaxWidth(),
-
-                    singleLine = true,
-
-                    shape = RoundedCornerShape(16.dp),
-
-                    keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done
-                    )
+                    }
                 )
 
                 if (uiState.error.isNotEmpty()) {

@@ -6,6 +6,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -22,6 +25,14 @@ fun VehiclesScreen(
     onEditVehicle: (Int) -> Unit = {}
 ) {
     val uiState = viewModel.uiState.collectAsState()
+
+    // Refresca la lista al reanudar la pantalla (vuelta de add/edit)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.listVehicles()
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.navigationEvent.collect { event ->

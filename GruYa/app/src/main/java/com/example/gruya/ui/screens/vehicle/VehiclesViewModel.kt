@@ -30,11 +30,7 @@ class VehiclesViewModel(application: Application) : AndroidViewModel(application
     private val _navigationEvent = Channel<VehiclesNavigationEvent>(Channel.BUFFERED)
     val navigationEvent = _navigationEvent.receiveAsFlow()
 
-    init {
-        listVehicles()
-    }
-
-    private fun listVehicles() {
+    fun listVehicles() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val vehicles = vehicleRepository.listAll(sessionManager.getJwt())

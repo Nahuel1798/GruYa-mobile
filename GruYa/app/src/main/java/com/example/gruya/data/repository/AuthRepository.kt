@@ -1,19 +1,22 @@
 package com.example.gruya.data.repository
 
 import android.util.Log
-import com.example.gruya.data.remote.ApiClient
 import com.example.gruya.data.remote.dtos.request.LoginRequest
 import com.example.gruya.data.remote.dtos.request.RegisterRequest
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.remote.dtos.response.AuthResponse
 import com.example.gruya.data.remote.dtos.response.UserResponse
+import com.example.gruya.data.service.AuthService
 import com.example.gruya.domain.model.Role
 import retrofit2.Response
+import javax.inject.Inject
 
-class AuthRepository {
+class AuthRepository @Inject constructor(
+    private val authService: AuthService
+) {
     suspend fun login(email: String, password: String): Response<AuthResponse> {
         val request = LoginRequest(email, password)
-        val response = ApiClient.authService.login(request)
+        val response = authService.login(request)
         return response
     }
 
@@ -26,14 +29,14 @@ class AuthRepository {
             phone = phone,
             role = role
         )
-        val response = ApiClient.authService.register(request)
+        val response = authService.register(request)
         Log.d("API",response.toString())
         return response
     }
 
-    suspend fun getProfile(token: String): Result<UserResponse> {
+    suspend fun getProfile(): Result<UserResponse> {
         return try {
-            val response = ApiClient.authService.profile("Bearer $token")
+            val response = authService.profile()
             if (response.isSuccessful) {
                 response.body()?.let {
                     Result.success(it)
@@ -47,13 +50,11 @@ class AuthRepository {
     }
 
     suspend fun editProfile(
-        token: String,
         request: UpdateUserRequest
     ): Result<UserResponse?> {
         return try {
             val response =
-                ApiClient.authService.editprofile(
-                    "Bearer $token",
+                authService.editprofile(
                     request
                 )
 

@@ -1,23 +1,23 @@
 package com.example.gruya.ui.screens.auth.register
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.ServiceType
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 
-class ProviderProfileViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class ProviderProfileViewModel @Inject constructor(
+    private val providerRepository: ProviderRepository
+) : ViewModel() {
 
-    private val sessionManager = SessionManager(application)
-    private val providerRepository = ProviderRepository()
     private val _uiState = MutableStateFlow(ProviderProfileUiState())
     val uiState = _uiState.asStateFlow()
 
@@ -53,7 +53,6 @@ class ProviderProfileViewModel(application: Application) : AndroidViewModel(appl
         viewModelScope.launch { 
             _uiState.update { it.copy(loading = true) }
             val result = providerRepository.create(
-                token = sessionManager.getJwt(),
                 serviceType = serviceType,
                 description = currentState.description,
                 location = location

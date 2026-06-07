@@ -3,6 +3,7 @@ package com.example.gruya
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -46,6 +47,7 @@ import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.screens.profile.ProfileScreen
 import com.example.gruya.ui.theme.GruYaTheme
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {

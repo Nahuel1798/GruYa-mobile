@@ -1,0 +1,52 @@
+package com.example.gruya.di
+
+import com.example.gruya.BuildConfig
+import com.example.gruya.data.SessionManager
+import com.example.gruya.data.remote.AuthInterceptor
+import com.example.gruya.data.service.AuthService
+import com.example.gruya.data.service.ProviderService
+import com.example.gruya.data.service.VehicleService
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+
+    @Provides @Singleton
+    fun provideAuthInterceptor(sessionManager: SessionManager): Interceptor =
+        AuthInterceptor(sessionManager)
+
+    @Provides @Singleton
+    fun provideOkHttpClient(authInterceptor: Interceptor): OkHttpClient =
+        OkHttpClient.Builder()
+            .addInterceptor(authInterceptor)
+            .build()
+
+    @Provides @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit =
+        Retrofit.Builder()
+            .baseUrl(BuildConfig.BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+    @Provides @Singleton
+    fun provideAuthService(retrofit: Retrofit): AuthService =
+        retrofit.create(AuthService::class.java)
+
+    @Provides @Singleton
+    fun provideVehicleService(retrofit: Retrofit): VehicleService =
+        retrofit.create(VehicleService::class.java)
+
+    @Provides @Singleton
+    fun provideProviderService(retrofit: Retrofit): ProviderService =
+        retrofit.create(ProviderService::class.java)
+}

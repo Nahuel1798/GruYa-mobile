@@ -1,11 +1,10 @@
 package com.example.gruya.ui.screens.vehicle
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.VehicleRepository
 import com.example.gruya.domain.model.Vehicle
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,16 +12,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 sealed interface VehiclesNavigationEvent {
     data object AddVehicle : VehiclesNavigationEvent
     data class EditVehicle(val vehicleId: Int) : VehiclesNavigationEvent
 }
 
-class VehiclesViewModel(application: Application) : AndroidViewModel(application) {
-
-    val vehicleRepository = VehicleRepository()
-    val sessionManager = SessionManager(getApplication())
+@HiltViewModel
+class VehiclesViewModel @Inject constructor(
+    private val vehicleRepository: VehicleRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(VehiclesUiState())
     val uiState: StateFlow<VehiclesUiState> = _uiState.asStateFlow()
@@ -33,7 +33,7 @@ class VehiclesViewModel(application: Application) : AndroidViewModel(application
     fun listVehicles() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val vehicles = vehicleRepository.listAll(sessionManager.getJwt())
+            val vehicles = vehicleRepository.listAll()
             _uiState.update { it.copy(vehicles = vehicles, isLoading = false) }
         }
     }
@@ -62,7 +62,7 @@ class VehiclesViewModel(application: Application) : AndroidViewModel(application
     fun confirmDelete() {
         val vehicle = _uiState.value.vehicleSelect ?: return
         viewModelScope.launch {
-            val success = vehicleRepository.delete(sessionManager.getJwt(), vehicle.id)
+            val success = vehicleRepository.delete(vehicle.id)
             if (success) {
                 _uiState.update {
                     it.copy(

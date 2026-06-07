@@ -1,15 +1,17 @@
 package com.example.gruya.ui.screens.auth
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import com.example.gruya.data.SessionManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import javax.inject.Inject
 
-class AuthViewModel(application: Application) : AndroidViewModel(application) {
-    val sessionManager = SessionManager(getApplication())
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+    private val sessionManager: SessionManager
+) : ViewModel() {
     private val _isLoggedIn = MutableStateFlow(false)
 
     init {

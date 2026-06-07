@@ -1,22 +1,24 @@
 package com.example.gruya.ui.screens.auth.register
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.AuthRepository
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.ServiceType
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class RegisterViewModel(application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class RegisterViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+    private val sessionManager: SessionManager
+) : ViewModel() {
 
-    private val sessionManager = SessionManager(application)
-    private val authRepository = AuthRepository()
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState = _uiState.asStateFlow()
 

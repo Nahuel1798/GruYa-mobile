@@ -1,21 +1,24 @@
 package com.example.gruya.ui.screens.profile
 
-import android.app.Application
 import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.repository.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class ProfileViewModel(application: Application) : AndroidViewModel(application) {
-    private val authRepository = AuthRepository()
-    private val sessionManager = SessionManager(application)
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+    private val sessionManager: SessionManager
+) : ViewModel() {
     
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -34,9 +37,7 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             }
 
             try {
-                val token = sessionManager.getJwt()
-                Log.d("ProfileVM", "Token recuperado: ${token.take(10)}...")
-                val result = authRepository.getProfile(token)
+                val result = authRepository.getProfile()
 
                 result.onSuccess { userResponse ->
                     Log.d("ProfileVM", "Perfil cargado con éxito: ${userResponse.firstName}")
@@ -80,9 +81,6 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             try {
-                val token = sessionManager.getJwt()
-                if (token.isEmpty()) throw Exception("Token vacío")
-
                 val request = UpdateUserRequest(
                     firstName = firstName,
                     lastName = lastName,
@@ -90,13 +88,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
                     phone = phone
                 )
 
-                val result = authRepository.editProfile(token, request)
+                val result = authRepository.editProfile(request)
 
                 result.onSuccess { updatedUser ->
                     Log.d("ProfileVM", "Perfil actualizado correctamente")
                     _uiState.update { currentState ->
-                        // Si el servidor no devolvió el usuario, usamos los datos que enviamos
-                        // Usamos copy solo si el usuario actual existe para evitar el NPE con 'role'
                         val newUser = updatedUser ?: currentState.user?.let { current ->
                             current.copy(
                                 firstName = firstName,

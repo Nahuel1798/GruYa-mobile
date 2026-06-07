@@ -1,23 +1,23 @@
 package com.example.gruya.ui.screens.vehicle
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.dtos.request.CreateVehicleRequest
 import com.example.gruya.data.remote.dtos.request.UpdateVehicleRequest
 import com.example.gruya.data.repository.VehicleRepository
 import com.example.gruya.domain.model.VehicleType
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class AddVehicleViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val vehicleRepository = VehicleRepository()
-    private val sessionManager = SessionManager(getApplication())
+@HiltViewModel
+class AddVehicleViewModel @Inject constructor(
+    private val vehicleRepository: VehicleRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddVehicleUiState())
     val uiState: StateFlow<AddVehicleUiState> = _uiState.asStateFlow()
@@ -25,7 +25,7 @@ class AddVehicleViewModel(application: Application) : AndroidViewModel(applicati
     fun loadVehicle(vehicleId: Int) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val vehicle = vehicleRepository.getById(sessionManager.getJwt(), vehicleId)
+            val vehicle = vehicleRepository.getById(vehicleId)
             if (vehicle != null) {
                 _uiState.update {
                     it.copy(
@@ -120,9 +120,9 @@ class AddVehicleViewModel(application: Application) : AndroidViewModel(applicati
                     insurance = state.insurer,
                     color = state.color
                 )
-                vehicleRepository.update(sessionManager.getJwt(), state.vehicleId, updateRequest) != null
+                vehicleRepository.update(state.vehicleId, updateRequest) != null
             } else {
-                vehicleRepository.create(sessionManager.getJwt(), request) != null
+                vehicleRepository.create(request) != null
             }
 
             if (success) {

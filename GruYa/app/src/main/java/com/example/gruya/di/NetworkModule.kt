@@ -1,8 +1,10 @@
 package com.example.gruya.di
 
 import com.example.gruya.BuildConfig
+import com.example.gruya.AuthEventBus
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.AuthInterceptor
+import com.example.gruya.data.remote.AuthResponseInterceptor
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.data.service.ProviderService
 import com.example.gruya.data.service.VehicleService
@@ -25,9 +27,20 @@ object NetworkModule {
         AuthInterceptor(sessionManager)
 
     @Provides @Singleton
-    fun provideOkHttpClient(authInterceptor: Interceptor): OkHttpClient =
+    fun provideAuthResponseInterceptor(
+        sessionManager: SessionManager,
+        authEventBus: AuthEventBus
+    ): AuthResponseInterceptor =
+        AuthResponseInterceptor(sessionManager, authEventBus)
+
+    @Provides @Singleton
+    fun provideOkHttpClient(
+        authInterceptor: Interceptor,
+        authResponseInterceptor: AuthResponseInterceptor
+    ): OkHttpClient =
         OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
+            .addNetworkInterceptor(authResponseInterceptor)
             .build()
 
     @Provides @Singleton

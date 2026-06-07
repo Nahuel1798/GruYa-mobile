@@ -30,13 +30,24 @@ class LoginViewModel @Inject constructor(
             currentState.copy(password = password)
         }
     }
-    fun onLoginButtonClick(){
+    fun onLoginButtonClick() {
         viewModelScope.launch {
-            val result = authRepository.login(_uiState.value.email, _uiState.value.password)
-            if (result.isSuccessful){
-                sessionManager.saveJwt(result.body()!!.token)
-                _uiState.update { currentValue ->
-                    currentValue.copy(success = true)
+            try {
+                val result = authRepository.login(
+                    _uiState.value.email,
+                    _uiState.value.password
+                )
+                if (result.isSuccessful) {
+                    sessionManager.saveJwt(result.body()!!.token)
+                    _uiState.update { it.copy(success = true) }
+                } else {
+                    _uiState.update {
+                        it.copy(error = "Email o contraseña incorrectos")
+                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(error = "Error de conexión. Verificá tu conexión a internet")
                 }
             }
         }

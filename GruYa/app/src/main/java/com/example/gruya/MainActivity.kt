@@ -5,8 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CarRental
 import androidx.compose.material.icons.filled.Favorite
@@ -25,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -35,7 +39,6 @@ import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.screens.home_user.HomeScreen
-import com.example.gruya.ui.screens.auth.AuthViewModel
 import com.example.gruya.ui.screens.auth.login.LoginScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
@@ -73,23 +76,42 @@ fun GruYaApp(
     authViewModel: AuthViewModel = viewModel()
 ) {
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
+    val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
 
-    val backStack = rememberNavBackStack(
-        if (isLoggedIn) AppDest.MainContent
-        else AppDest.Login
-    )
+    LaunchedEffect(Unit) {
+        authViewModel.authEvents.collect { event ->
+            when (event) {
+                AuthEvent.ForceLogout -> {
+                    authViewModel.logout()
+                }
+            }
+        }
+    }
 
-    NavDisplay(
-        backStack = backStack,
-        entryProvider = entryProvider {
+    if (isCheckingToken) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    key(isLoggedIn) {
+        val backStack = rememberNavBackStack(
+            if (isLoggedIn) AppDest.MainContent
+            else AppDest.Login
+        )
+
+        NavDisplay(
+            backStack = backStack,
+            entryProvider = entryProvider {
 
             entry<AppDest.Login> {
                 LoginScreen(
                     onLoginSuccess = {
                         authViewModel.onLoginSuccess()
-
-                        backStack.clear()
-                        backStack.add(AppDest.MainContent)
                     },
                     onNavigateToRegister = {
                         backStack.add(AppDest.Register)
@@ -143,14 +165,12 @@ fun GruYaApp(
                 MainNavigationSuite(
                     onLogout = {
                         authViewModel.logout()
-
-                        backStack.clear()
-                        backStack.add(AppDest.Login)
                     }
                 )
             }
         }
     )
+        }
 }
 
 private data class NavItem(

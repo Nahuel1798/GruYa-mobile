@@ -28,3 +28,8 @@ replay_pid*
 /GruYa/.agents/skills
 /GruYa/.atl
 /GruYa/skills-lock.json
+/.agents/skills
+/.atl
+/AGENTS.md
+/openspec
+/skills-lock.json

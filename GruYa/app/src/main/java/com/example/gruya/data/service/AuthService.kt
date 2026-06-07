@@ -27,4 +27,12 @@ interface AuthService{
     suspend fun editprofile(
         @Body request: UpdateUserRequest
     ): Response<AuthResponse>
+
+    // Logout
+    @POST(Constants.AUTH_PATH + "/logout")
+    suspend fun logout(): Response<Unit>
+
+    // Validate token
+    @GET(Constants.AUTH_PATH + "/validate")
+    suspend fun validateToken(): Response<Unit>
 }

@@ -13,14 +13,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gruya.ui.components.*
 import com.example.gruya.ui.screens.vehicle.VehiclesNavigationEvent
 import com.example.gruya.ui.screens.vehicle.VehiclesViewModel
 
 @Composable
 fun VehiclesScreen(
-    viewModel: VehiclesViewModel = viewModel(),
+    viewModel: VehiclesViewModel = hiltViewModel(),
     onAddVehicle: () -> Unit = {},
     onEditVehicle: (Int) -> Unit = {}
 ) {

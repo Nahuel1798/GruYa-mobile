@@ -32,14 +32,18 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.screens.home_user.HomeScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
+import com.example.gruya.ui.screens.auth.login.LoginViewModel
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
@@ -106,6 +110,10 @@ fun GruYaApp(
 
         NavDisplay(
             backStack = backStack,
+            entryDecorators = listOf(
+                rememberSaveableStateHolderNavEntryDecorator(),
+                rememberViewModelStoreNavEntryDecorator()
+            ),
             entryProvider = entryProvider {
 
             entry<AppDest.Login> {
@@ -133,7 +141,7 @@ fun GruYaApp(
             }
 
             entry<AppDest.ProviderProfile> {
-                val providerViewModel: ProviderProfileViewModel = viewModel()
+                val providerViewModel: ProviderProfileViewModel = hiltViewModel()
                 val providerUiState by providerViewModel.uiState.collectAsState()
 
                 LaunchedEffect(providerUiState.success) {
@@ -302,7 +310,7 @@ fun MainNavigationSuite(
                     }
 
                     entry<AppDest.AddVehicle> {
-                        val addVehicleViewModel: AddVehicleViewModel = viewModel()
+                        val addVehicleViewModel: AddVehicleViewModel = hiltViewModel()
                         val addVehicleUiState by addVehicleViewModel.uiState.collectAsState()
 
                         val currentEntry = tabBackStack.findLast { it is AppDest.AddVehicle }

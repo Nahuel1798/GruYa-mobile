@@ -1,5 +1,6 @@
 package com.example.gruya
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
@@ -20,6 +21,9 @@ class AuthViewModel @Inject constructor(
     private val authEventBus: AuthEventBus,
     private val authResponseInterceptor: AuthResponseInterceptor
 ) : ViewModel() {
+    companion object {
+        private const val TAG = "AuthViewModel"
+    }
     private val _isLoggedIn = MutableStateFlow(false)
     private val _isCheckingToken = MutableStateFlow(false)
 
@@ -36,8 +40,8 @@ class AuthViewModel @Inject constructor(
                     } else {
                         sessionManager.clearSession()
                     }
-                } catch (_: Exception) {
-                    // Network error: assume token might still be valid
+                } catch (_: java.io.IOException) {
+                    Log.w(TAG, "Network error during token validation — assuming token might still be valid")
                     _isLoggedIn.value = true
                 } finally {
                     _isCheckingToken.value = false

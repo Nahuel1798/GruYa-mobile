@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.AuthResponseInterceptor
 import com.example.gruya.data.service.AuthService
+import com.example.gruya.domain.model.Role
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -26,10 +27,12 @@ class AuthViewModel @Inject constructor(
     }
     private val _isLoggedIn = MutableStateFlow(false)
     private val _isCheckingToken = MutableStateFlow(false)
+    private val _currentRole = MutableStateFlow<Role?>(null)
 
     init {
         val token = sessionManager.getJwt()
         if (token.isNotBlank()) {
+            _currentRole.value = sessionManager.getRole()
             _isCheckingToken.value = true
             viewModelScope.launch {
                 try {
@@ -52,12 +55,14 @@ class AuthViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
     val isCheckingToken: StateFlow<Boolean> = _isCheckingToken.asStateFlow()
+    val currentRole: StateFlow<Role?> = _currentRole.asStateFlow()
 
     val authEvents: SharedFlow<AuthEvent> = authEventBus.events
 
     fun onLoginSuccess() {
         val token = sessionManager.getJwt()
         if (token.isNotBlank()) {
+            _currentRole.value = sessionManager.getRole()
             authResponseInterceptor.resetLoggedOutFlag()
             _isLoggedIn.value = true
         }
@@ -70,6 +75,7 @@ class AuthViewModel @Inject constructor(
     fun logout() {
         sessionManager.clearSession()
         _isLoggedIn.value = false
+        _currentRole.value = null
         viewModelScope.launch {
             try {
                 authService.logout()

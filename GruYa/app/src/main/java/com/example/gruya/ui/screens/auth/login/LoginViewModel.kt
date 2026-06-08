@@ -38,7 +38,9 @@ class LoginViewModel @Inject constructor(
                     _uiState.value.password
                 )
                 if (result.isSuccessful) {
-                    sessionManager.saveJwt(result.body()!!.token)
+                    val authResponse = result.body()!!
+                    sessionManager.saveJwt(authResponse.token)
+                    authResponse.user.role?.let { sessionManager.saveRole(it) }
                     _uiState.update { it.copy(success = true) }
                 } else {
                     _uiState.update {

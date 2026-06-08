@@ -1,6 +1,7 @@
 package com.example.gruya.data
 
 import android.content.Context
+import com.example.gruya.domain.model.Role
 
 class SessionManager(context: Context) {
 
@@ -17,6 +18,17 @@ class SessionManager(context: Context) {
 
     fun getJwt(): String {
         return prefs.getString("jwt", "") ?: ""
+    }
+
+    fun saveRole(role: Role) {
+        prefs.edit()
+            .putString("role", role.name)
+            .apply()
+    }
+
+    fun getRole(): Role? {
+        val roleName = prefs.getString("role", null)
+        return roleName?.let { Role.valueOf(it) }
     }
 
     fun clearSession() {

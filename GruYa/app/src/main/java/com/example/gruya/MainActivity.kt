@@ -11,10 +11,11 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.CarRental
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
@@ -43,11 +44,11 @@ import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.screens.home_user.HomeScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
-import com.example.gruya.ui.screens.auth.login.LoginViewModel
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.screens.favorites.FavoritesScreen
+import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
 import com.example.gruya.ui.screens.vehicle.VehiclesScreen
@@ -146,8 +147,7 @@ fun GruYaApp(
 
                 LaunchedEffect(providerUiState.success) {
                     if (providerUiState.success) {
-                        backStack.clear()
-                        backStack.add(AppDest.Login)
+                        authViewModel.onLoginSuccess()
                     }
                 }
 
@@ -171,6 +171,7 @@ fun GruYaApp(
 
             entry<AppDest.MainContent> {
                 MainNavigationSuite(
+                    authViewModel = authViewModel,
                     onLogout = {
                         authViewModel.logout()
                     }
@@ -190,11 +191,14 @@ private data class NavItem(
 
 @Composable
 fun MainNavigationSuite(
+    authViewModel: AuthViewModel,
     onLogout: () -> Unit
 ) {
     val tabBackStack = rememberNavBackStack(
         AppDest.TabKey.Home
     )
+
+    val currentRole by authViewModel.currentRole.collectAsState()
 
     val navItems = listOf(
         NavItem(
@@ -212,8 +216,8 @@ fun MainNavigationSuite(
         NavItem(
             key = AppDest.TabKey.Vehicles,
             label = "Vehiculos",
-            selectedIcon = Icons.Filled.CarRental,
-            unselectedIcon = Icons.Outlined.FavoriteBorder
+            selectedIcon = Icons.Filled.DirectionsCar,
+            unselectedIcon = Icons.Outlined.DirectionsCar
         ),
         NavItem(
             key = AppDest.TabKey.Profile,
@@ -285,7 +289,18 @@ fun MainNavigationSuite(
                 entryProvider = entryProvider {
 
                     entry<AppDest.TabKey.Home> {
-                        HomeScreen()
+                        when (currentRole) {
+                            Role.USER -> HomeScreen()
+                            Role.PROVIDER -> HomeProviderScreen()
+                            else -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
                     }
 
                     entry<AppDest.TabKey.Favourites> {

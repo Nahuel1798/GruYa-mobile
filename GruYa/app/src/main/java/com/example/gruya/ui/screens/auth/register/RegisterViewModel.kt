@@ -65,7 +65,9 @@ class RegisterViewModel @Inject constructor(
             }
 
             if (result.isSuccessful) {
-                sessionManager.saveJwt(result.body()!!.token)
+                val authResponse = result.body()!!
+                sessionManager.saveJwt(authResponse.token)
+                authResponse.user.role?.let { sessionManager.saveRole(it) }
             }
         }
 

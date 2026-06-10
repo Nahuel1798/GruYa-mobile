@@ -23,17 +23,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
 import android.annotation.SuppressLint
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
-import dagger.hilt.android.lifecycle.HiltViewModel
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.gms.rememberFusedLocationProvider
 import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.location.LocationPuck
 import org.maplibre.compose.location.LocationTrackingEffect
 import org.maplibre.compose.location.rememberUserLocationState
@@ -43,6 +45,10 @@ import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.expressions.dsl.*
+import org.maplibre.compose.expressions.value.SymbolAnchor
+import org.maplibre.compose.util.ClickResult
+import kotlinx.serialization.json.*
 import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.Point
@@ -69,7 +75,7 @@ fun HomeScreen(
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = defaultLocation,
-            zoom = 14.0
+            zoom = 12.0
         )
     )
 
@@ -106,7 +112,7 @@ fun HomeScreen(
                 cameraState.animateTo(
                     CameraPosition(
                         target = location.position.value,
-                        zoom = 16.0
+                        zoom = 14.0
                     )
                 )
 
@@ -210,44 +216,85 @@ fun HomeScreen(
                 val towTruckSource = rememberGeoJsonSource(
                     data = GeoJsonData.Features(
                         geoJson = FeatureCollection(
-                            features = uiState.nearbyTowTrucks.map { pos ->
+                            features = uiState.nearbyTowTrucks.map { provider ->
                                 Feature(
                                     geometry = Point(
-                                        longitude = pos.longitude,
-                                        latitude = pos.latitude
+                                        longitude = provider.longitude,
+                                        latitude = provider.latitude
                                     ),
-                                    properties = null
+                                    properties = buildJsonObject {
+                                        put("id", provider.id)
+                                        put("name", provider.name)
+                                        put("serviceType", provider.serviceType.uppercase())
+                                    }
                                 )
                             }
                         )
                     )
                 )
 
-                locationState?.let { state ->
+                locationState?.let {
+                    LocationTrackingEffect(locationState = it, onLocationChange = {})
                     LocationPuck(
-                        idPrefix = "user",
-                        location = state.location,
+                        idPrefix = "user-location",
+                        location = it.location,
                         cameraState = cameraState
                     )
-
-                    LocationTrackingEffect(
-                        locationState = state,
-                        enabled = uiState.hasLocationPermission
-                    ) {
-                        // The camera centering is handled by the LaunchedEffect initially
-                        // and by the MyLocation FAB. We can also add logic here to follow
-                        // the user if a "follow mode" is active.
-                    }
                 }
 
                 // Tow truck circles
                 CircleLayer(
                     id = "tow-trucks",
                     source = towTruckSource,
-                    color = const(Color(0xFFFF6D00)),
-                    radius = const(8.dp),
+                    color = switch(
+                        input = feature["serviceType"].asString(),
+                        case("AUXILIO", const(Color(0xFFFFEB3B))),
+                        case("GOMERIA", const(Color(0xFFF4F6F8))),
+                        case("MECANICO", const(Color(0xFF3F51B5))),
+                        fallback = const(Color.Gray)
+                    ),
+                    radius = const(10.dp),
                     strokeColor = const(Color.White),
-                    strokeWidth = const(2.dp)
+                    strokeWidth = const(2.dp),
+                    onClick = { features ->
+                        val clickedFeature = features.firstOrNull()
+                        val id = clickedFeature?.properties?.get("id")?.jsonPrimitive?.intOrNull
+                        id?.let { clickedId ->
+                            uiState.nearbyTowTrucks.find { it.id == clickedId }?.let { provider ->
+                                viewModel.selectProvider(provider)
+                            }
+                        }
+                        ClickResult.Consume
+                    }
+                )
+
+                // Etiquetas de proveedores
+                SymbolLayer(
+                    id = "tow-truck-names",
+                    source = towTruckSource,
+
+                    textField = format(
+                        span(feature["name"].asString()),
+                        span(" - "),
+                        span(feature["serviceType"].asString())
+                    ),
+
+                    textSize = const(14.sp),
+                    textColor = const(
+                        if (isDarkTheme) Color.White
+                        else Color.Black
+                    ),
+
+                    // Borde blanco para que se lea sobre el mapa
+                    textHaloColor = const(Color.White),
+                    textHaloWidth = const(2.dp),
+
+                    // A la derecha del marcador
+                    textAnchor = const(SymbolAnchor.Left),
+                    textOffset = offset(1.2f.em, 0f.em),
+
+                    textAllowOverlap = const(true),
+                    textIgnorePlacement = const(true)
                 )
             }
 
@@ -280,7 +327,6 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding) // Padding del TopAppBar
             ) {
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -388,8 +434,10 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
+                            Spacer(modifier = Modifier.height(6.dp))
+
                             Text(
-                                text = "${uiState.nearbyTowTrucks.size} grúas disponibles cerca de ti",
+                                text = "${uiState.nearbyTowTrucks.size} servicios disponibles cerca de ti",
                                 color = MaterialTheme.colorScheme.primary,
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -397,11 +445,11 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
-                                text = "Selecciona un servicio para recibir asistencia inmediata.",
+                                text = "Pedir auxilio a una grua cercana.",
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(18.dp))
 
                             Button(
                                 onClick = viewModel::showRequestDialog,
@@ -428,25 +476,6 @@ fun HomeScreen(
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            OutlinedButton(
-                                onClick = {},
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(55.dp),
-                                shape = RoundedCornerShape(16.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.AddLocation,
-                                    contentDescription = null
-                                )
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                Text("Ver Servicios Cercanos")
-                            }
-
-                            Spacer(modifier = Modifier.height(20.dp))
                         }
                     }
                 }
@@ -491,9 +520,78 @@ fun HomeScreen(
                     }
                 )
             }
+            uiState.selectedProvider?.let { provider ->
+
+                ModalBottomSheet(
+                    onDismissRequest = {
+                        viewModel.clearSelectedProvider()
+                    }
+                ) {
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+
+                        val icon = when(provider.serviceType.uppercase()) {
+                            "AUXILIO" -> "🚚"
+                            "GOMERIA" -> "🛞"
+                            "MECANICO" -> "🔧"
+                            else -> "📍"
+                        }
+
+                        Text(
+                            text = "$icon ${provider.name}",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+
+                        Spacer(Modifier.height(8.dp))
+
+                        AssistChip(
+                            onClick = {},
+                            label = {
+                                Text(provider.serviceType)
+                            }
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Text(
+                            text = provider.description,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        Text(
+                            text = if (provider.isAvailable)
+                                "Disponible"
+                            else
+                                "No disponible",
+                            color = if (provider.isAvailable)
+                                Color(0xFF4CAF50)
+                            else
+                                Color.Red
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Button(
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = {
+                                viewModel.requestTowTruck()
+                            }
+                        ) {
+                            Text("Solicitar asistencia")
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
 
 // OpenFreeMap style URLs
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"

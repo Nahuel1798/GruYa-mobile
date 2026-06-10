@@ -29,6 +29,10 @@ fun ProfileScreen(
     onLogout: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(Unit) {
+        viewModel.loadUser()
+    }
+
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     
     ProfileContent(

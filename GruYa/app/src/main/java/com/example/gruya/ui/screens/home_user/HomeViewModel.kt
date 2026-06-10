@@ -1,16 +1,22 @@
 package com.example.gruya.ui.screens.home_user
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.gruya.data.repository.ServiceRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import org.maplibre.spatialk.geojson.Position
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class HomeViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(
-        HomeUiState()
-    )
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val serviceRepository: ServiceRepository) : ViewModel() {
+    private val _uiState = MutableStateFlow(HomeUiState())
 
     val uiState: StateFlow<HomeUiState> =
         _uiState.asStateFlow()
@@ -99,13 +105,48 @@ class HomeViewModel : ViewModel() {
         // LLamar a la api para obtener las gruas cercanas
     }
 
-    fun loadTowTruks(
-        truks: List<Position>
-    ) {
-        _uiState.update {
-            it.copy(
-                nearbyTowTrucks = truks
-            )
+    fun loadService(){
+        val location = _uiState.value.userLocation ?: return
+
+        viewModelScope.launch {
+            try {
+                _uiState.update {
+                    it.copy(isLoading = true)
+                }
+
+                val providers =
+                    serviceRepository.getProviderlocation(
+                        latitude = location.latitude,
+                        longitude = location.longitude
+                    )
+                Log.d("GRUYA", "Providers encontrados: ${providers.size}")
+                providers.forEach {
+                    Log.d(
+                        "GRUYA",
+                        "Lat: ${it.latitude} Lon: ${it.longitude}"
+                    )
+                }
+                val position = providers.map {
+                    Position(
+                        it.longitude,
+                        it.latitude
+                    )
+                }
+
+                _uiState.update {
+                    it.copy(
+                        nearbyTowTrucks = providers,
+                        isLoading = false
+                    )
+                }
+
+            }catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isLoading = false)
+                }
+
+                e.printStackTrace()
+            }
         }
     }
 }

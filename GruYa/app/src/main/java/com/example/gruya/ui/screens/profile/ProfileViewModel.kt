@@ -27,7 +27,7 @@ class ProfileViewModel @Inject constructor(
         loadUser()
     }
 
-    private fun loadUser() {
+    fun loadUser() {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -126,5 +126,7 @@ class ProfileViewModel @Inject constructor(
 
     fun logout() {
         sessionManager.clearSession()
+
+        _uiState.value = ProfileUiState()
     }
 }

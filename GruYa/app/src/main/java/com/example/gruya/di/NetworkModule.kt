@@ -7,6 +7,7 @@ import com.example.gruya.data.remote.AuthInterceptor
 import com.example.gruya.data.remote.AuthResponseInterceptor
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.data.service.ProviderService
+import com.example.gruya.data.service.ServiceService
 import com.example.gruya.data.service.VehicleService
 import dagger.Module
 import dagger.Provides
@@ -62,4 +63,8 @@ object NetworkModule {
     @Provides @Singleton
     fun provideProviderService(retrofit: Retrofit): ProviderService =
         retrofit.create(ProviderService::class.java)
+
+    @Provides @Singleton
+    fun provideServiceService(retrofit: Retrofit): ServiceService =
+        retrofit.create(ServiceService::class.java)
 }

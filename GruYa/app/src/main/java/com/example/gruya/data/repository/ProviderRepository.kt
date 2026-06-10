@@ -2,6 +2,7 @@ package com.example.gruya.data.repository
 
 import android.util.Log
 import com.example.gruya.data.remote.dtos.request.CreateProviderProfileRequest
+import com.example.gruya.data.remote.dtos.response.ProviderProfileResponse
 import com.example.gruya.data.service.ProviderService
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.ServiceType
@@ -23,4 +24,13 @@ class ProviderRepository @Inject constructor(
         Log.d("API",response.toString())
         return response.isSuccessful
     }
+
+    suspend fun getprofile(id: Int): Result<ProviderProfileResponse>{
+        return try {
+            Result.success(providerService.getprofile(id))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 }

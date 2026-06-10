@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -26,6 +27,8 @@ import android.annotation.SuppressLint
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.hilt.navigation.compose.hiltViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -49,28 +52,70 @@ import org.maplibre.spatialk.geojson.Position
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
 
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        viewModel.onLocationPermissionChanged(granted)
-    }
-
-    LaunchedEffect(Unit) {
-        if (!uiState.hasLocationPermission) {
-            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-    }
-
-    // MapLibre location provider (wraps FusedLocationProviderClient)
+    // 1. Map & Location State
     val locationProvider = rememberFusedLocationProvider()
     val locationState = if (uiState.hasLocationPermission) {
         rememberUserLocationState(locationProvider = locationProvider)
     } else {
         null
+    }
+
+    val defaultLocation = Position(-66.3356, -33.2950)
+    val cameraState = rememberCameraState(
+        firstPosition = CameraPosition(
+            target = defaultLocation,
+            zoom = 14.0
+        )
+    )
+
+    var locationCentered by remember { mutableStateOf(false) }
+
+    // 2. Permission Launcher
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        viewModel.onLocationPermissionChanged(granted)
+    }
+
+    // 3. Request permissions on launch
+    LaunchedEffect(Unit) {
+        locationPermissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
+    // 4. Update ViewModel and Initial Camera Center
+    LaunchedEffect(locationState?.location) {
+        locationState?.location?.let { location ->
+
+            viewModel.updateUserLocation(
+                latitud = location.position.value.latitude,
+                longitud = location.position.value.longitude
+            )
+
+            if (!locationCentered) {
+                cameraState.animateTo(
+                    CameraPosition(
+                        target = location.position.value,
+                        zoom = 16.0
+                    )
+                )
+
+                locationCentered = true
+
+                // Cargar grúas cercanas una sola vez
+                viewModel.loadService()
+            }
+        }
     }
 
     Scaffold(
@@ -143,26 +188,6 @@ fun HomeScreen(
 
             // MAPA (Fondo)
             val isDarkTheme = isSystemInDarkTheme()
-            val defaultLocation =
-                Position(-66.3356, -33.2950)
-
-            val cameraState =
-                rememberCameraState(
-                    firstPosition = CameraPosition(
-                        target = defaultLocation,
-                        zoom = 14.0
-                    )
-                )
-
-            // Sync MapLibre location to ViewModel for UI state
-            LaunchedEffect(locationState?.location) {
-                locationState?.location?.let { location ->
-                    viewModel.updateUserLocation(
-                        latitud = location.position.value.latitude,
-                        longitud = location.position.value.longitude
-                    )
-                }
-            }
 
             MaplibreMap(
                 modifier = Modifier.fillMaxSize(),
@@ -209,14 +234,9 @@ fun HomeScreen(
                         locationState = state,
                         enabled = uiState.hasLocationPermission
                     ) {
-                        state.location?.let { location ->
-                            cameraState.animateTo(
-                                CameraPosition(
-                                    target = location.position.value,
-                                    zoom = 16.0
-                                )
-                            )
-                        }
+                        // The camera centering is handled by the LaunchedEffect initially
+                        // and by the MyLocation FAB. We can also add logic here to follow
+                        // the user if a "follow mode" is active.
                     }
                 }
 
@@ -228,6 +248,32 @@ fun HomeScreen(
                     radius = const(8.dp),
                     strokeColor = const(Color.White),
                     strokeWidth = const(2.dp)
+                )
+            }
+
+            // My Location FAB (Overlay)
+            FloatingActionButton(
+                onClick = {
+                    locationState?.location?.let { location ->
+                        scope.launch {
+                            cameraState.animateTo(
+                                CameraPosition(
+                                    target = location.position.value,
+                                    zoom = 16.0
+                                )
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 120.dp, end = 16.dp),
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.primary
+            ) {
+                Icon(
+                    Icons.Default.MyLocation,
+                    contentDescription = "Mi ubicación"
                 )
             }
 
@@ -342,6 +388,12 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
+                            Text(
+                                text = "${uiState.nearbyTowTrucks.size} grúas disponibles cerca de ti",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+
                             Spacer(modifier = Modifier.height(6.dp))
 
                             Text(
@@ -391,7 +443,7 @@ fun HomeScreen(
 
                                 Spacer(modifier = Modifier.width(8.dp))
 
-                                Text("Ver Gruas Cercanas")
+                                Text("Ver Servicios Cercanos")
                             }
 
                             Spacer(modifier = Modifier.height(20.dp))

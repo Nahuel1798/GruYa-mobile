@@ -60,7 +60,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
 
         setContent {
@@ -200,32 +199,46 @@ fun MainNavigationSuite(
 
     val currentRole by authViewModel.currentRole.collectAsState()
 
-    val navItems = listOf(
-        NavItem(
-            key = AppDest.TabKey.Home,
-            label = "Inicio",
-            selectedIcon = Icons.Filled.Home,
-            unselectedIcon = Icons.Outlined.Home
-        ),
-        NavItem(
-            key = AppDest.TabKey.Favourites,
-            label = "Favoritos",
-            selectedIcon = Icons.Filled.Favorite,
-            unselectedIcon = Icons.Outlined.FavoriteBorder
-        ),
-        NavItem(
-            key = AppDest.TabKey.Vehicles,
-            label = "Vehiculos",
-            selectedIcon = Icons.Filled.DirectionsCar,
-            unselectedIcon = Icons.Outlined.DirectionsCar
-        ),
-        NavItem(
-            key = AppDest.TabKey.Profile,
-            label = "Perfil",
-            selectedIcon = Icons.Filled.AccountCircle,
-            unselectedIcon = Icons.Outlined.AccountCircle
+    val navItems = buildList {
+
+        add(
+            NavItem(
+                key = AppDest.TabKey.Home,
+                label = "Inicio",
+                selectedIcon = Icons.Filled.Home,
+                unselectedIcon = Icons.Outlined.Home
+            )
         )
-    )
+
+        add(
+            NavItem(
+                key = AppDest.TabKey.Favourites,
+                label = "Favoritos",
+                selectedIcon = Icons.Filled.Favorite,
+                unselectedIcon = Icons.Outlined.FavoriteBorder
+            )
+        )
+
+        if (currentRole == Role.USER) {
+            add(
+                NavItem(
+                    key = AppDest.TabKey.Vehicles,
+                    label = "Vehículos",
+                    selectedIcon = Icons.Filled.DirectionsCar,
+                    unselectedIcon = Icons.Outlined.DirectionsCar
+                )
+            )
+        }
+
+        add(
+            NavItem(
+                key = AppDest.TabKey.Profile,
+                label = "Perfil",
+                selectedIcon = Icons.Filled.AccountCircle,
+                unselectedIcon = Icons.Outlined.AccountCircle
+            )
+        )
+    }
 
     val navSuiteItemColors = NavigationSuiteDefaults.itemColors(
         navigationBarItemColors = NavigationBarItemDefaults.colors(

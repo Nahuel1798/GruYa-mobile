@@ -1,17 +1,20 @@
 package com.example.gruya.ui.screens.home_provider
 
-data class HomeProviderUiState (
+data class HomeProviderUiState(
+
+    val isLoading: Boolean = false,
+
+    val error: String? = null,
+
     val isOnline: Boolean = false,
 
-    val todayServices: Int = 12,
+    val todayServices: Int = 0,
 
-    val earnings: Double = 45.20,
+    val earnings: Double = 0.0,
 
-    val currentLocation: String = "San Luis, Argentina",
+    val currentLocation: String = "",
 
-    val requests: List<ProviderRequestUi> = emptyList(),
-
-    val loading: Boolean = false
+    val requests: List<ProviderRequestUi> = emptyList()
 )
 
 data class ProviderRequestUi(

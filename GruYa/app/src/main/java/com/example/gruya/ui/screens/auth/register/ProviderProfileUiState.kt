@@ -5,6 +5,8 @@ import com.example.gruya.domain.model.ServiceType
 
 data class ProviderProfileUiState(
 
+    val companyName: String = "",
+
     val serviceType: ServiceType? = null,
 
     val description: String = "",

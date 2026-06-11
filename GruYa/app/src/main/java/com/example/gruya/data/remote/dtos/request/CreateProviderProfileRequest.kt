@@ -5,6 +5,7 @@ import com.example.gruya.domain.model.Location
 
 data class CreateProviderProfileRequest (
     val serviceType: ServiceType,
+    val companyName: String,
     val description: String,
     val location: Location
 )

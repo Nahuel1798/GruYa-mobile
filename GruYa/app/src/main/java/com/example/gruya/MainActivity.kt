@@ -158,6 +158,7 @@ fun GruYaApp(
                             backStack.removeAt(backStack.size - 1)
                         }
                     },
+                    onCompanyNameChange = providerViewModel::onCompanyNameChange,
                     onServiceTypeChange = providerViewModel::onServiceTypeChange,
                     onDescriptionChange = providerViewModel::onDescriptionChange,
                     onAvailableChange = providerViewModel::onAvailableChange,

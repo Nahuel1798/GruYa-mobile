@@ -83,6 +83,7 @@ private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/bright
 fun ProviderProfileScreen(
     uiState: ProviderProfileUiState,
     onBack: () -> Unit,
+    onCompanyNameChange: (String) -> Unit,
     onServiceTypeChange: (ServiceType) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onAvailableChange: (Boolean) -> Unit,
@@ -178,6 +179,18 @@ fun ProviderProfileScreen(
                     }
                 }
             }
+
+            OutlinedTextField(
+                value = uiState.companyName,
+                onValueChange = onCompanyNameChange,
+                modifier = Modifier.fillMaxWidth(),
+                label = {
+                    Text("Nombre de la empresa")
+                },
+                placeholder = {
+                    Text("Ej: Grúas Express")
+                }
+            )
 
             OutlinedTextField(
                 value = uiState.description,

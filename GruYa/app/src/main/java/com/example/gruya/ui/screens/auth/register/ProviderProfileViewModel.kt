@@ -21,6 +21,10 @@ class ProviderProfileViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProviderProfileUiState())
     val uiState = _uiState.asStateFlow()
 
+    fun onCompanyNameChange(value: String) {
+        _uiState.update { it.copy(companyName = value) }
+    }
+
     fun onServiceTypeChange(value: ServiceType) {
         _uiState.update { it.copy(serviceType = value) }
     }
@@ -54,6 +58,7 @@ class ProviderProfileViewModel @Inject constructor(
             _uiState.update { it.copy(loading = true) }
             val result = providerRepository.create(
                 serviceType = serviceType,
+                companyName = currentState.companyName,
                 description = currentState.description,
                 location = location
             )

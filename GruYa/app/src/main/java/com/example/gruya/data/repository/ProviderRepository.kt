@@ -12,9 +12,10 @@ import javax.inject.Inject
 class ProviderRepository @Inject constructor(
     private val providerService: ProviderService
 ) {
-    suspend fun create(serviceType: ServiceType, description: String, location: Location): Boolean{
+    suspend fun create(serviceType: ServiceType, companyName: String, description: String, location: Location): Boolean{
         val request = CreateProviderProfileRequest(
             serviceType = serviceType,
+            companyName = companyName,
             description = description,
             location = location
         )

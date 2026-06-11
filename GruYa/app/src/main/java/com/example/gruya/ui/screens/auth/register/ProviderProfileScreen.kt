@@ -410,8 +410,8 @@ fun InteractiveMap(
                 ornamentOptions = OrnamentOptions(
                     isCompassEnabled = true,
                     isScaleBarEnabled = true,
-                    isAttributionEnabled = false,
-                    isLogoEnabled = false
+                    isAttributionEnabled = true,
+                    isLogoEnabled = true
                 )
             )
         ) {
@@ -450,11 +450,11 @@ fun InteractiveMap(
             }
         }
 
-        // Overlay buttons
+        // Overlay buttons (bottom-end con padding para no pisar atribución)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(16.dp),
+                .padding(bottom = 48.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (hasPermission) {

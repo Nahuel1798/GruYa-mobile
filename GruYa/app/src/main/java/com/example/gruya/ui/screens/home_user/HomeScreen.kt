@@ -58,6 +58,7 @@ import org.maplibre.spatialk.geojson.Position
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onNavigateToRequestAssistance: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -452,7 +453,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(18.dp))
 
                             Button(
-                                onClick = viewModel::showRequestDialog,
+                                onClick = onNavigateToRequestAssistance,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(55.dp),
@@ -481,45 +482,6 @@ fun HomeScreen(
                 }
             }
 
-            // DIALOGO
-            if (uiState.showDialog) {
-                AlertDialog(
-                    onDismissRequest = viewModel::hideRequestDialog,
-                    confirmButton = {
-                        Button(
-                            onClick = {
-                                viewModel.requestTowTruck()
-                                viewModel.hideRequestDialog()
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Text("Confirmar y Pedir Grúa")
-                        }
-                    },
-                    dismissButton = {
-                        OutlinedButton(
-                            onClick = viewModel::hideRequestDialog
-                        ) {
-                            Text("Cancelar")
-                        }
-                    },
-                    title = {
-                        Text(
-                            "Confirmar Auxilio",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    },
-                    text = {
-                        Text(
-                            "Estamos por enviar una unidad de emergencia a tu ubicación actual.",
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                )
-            }
             uiState.selectedProvider?.let { provider ->
 
                 ModalBottomSheet(

@@ -36,14 +36,6 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(searchText = value) }
     }
 
-    fun showRequestDialog() {
-        _uiState.update { it.copy(showDialog = true) }
-    }
-
-    fun hideRequestDialog() {
-        _uiState.update { it.copy(showDialog = false) }
-    }
-
     fun toggleMapFullScreen() {
         _uiState.update {
             it.copy(
@@ -66,7 +58,7 @@ class HomeViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, showDialog = false) }
+            _uiState.update { it.copy(isLoading = true) }
             try {
                 // TODO: reemplazar con llamada real a serviceRepository.requestService(...)
                 // serviceRepository.requestService(location.latitude, location.longitude)

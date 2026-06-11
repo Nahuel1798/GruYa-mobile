@@ -5,6 +5,7 @@ import com.example.gruya.AuthEventBus
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.AuthInterceptor
 import com.example.gruya.data.remote.AuthResponseInterceptor
+import com.example.gruya.data.service.AssistanceService
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.data.service.ProviderService
 import com.example.gruya.data.service.ServiceService
@@ -63,6 +64,10 @@ object NetworkModule {
     @Provides @Singleton
     fun provideProviderService(retrofit: Retrofit): ProviderService =
         retrofit.create(ProviderService::class.java)
+
+    @Provides @Singleton
+    fun provideAssistanceService(retrofit: Retrofit): AssistanceService =
+        retrofit.create(AssistanceService::class.java)
 
     @Provides @Singleton
     fun provideServiceService(retrofit: Retrofit): ServiceService =

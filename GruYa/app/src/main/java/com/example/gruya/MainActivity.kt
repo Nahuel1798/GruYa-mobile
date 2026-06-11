@@ -53,6 +53,7 @@ import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
 import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.screens.profile.ProfileScreen
+import com.example.gruya.ui.screens.request_assistance.RequestAssistanceScreen
 import com.example.gruya.ui.theme.GruYaTheme
 
 @AndroidEntryPoint
@@ -303,7 +304,11 @@ fun MainNavigationSuite(
 
                     entry<AppDest.TabKey.Home> {
                         when (currentRole) {
-                            Role.USER -> HomeScreen()
+                            Role.USER -> HomeScreen(
+                                onNavigateToRequestAssistance = {
+                                    tabBackStack.add(AppDest.RequestAssistance)
+                                }
+                            )
                             Role.PROVIDER -> HomeProviderScreen()
                             else -> {
                                 Box(
@@ -334,6 +339,16 @@ fun MainNavigationSuite(
                     entry<AppDest.TabKey.Profile> {
                         ProfileScreen(
                             onLogout = onLogout
+                        )
+                    }
+
+                    entry<AppDest.RequestAssistance> {
+                        RequestAssistanceScreen(
+                            onNavigateBack = {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            }
                         )
                     }
 

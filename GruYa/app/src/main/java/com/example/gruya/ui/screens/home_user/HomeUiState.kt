@@ -13,8 +13,6 @@ data class HomeUiState(
 
     val searchText: String = "",
 
-    val showDialog: Boolean = false,
-
     val panelVisible: Boolean = true,
 
     val nearbyTowTrucks: List<ProviderLocationResponse> = emptyList(),

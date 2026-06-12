@@ -1,5 +1,6 @@
 package com.example.gruya.data.repository
 
+import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.service.ServiceService
 import com.example.gruya.di.NetworkModule
@@ -18,5 +19,11 @@ class ServiceRepository @Inject constructor(
             latitude = latitude,
             longitude = longitude,
         )
+    }
+
+    suspend fun getNearbyAssistances(
+        rangeKm: Double = 20.0
+    ): List<NearbyAssistanceResponse> {
+        return serviceService.getNearbyAssistances(rangeKm)
     }
 }

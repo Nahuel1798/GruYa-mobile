@@ -82,14 +82,14 @@ fun LoginContent(
             // Logo y Encabezado
             Box(
                 modifier = Modifier
-                    .size(120.dp),
+                    .size(280.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.logo_gruya),
+                    painter = painterResource(id = R.drawable.fondo_nuevo_gruya),
                     contentDescription = "Logo",
                     tint = Color.Unspecified,
-                    modifier = Modifier.size(100.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
 

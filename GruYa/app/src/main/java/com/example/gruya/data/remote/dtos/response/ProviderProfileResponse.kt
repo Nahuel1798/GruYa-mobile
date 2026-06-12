@@ -1,13 +1,14 @@
 package com.example.gruya.data.remote.dtos.response
 
 import com.example.gruya.domain.model.ServiceType
-import com.example.gruya.domain.model.User
 
 data class ProviderProfileResponse(
     val id: Int,
-    val user: User,
-    val descripcion: String,
+    val user: UserResponse,
+    val description: String,
+    val companyName: String,
+    val address: String,
     val serviceType: ServiceType,
-    val locationResponse: LocationResponse,
+    val location: LocationResponse,
     val isAvailable: Boolean
 )

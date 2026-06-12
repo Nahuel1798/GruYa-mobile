@@ -34,6 +34,7 @@ fun AppTextField(
     leadingIcon: ImageVector,
     modifier: Modifier = Modifier,
     errorMessage: String? = null,
+    isError: Boolean = false,
     imeAction: ImeAction = ImeAction.Next,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     keyboardType: KeyboardType = KeyboardType.Text,
@@ -61,7 +62,7 @@ fun AppTextField(
                     Icon(
                         imageVector = leadingIcon,
                         contentDescription = null,
-                        tint = if (errorMessage != null) {
+                        tint = if (errorMessage != null || isError) {
                             MaterialTheme.colorScheme.error
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -70,7 +71,7 @@ fun AppTextField(
                     )
                 },
                 trailingIcon = trailingIcon,
-                isError = errorMessage != null,
+                isError = errorMessage != null || isError,
                 visualTransformation = visualTransformation,
                 keyboardOptions = KeyboardOptions(
                     capitalization = capitalization,

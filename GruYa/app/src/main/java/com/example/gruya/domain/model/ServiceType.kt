@@ -2,11 +2,11 @@ package com.example.gruya.domain.model
 
 import com.google.gson.annotations.SerializedName
 
-enum class ServiceType {
+enum class ServiceType(val displayName: String) {
     @SerializedName("Auxilio")
-    AUXILIO,
+    AUXILIO("Auxilio"),
     @SerializedName("Gomeria")
-    GOMERIA,
+    GOMERIA("Gomería"),
     @SerializedName("Mecanico")
-    MECANICO
+    MECANICO("Mecánico")
 }

@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.repository.AuthRepository
+import com.example.gruya.data.repository.ProviderRepository
+import com.example.gruya.domain.model.Role
+import com.example.gruya.domain.model.ServiceType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,14 +20,21 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val providerRepository: ProviderRepository
 ) : ViewModel() {
-    
+
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        loadUser()
+        val role = sessionManager.getRole()
+        if (role == Role.PROVIDER) {
+            loadUser()
+            loadProviderProfile()
+        } else {
+            loadUser()
+        }
     }
 
     fun loadUser() {
@@ -71,6 +81,121 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    private fun loadProviderProfile() {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isLoadingProvider = true,
+                    providerError = null,
+                    providerProfile = null
+                )
+            }
+
+            try {
+                val result = providerRepository.getMyProfile()
+                result.onSuccess { profile ->
+                    Log.d("ProfileVM", "Provider profile loaded: ${profile.companyName}")
+                    _uiState.update {
+                        it.copy(
+                            providerProfile = profile,
+                            isLoadingProvider = false
+                        )
+                    }
+                }.onFailure { error ->
+                    Log.e("ProfileVM", "Error loading provider profile", error)
+                    _uiState.update {
+                        it.copy(
+                            isLoadingProvider = false,
+                            providerError = error.message ?: "Error al cargar perfil de proveedor"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileVM", "Exception loading provider profile", e)
+                _uiState.update {
+                    it.copy(
+                        isLoadingProvider = false,
+                        providerError = "Error inesperado: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun updateProviderProfile(
+        companyName: String,
+        address: String,
+        serviceType: ServiceType,
+        description: String
+    ) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isSavingProvider = true,
+                    providerError = null
+                )
+            }
+
+            try {
+                val request = com.example.gruya.data.remote.dtos.request.UpdateProviderProfileRequest(
+                    serviceType = serviceType,
+                    companyName = companyName,
+                    address = address,
+                    description = description
+                )
+                val result = providerRepository.updateProfile(request)
+
+                result.onSuccess { updatedProfile ->
+                    Log.d("ProfileVM", "Provider profile updated: ${updatedProfile.companyName}")
+                    _uiState.update {
+                        it.copy(
+                            providerProfile = updatedProfile,
+                            isSavingProvider = false,
+                            isEditingProvider = false
+                        )
+                    }
+                }.onFailure { error ->
+                    Log.e("ProfileVM", "Error updating provider profile", error)
+                    _uiState.update {
+                        it.copy(
+                            isSavingProvider = false,
+                            providerError = error.message ?: "Error al actualizar perfil"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileVM", "Exception updating provider profile", e)
+                _uiState.update {
+                    it.copy(
+                        isSavingProvider = false,
+                        providerError = "Error inesperado: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    fun startEditProvider() {
+        val profile = _uiState.value.providerProfile ?: return
+        _uiState.update {
+            it.copy(
+                isEditingProvider = true,
+                providerCompanyName = profile.companyName,
+                providerAddress = profile.address,
+                providerServiceType = profile.serviceType
+            )
+        }
+    }
+
+    fun cancelProviderEdit() {
+        _uiState.update {
+            it.copy(
+                isEditingProvider = false,
+                providerError = null
+            )
+        }
+    }
+
     fun updateProfile(
         firstName: String,
         lastName: String,
@@ -101,7 +226,7 @@ class ProfileViewModel @Inject constructor(
                                 phone = phone
                             )
                         }
-                        
+
                         currentState.copy(
                             isLoading = false,
                             user = newUser,

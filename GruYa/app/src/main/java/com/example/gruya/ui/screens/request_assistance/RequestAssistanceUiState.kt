@@ -8,6 +8,9 @@ data class RequestAssistanceUiState(
     val selectedVehicleId: Int? = null,
     val selectedIssueType: IssueType? = null,
     val location: Pair<Double, Double>? = null,
+    val address: String? = null,
+    val destinationLocation: Pair<Double, Double>? = null,
+    val destinationAddress: String? = null,
     val isLoading: Boolean = false,
     val isSubmitted: Boolean = false,
     val error: String? = null

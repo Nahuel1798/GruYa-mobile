@@ -1,5 +1,7 @@
 package com.example.gruya.ui.components
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -36,54 +38,69 @@ fun AppTextField(
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    trailingIcon: @Composable (() -> Unit)? = null
+    trailingIcon: @Composable (() -> Unit)? = null,
+    readOnly: Boolean = false,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null
 ) {
     Column(modifier = modifier) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = {
-                Text(
-                    text = placeholder,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Box {
+            OutlinedTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = enabled,
+                readOnly = readOnly,
+                placeholder = {
+                    Text(
+                        text = placeholder,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = null,
+                        tint = if (errorMessage != null) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = trailingIcon,
+                isError = errorMessage != null,
+                visualTransformation = visualTransformation,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = capitalization,
+                    imeAction = imeAction,
+                    keyboardType = keyboardType
+                ),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                    errorContainerColor = MaterialTheme.colorScheme.surface,
+                    errorBorderColor = MaterialTheme.colorScheme.error,
+                    errorLeadingIconColor = MaterialTheme.colorScheme.error
+                ),
+                singleLine = true
+            )
+
+            if (onClick != null && enabled) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clickable { onClick() }
                 )
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = leadingIcon,
-                    contentDescription = null,
-                    tint = if (errorMessage != null) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            trailingIcon = trailingIcon,
-            isError = errorMessage != null,
-            visualTransformation = visualTransformation,
-            keyboardOptions = KeyboardOptions(
-                capitalization = capitalization,
-                imeAction = imeAction,
-                keyboardType = keyboardType
-            ),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                errorContainerColor = MaterialTheme.colorScheme.surface,
-                errorBorderColor = MaterialTheme.colorScheme.error,
-                errorLeadingIconColor = MaterialTheme.colorScheme.error
-            ),
-            singleLine = true
-        )
+            }
+        }
         if (errorMessage != null) {
             Text(
                 text = errorMessage,

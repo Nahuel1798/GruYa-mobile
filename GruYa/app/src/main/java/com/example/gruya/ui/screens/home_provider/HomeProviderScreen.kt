@@ -149,12 +149,11 @@ fun HomeProviderScreen(
 
     Scaffold(
         topBar = {
-
             TopAppBar(
                 title = {
                     Text(
                         "GruYa",
-                        color = Color(0xFFFFB95F)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 },
                 actions = {
@@ -173,16 +172,15 @@ fun HomeProviderScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF191C1E)
+                    containerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
     ) { padding ->
-
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF101415))
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -193,7 +191,7 @@ fun HomeProviderScreen(
                 Text(
                     text = "Panel de Operador",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -214,7 +212,7 @@ fun HomeProviderScreen(
                 Text(
                     text = "Mapa de Solicitudes",
                     style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 CoverageMapCard(
@@ -227,7 +225,7 @@ fun HomeProviderScreen(
                 Text(
                     text = "Solicitudes Cercanas",
                     style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -245,7 +243,7 @@ fun StatusBadge(
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1D2022)
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
 
@@ -274,7 +272,7 @@ fun StatusBadge(
                         "Disponible"
                     else
                         "Desconectado",
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -310,7 +308,7 @@ fun StatsSection(
 
         Card(
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF1E293B)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         ) {
 
@@ -322,14 +320,14 @@ fun StatsSection(
                 Icon(
                     Icons.Default.LocationOn,
                     contentDescription = null,
-                    tint = Color(0xFFFFB95F)
+                    tint = MaterialTheme.colorScheme.primary
                 )
 
                 Spacer(modifier = Modifier.size(8.dp))
 
                 Text(
                     location,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -346,7 +344,7 @@ fun StatCard(
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1D2022)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -357,13 +355,13 @@ fun StatCard(
 
             Text(
                 title,
-                color = Color.Gray,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium
             )
 
             Text(
                 value,
-                color = Color(0xFFFFB95F),
+                color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -381,7 +379,7 @@ fun AssistanceRequestCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1D2022)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -394,12 +392,12 @@ fun AssistanceRequestCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(Color(0xFFFFB95F).copy(alpha = 0.2f), CircleShape),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = assistance.serviceType.take(1).uppercase(),
-                    color = Color(0xFFFFB95F),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleLarge
                 )
@@ -410,18 +408,18 @@ fun AssistanceRequestCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = assistance.clientName,
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = assistance.vehicle,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
                     text = assistance.issueType ?: "Sin especificar",
-                    color = Color(0xFFFFB95F),
+                    color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -429,13 +427,13 @@ fun AssistanceRequestCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "${"%.1f".format(assistance.distanceKm)} km",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -530,7 +528,7 @@ fun CoverageMapCard(
                 CircleLayer(
                     id = "assistance-markers",
                     source = assistanceSource,
-                    color = const(Color(0xFFFFB95F)),
+                    color = const(MaterialTheme.colorScheme.primary),
                     radius = const(8.dp),
                     strokeColor = const(Color.White),
                     strokeWidth = const(2.dp)
@@ -542,7 +540,7 @@ fun CoverageMapCard(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No hay solicitudes cercanas", color = Color.White)
+                    Text("No hay solicitudes cercanas", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
         }

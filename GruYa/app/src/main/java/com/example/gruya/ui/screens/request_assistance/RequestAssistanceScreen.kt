@@ -35,6 +35,8 @@ import androidx.compose.material.icons.outlined.LocalGasStation
 import androidx.compose.material.icons.outlined.LocalShipping
 import androidx.compose.material.icons.outlined.VpnKey
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,19 +46,23 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,8 +79,10 @@ import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.Vehicle
 import com.example.gruya.domain.model.VehicleType
 import com.example.gruya.domain.model.displayName
+import com.example.gruya.ui.components.AppTextField
 import com.example.gruya.ui.components.VehicleCarouselCard
 import com.example.gruya.ui.theme.GruYaTheme
+import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -83,7 +91,6 @@ import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.location.LocationPuck
 import org.maplibre.compose.location.UserLocationState
 import org.maplibre.compose.location.rememberUserLocationState
-import org.maplibre.compose.map.MapOptions
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.OrnamentOptions
 import org.maplibre.compose.sources.GeoJsonData
@@ -105,11 +112,30 @@ fun RequestAssistanceScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { sheetValue ->
+            // Solo permite cerrar (Hidden) si ya hay una selección
+            if (sheetValue == SheetValue.Hidden) {
+                uiState.destinationLocation != null
+            } else {
+                true
+            }
+        }
+    )
+
     // --- Location ---
     val locationProvider = rememberFusedLocationProvider()
     val locationState = rememberUserLocationState(locationProvider = locationProvider)
 
     val cameraState = rememberCameraState(
+        firstPosition = CameraPosition(
+            target = Position(latitude = -34.6037, longitude = -58.3816),
+            zoom = 15.0
+        )
+    )
+
+    val destinationCameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = Position(latitude = -34.6037, longitude = -58.3816),
             zoom = 15.0
@@ -132,9 +158,9 @@ fun RequestAssistanceScreen(
     }
 
     // GPS updates ViewModel ONLY on first fix — after that, user controls location
-    LaunchedEffect(locationState?.location) {
+    LaunchedEffect(locationState.location) {
         if (!locationCentered) {
-            locationState?.location?.let { loc ->
+            locationState.location?.let { loc ->
                 viewModel.onLocationChanged(
                     loc.position.value.latitude,
                     loc.position.value.longitude
@@ -145,8 +171,17 @@ fun RequestAssistanceScreen(
 
     // Animate camera whenever location changes (GPS first fix, map tap, or MyLocation)
     LaunchedEffect(uiState.location) {
-        if (locationCentered) {
-            uiState.location?.let { (lat, lng) ->
+        uiState.location?.let { (lat, lng) ->
+            if (locationCentered) {
+                cameraState.animateTo(
+                    CameraPosition(
+                        target = Position(lng, lat),
+                        zoom = 16.0
+                    )
+                )
+            } else {
+                // First location set — animate and mark as centered
+                locationCentered = true
                 cameraState.animateTo(
                     CameraPosition(
                         target = Position(lng, lat),
@@ -154,13 +189,25 @@ fun RequestAssistanceScreen(
                     )
                 )
             }
-        } else if (uiState.location != null) {
-            // First location set — animate and mark as centered
-            locationCentered = true
-            val loc = uiState.location!!
-            cameraState.animateTo(
+
+            // Also move destination camera to current location if destination is not set yet
+            if (uiState.destinationLocation == null) {
+                destinationCameraState.animateTo(
+                    CameraPosition(
+                        target = Position(lng, lat),
+                        zoom = 15.0
+                    )
+                )
+            }
+        }
+    }
+
+    // Animate destination camera whenever destination location changes
+    LaunchedEffect(uiState.destinationLocation) {
+        uiState.destinationLocation?.let { (lat, lng) ->
+            destinationCameraState.animateTo(
                 CameraPosition(
-                    target = Position(loc.second, loc.first),
+                    target = Position(lng, lat),
                     zoom = 16.0
                 )
             )
@@ -169,7 +216,7 @@ fun RequestAssistanceScreen(
 
     // MyLocation button: re-center to GPS
     val onCenterToGps: () -> Unit = {
-        locationState?.location?.let { loc ->
+        locationState.location?.let { loc ->
             viewModel.onLocationChanged(
                 loc.position.value.latitude,
                 loc.position.value.longitude
@@ -203,8 +250,10 @@ fun RequestAssistanceScreen(
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState,
         cameraState = cameraState,
+        destinationCameraState = destinationCameraState,
         locationState = locationState,
         onMapClick = { lat, lng -> viewModel.onLocationChanged(lat, lng) },
+        onDestinationMapClick = { lat, lng -> viewModel.onDestinationLocationChanged(lat, lng) },
         onCenterToGps = onCenterToGps
     )
 }
@@ -220,8 +269,10 @@ fun RequestAssistanceContent(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     cameraState: org.maplibre.compose.camera.CameraState? = null,
+    destinationCameraState: org.maplibre.compose.camera.CameraState? = null,
     locationState: UserLocationState? = null,
     onMapClick: (Double, Double) -> Unit = { _, _ -> },
+    onDestinationMapClick: (Double, Double) -> Unit = { _, _ -> },
     onCenterToGps: () -> Unit = {}
 ) {
     Scaffold(
@@ -384,142 +435,122 @@ fun RequestAssistanceContent(
                 )
             }
 
-            // Mini map with selectable location
+            // Location field that opens the map modal
             item {
-                val isDark = isSystemInDarkTheme()
+                var showMapSheet by remember { mutableStateOf(false) }
+                val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-                cameraState?.let { camState ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(220.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
-                        MaplibreMap(
-                            modifier = Modifier.fillMaxSize(),
-                            cameraState = camState,
-                            baseStyle = BaseStyle.Uri(
-                                if (isDark) DARK_STYLE_URL else LIGHT_STYLE_URL
-                            ),
-                            options = MapOptions(
-                                ornamentOptions = OrnamentOptions(
-                                    isCompassEnabled = true,
-                                    isScaleBarEnabled = true,
-                                    isAttributionEnabled = true,
-                                    isLogoEnabled = true
-                                )
-                            ),
-                            onMapClick = { position, _ ->
-                                onMapClick(position.latitude, position.longitude)
-                                ClickResult.Consume
-                            }
-                        ) {
-                            // Source MUST be created inside MaplibreMap lambda
-                            val markerSource = rememberGeoJsonSource(
-                                data = GeoJsonData.Features(
-                                    geoJson = FeatureCollection(
-                                        features = uiState.location?.let { (lat, lng) ->
-                                            listOf(
-                                                Feature(
-                                                    geometry = Point(
-                                                        longitude = lng,
-                                                        latitude = lat
-                                                    ),
-                                                    properties = null
-                                                )
-                                            )
-                                        } ?: emptyList()
-                                    )
-                                )
+                AppTextField(
+                    value = when {
+                        uiState.address != null -> uiState.address
+                        uiState.location != null -> "Cargando dirección..."
+                        else -> "Obteniendo ubicación..."
+                    },
+                    onValueChange = {},
+                    placeholder = "Tu ubicación",
+                    leadingIcon = Icons.Outlined.LocationOn,
+                    readOnly = true,
+                    onClick = { showMapSheet = true },
+                    trailingIcon = {
+                        IconButton(onClick = { showMapSheet = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Map,
+                                contentDescription = "Seleccionar en mapa",
+                                tint = MaterialTheme.colorScheme.primary
                             )
-
-                            locationState?.let { state ->
-                                LocationPuck(
-                                    idPrefix = "user",
-                                    location = state.location,
-                                    cameraState = camState
-                                )
-                            }
-
-                            CircleLayer(
-                                id = "selected-location",
-                                source = markerSource,
-                                color = const(MaterialTheme.colorScheme.primary),
-                                radius = const(12.dp),
-                                strokeColor = const(Color.White),
-                                strokeWidth = const(3.dp)
-                            )
-                        }
-
-                        // MyLocation FAB overlay (bottom-end con padding para no pisar atribución)
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(bottom = 48.dp, end = 8.dp)
-                        ) {
-                            Button(
-                                onClick = onCenterToGps,
-                                contentPadding = PaddingValues(8.dp),
-                                shape = CircleShape,
-                                modifier = Modifier.size(40.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            ) {
-                                Icon(
-                                    Icons.Default.MyLocation,
-                                    contentDescription = "Mi ubicación",
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
                         }
                     }
+                )
+
+                if (showMapSheet) {
+                    LocationPickerModal(
+                        onDismiss = { showMapSheet = false },
+                        sheetState = sheetState,
+                        cameraState = cameraState,
+                        location = uiState.location,
+                        locationState = locationState,
+                        onMapClick = onMapClick,
+                        onCenterToGps = onCenterToGps,
+                        title = "Seleccioná la ubicación",
+                        requiresSelection = false  // puede cerrar sin seleccionar
+                    )
                 }
             }
 
-            // Coordinates text below the map
+            // --- Destination Section (Optional/Specific) ---
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        if (uiState.location != null) {
-                            Text(
-                                text = "Latitud: ${"%.6f".format(uiState.location.first)}",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Longitud: ${"%.6f".format(uiState.location.second)}",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Tocá el mapa para cambiar la ubicación",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                fontSize = 12.sp
-                            )
+                Text(
+                    text = "Destino ",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+
+            item {
+                var showDestinationSheet by remember { mutableStateOf(false) }
+
+                // ✅ sheetState local CON confirmValueChange
+                val destinationSheetState = rememberModalBottomSheetState(
+                    skipPartiallyExpanded = true,
+                    confirmValueChange = { sheetValue ->
+                        if (sheetValue == SheetValue.Hidden) {
+                            uiState.destinationLocation != null  // solo cierra si hay selección
                         } else {
-                            Text(
-                                text = "Obteniendo ubicación...",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 14.sp
+                            true
+                        }
+                    }
+                )
+                val isLocationConfirmed = uiState.location != null
+
+                AppTextField(
+                    value = when {
+                        !isLocationConfirmed -> "Primero seleccioná tu ubicación"
+                        uiState.destinationAddress != null -> uiState.destinationAddress
+                        uiState.destinationLocation != null -> "Cargando dirección..."
+                        else -> "Seleccionar destino"
+                    },
+                    onValueChange = {},
+                    placeholder = "Hacia dónde vamos",
+                    leadingIcon = Icons.Outlined.LocationOn,
+                    readOnly = true,
+                    enabled = isLocationConfirmed,
+                    onClick = { if (isLocationConfirmed) showDestinationSheet = true },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { if (isLocationConfirmed) showDestinationSheet = true },
+                            enabled = isLocationConfirmed
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Map,
+                                contentDescription = "Seleccionar en mapa",
+                                tint = if (isLocationConfirmed) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+                                }
                             )
                         }
                     }
+                )
+
+                // — Modal de DESTINO (nuevo: requiresSelection + initialLocation = ubicación del usuario)
+                if (showDestinationSheet) {
+                    LocationPickerModal(
+                        onDismiss = { showDestinationSheet = false },
+                        sheetState = destinationSheetState,
+
+                        cameraState = destinationCameraState,
+                        location = uiState.destinationLocation,
+                        locationState = locationState,
+                        onMapClick = onDestinationMapClick,
+                        onCenterToGps = onCenterToGps,
+                        title = "Seleccioná el destino",
+                        requiresSelection = true,              // 🆕 bloquea hasta seleccionar
+                        initialLocation = uiState.location     // 🆕 centra cerca del usuario
+                    )
                 }
+
             }
 
             // --- Submit Button ---
@@ -557,6 +588,211 @@ fun RequestAssistanceContent(
                 }
             }
         }
+    }
+}
+
+// 1. LocationPickerModal — recibe initialLocation para centrar la cámara
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LocationPickerModal(
+    onDismiss: () -> Unit,
+    sheetState: androidx.compose.material3.SheetState,
+    cameraState: org.maplibre.compose.camera.CameraState?,
+    location: Pair<Double, Double>?,
+    locationState: UserLocationState?,
+    onMapClick: (Double, Double) -> Unit,
+    onCenterToGps: () -> Unit,
+    title: String,
+    requiresSelection: Boolean = false,         // 🆕 bloquea dismiss hasta seleccionar
+    initialLocation: Pair<Double, Double>? = null // 🆕 para centrar el destino cerca del usuario
+) {
+    val scope = rememberCoroutineScope()
+    val isDark = isSystemInDarkTheme()
+    val hasSelection = location != null
+
+    // 🆕 Al abrir el modal de destino, centramos en initialLocation si aún no hay destino
+    LaunchedEffect(Unit) {
+        if (location == null && initialLocation != null) {
+            val (lat, lng) = initialLocation
+            cameraState?.animateTo(
+                CameraPosition(
+                    target = Position(lng, lat),
+                    zoom = 15.0
+                )
+            )
+        }
+    }
+
+    ModalBottomSheet(
+        // 🆕 Si requiresSelection=true y no hay selección, bloqueamos el dismiss por swipe
+        onDismissRequest = {
+            if (!requiresSelection || hasSelection) onDismiss()
+        },
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        // 🆕 Evita que se cierre arrastrando si aún no seleccionó
+        dragHandle = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Handle visual — se pone tenue si está bloqueado
+                Box(
+                    modifier = Modifier
+                        .size(width = 32.dp, height = 4.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (requiresSelection && !hasSelection)
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                            else
+                                MaterialTheme.colorScheme.outlineVariant
+                        )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                // 🆕 Hint si aún no seleccionó
+                if (requiresSelection && !hasSelection) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Tocá el mapa para seleccionar",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(420.dp) // 🆕 un poco más alto para mejor UX
+        ) {
+            cameraState?.let { camState ->
+                MaplibreMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraState = camState,
+                    baseStyle = BaseStyle.Uri(
+                        if (isDark) DARK_STYLE_URL else LIGHT_STYLE_URL
+                    ),
+                    onMapClick = { position, _ ->
+                        onMapClick(position.latitude, position.longitude)
+                        ClickResult.Consume
+                    }
+                ) {
+                    val markerSource = rememberGeoJsonSource(
+                        data = GeoJsonData.Features(
+                            geoJson = FeatureCollection(
+                                features = location?.let { (lat, lng) ->
+                                    listOf(
+                                        Feature(
+                                            geometry = Point(longitude = lng, latitude = lat),
+                                            properties = null
+                                        )
+                                    )
+                                } ?: emptyList()
+                            )
+                        )
+                    )
+
+                    locationState?.let { state ->
+                        LocationPuck(
+                            idPrefix = "user",
+                            location = state.location,
+                            cameraState = camState
+                        )
+                    }
+
+                    CircleLayer(
+                        id = "selected-location",
+                        source = markerSource,
+                        color = const(MaterialTheme.colorScheme.primary),
+                        radius = const(12.dp),
+                        strokeColor = const(Color.White),
+                        strokeWidth = const(3.dp)
+                    )
+                }
+
+                // 🆕 Crosshair hint overlay cuando no hay selección
+                if (!hasSelection) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.LocationOn,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                }
+
+                // MyLocation FAB
+                Button(
+                    onClick = onCenterToGps,
+                    contentPadding = PaddingValues(8.dp),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                        .size(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+                ) {
+                    Icon(
+                        Icons.Default.MyLocation,
+                        contentDescription = "Mi ubicación",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+
+        // 🆕 Botón Confirmar — deshabilitado hasta que haya selección
+        Button(
+            onClick = {
+                scope.launch { sheetState.hide() }.invokeOnCompletion {
+                    if (!sheetState.isVisible) onDismiss()
+                }
+            },
+            enabled = hasSelection,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .height(50.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        ) {
+            if (hasSelection) {
+                Icon(
+                    imageVector = Icons.Outlined.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Confirmar ubicación", fontWeight = FontWeight.SemiBold)
+            } else {
+                Text("Seleccioná una ubicación en el mapa")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

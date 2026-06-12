@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.em
 import android.annotation.SuppressLint
 import android.Manifest
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -103,10 +104,12 @@ fun HomeScreen(
     // 4. Update ViewModel and Initial Camera Center
     LaunchedEffect(locationState?.location) {
         locationState?.location?.let { location ->
+            val lat = location.position.value.latitude
+            val lng = location.position.value.longitude
 
             viewModel.updateUserLocation(
-                latitud = location.position.value.latitude,
-                longitud = location.position.value.longitude
+                latitud = lat,
+                longitud = lng
             )
 
             if (!locationCentered) {
@@ -119,8 +122,8 @@ fun HomeScreen(
 
                 locationCentered = true
 
-                // Cargar grúas cercanas una sola vez
-                viewModel.loadService()
+                // Cargar grúas cercanas una sola vez con la ubicación obtenida
+                viewModel.loadService(lat, lng)
             }
         }
     }
@@ -220,12 +223,14 @@ fun HomeScreen(
                             features = uiState.nearbyTowTrucks.map { provider ->
                                 Feature(
                                     geometry = Point(
-                                        longitude = provider.longitude,
-                                        latitude = provider.latitude
+                                        coordinates = Position(
+                                            longitude = provider.longitude,
+                                            latitude = provider.latitude
+                                        )
                                     ),
                                     properties = buildJsonObject {
                                         put("id", provider.id)
-                                        put("name", provider.name)
+                                        put("name", provider.companyName)
                                         put("serviceType", provider.serviceType.uppercase())
                                     }
                                 )
@@ -245,7 +250,7 @@ fun HomeScreen(
 
                 // Tow truck circles
                 CircleLayer(
-                    id = "tow-trucks",
+                    id = "tow-trucks-circles",
                     source = towTruckSource,
                     color = switch(
                         input = feature["serviceType"].asString(),
@@ -267,35 +272,6 @@ fun HomeScreen(
                         }
                         ClickResult.Consume
                     }
-                )
-
-                // Etiquetas de proveedores
-                SymbolLayer(
-                    id = "tow-truck-names",
-                    source = towTruckSource,
-
-                    textField = format(
-                        span(feature["name"].asString()),
-                        span(" - "),
-                        span(feature["serviceType"].asString())
-                    ),
-
-                    textSize = const(14.sp),
-                    textColor = const(
-                        if (isDarkTheme) Color.White
-                        else Color.Black
-                    ),
-
-                    // Borde blanco para que se lea sobre el mapa
-                    textHaloColor = const(Color.White),
-                    textHaloWidth = const(2.dp),
-
-                    // A la derecha del marcador
-                    textAnchor = const(SymbolAnchor.Left),
-                    textOffset = offset(1.2f.em, 0f.em),
-
-                    textAllowOverlap = const(true),
-                    textIgnorePlacement = const(true)
                 )
             }
 
@@ -504,7 +480,7 @@ fun HomeScreen(
                         }
 
                         Text(
-                            text = "$icon ${provider.name}",
+                            text = "$icon ${provider.companyName}",
                             style = MaterialTheme.typography.headlineSmall
                         )
 

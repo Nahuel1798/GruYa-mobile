@@ -125,12 +125,12 @@ fun HomeProviderScreen(
                 key = { it.id }
             ) { request ->
 
-                RequestCard(
-                    request = request,
-                    onAccept = {
-                        viewModel.acceptRequest(request.id)
-                    }
-                )
+//                RequestCard(
+//                    request = request,
+//                    onAccept = {
+//                        viewModel.acceptRequest(request.id)
+//                    }
+//                )
             }
 
             item {
@@ -270,64 +270,64 @@ fun StatCard(
     }
 }
 
-@Composable
-fun RequestCard(
-    request: ProviderRequestUi,
-    onAccept: () -> Unit
-) {
-
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E293B)
-        )
-    ) {
-
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-
-            Text(
-                request.customerName,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                request.vehicle,
-                color = Color.LightGray
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                "${request.distance} • ${request.eta}",
-                color = Color(0xFFFFB95F)
-            )
-
-            Text(
-                request.address,
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onAccept
-            ) {
-
-                Icon(
-                    Icons.Default.CheckCircle,
-                    contentDescription = null
-                )
-
-                Spacer(modifier = Modifier.size(8.dp))
-
-                Text("Aceptar Auxilio")
-            }
-        }
-    }
-}
+//@Composable
+//fun RequestCard(
+//    request: ProviderRequestUi,
+//    onAccept: () -> Unit
+//) {
+//
+//    Card(
+//        colors = CardDefaults.cardColors(
+//            containerColor = Color(0xFF1E293B)
+//        )
+//    ) {
+//
+//        Column(
+//            modifier = Modifier.padding(16.dp)
+//        ) {
+//
+//            Text(
+//                request.customerName,
+//                color = Color.White,
+//                fontWeight = FontWeight.Bold
+//            )
+//
+//            Text(
+//                request.vehicle,
+//                color = Color.LightGray
+//            )
+//
+//            Spacer(modifier = Modifier.height(8.dp))
+//
+//            Text(
+//                "${request.distance} • ${request.eta}",
+//                color = Color(0xFFFFB95F)
+//            )
+//
+//            Text(
+//                request.address,
+//                color = Color.Gray
+//            )
+//
+//            Spacer(modifier = Modifier.height(12.dp))
+//
+//            Button(
+//                modifier = Modifier.fillMaxWidth(),
+//                onClick = onAccept
+//            ) {
+//
+//                Icon(
+//                    Icons.Default.CheckCircle,
+//                    contentDescription = null
+//                )
+//
+//                Spacer(modifier = Modifier.size(8.dp))
+//
+//                Text("Aceptar Auxilio")
+//            }
+//        }
+//    }
+//}
 
 @Composable
 fun CoverageMapCard() {

@@ -89,19 +89,20 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(selectedProvider = null) }
     }
 
-    fun loadService() {
-        val location = _uiState.value.userLocation ?: return
+    fun loadService(lat: Double? = null, lon: Double? = null) {
+        val latitude = lat ?: _uiState.value.userLocation?.latitude ?: return
+        val longitude = lon ?: _uiState.value.userLocation?.longitude ?: return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val providers = serviceRepository.getProviderlocation(
-                    latitude = location.latitude,
-                    longitude = location.longitude
+                    latitude = latitude,
+                    longitude = longitude
                 )
                 Log.d("GRUYA", "Providers encontrados: ${providers.size}")
                 providers.forEach {
-                    Log.d("GRUYA", "  ${it.name} — Lat: ${it.latitude} Lon: ${it.longitude}")
+                    Log.d("GRUYA", "  - ${it.companyName} (${it.latitude}, ${it.longitude})")
                 }
                 _uiState.update {
                     it.copy(nearbyTowTrucks = providers, isLoading = false)

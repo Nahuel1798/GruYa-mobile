@@ -23,12 +23,22 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
+    data class LocationPicker(val initialLat: Double? = null, val initialLng: Double? = null) : AppDest {
+        override val requieresAuth = false
+    }
+
+    @Serializable
     data class AddVehicle(val vehicleId: Int? = null) : AppDest {
         override val requieresAuth = true
     }
 
     @Serializable
     data object RequestAssistance : AppDest {
+        override val requieresAuth = true
+    }
+
+    @Serializable
+    data class MapPicker(val isDestination: Boolean, val initialLat: Double? = null, val initialLng: Double? = null) : AppDest {
         override val requieresAuth = true
     }
 

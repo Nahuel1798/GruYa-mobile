@@ -43,6 +43,7 @@ import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.screens.home_user.HomeScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
+import com.example.gruya.ui.screens.auth.register.LocationPickerScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
@@ -52,7 +53,9 @@ import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
 import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.screens.profile.ProfileScreen
+import com.example.gruya.ui.screens.request_assistance.MapPickerScreen
 import com.example.gruya.ui.screens.request_assistance.RequestAssistanceScreen
+import com.example.gruya.ui.screens.request_assistance.RequestAssistanceViewModel
 import com.example.gruya.ui.theme.GruYaTheme
 
 @AndroidEntryPoint
@@ -108,6 +111,8 @@ fun GruYaApp(
             else AppDest.Login
         )
 
+        val providerViewModel: ProviderProfileViewModel = hiltViewModel()
+
         NavDisplay(
             backStack = backStack,
             entryDecorators = listOf(
@@ -141,7 +146,6 @@ fun GruYaApp(
             }
 
             entry<AppDest.ProviderProfile> {
-                val providerViewModel: ProviderProfileViewModel = hiltViewModel()
                 val providerUiState by providerViewModel.uiState.collectAsState()
 
                 LaunchedEffect(providerUiState.success) {
@@ -162,9 +166,28 @@ fun GruYaApp(
                     onDescriptionChange = providerViewModel::onDescriptionChange,
                     onAvailableChange = providerViewModel::onAvailableChange,
                     onAddressChange = providerViewModel::onAddressChange,
+                    onSearchAddress = providerViewModel::searchAddress,
                     onLocationChange = providerViewModel::onLocationChange,
+                    onOpenMap = {
+                        backStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
+                    },
                     onConfirm = {
                         providerViewModel.createProfile()
+                    }
+                )
+            }
+
+            entry<AppDest.LocationPicker> {
+                val currentEntry = backStack.findLast { it is AppDest.LocationPicker } as? AppDest.LocationPicker
+                LocationPickerScreen(
+                    initialLat = currentEntry?.initialLat,
+                    initialLng = currentEntry?.initialLng,
+                    onLocationSelected = { lat, lng ->
+                        providerViewModel.onLocationChange(lat, lng)
+                        backStack.removeAt(backStack.size - 1)
+                    },
+                    onBack = {
+                        backStack.removeAt(backStack.size - 1)
                     }
                 )
             }
@@ -199,6 +222,8 @@ fun MainNavigationSuite(
     )
 
     val currentRole by authViewModel.currentRole.collectAsState()
+
+    val assistanceViewModel: RequestAssistanceViewModel = hiltViewModel()
 
     val navItems = buildList {
 
@@ -344,10 +369,41 @@ fun MainNavigationSuite(
 
                     entry<AppDest.RequestAssistance> {
                         RequestAssistanceScreen(
+                            viewModel = assistanceViewModel,
                             onNavigateBack = {
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)
                                 }
+                            },
+                            onNavigateToMapPicker = { isDestination ->
+                                val state = assistanceViewModel.uiState.value
+                                val (lat, lng) = if (isDestination) {
+                                    state.destinationLocation ?: state.location ?: Pair(-34.6037, -58.3816)
+                                } else {
+                                    state.location ?: Pair(-34.6037, -58.3816)
+                                }
+                                tabBackStack.add(AppDest.MapPicker(isDestination, lat, lng))
+                            }
+                        )
+                    }
+
+                    entry<AppDest.MapPicker> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.MapPicker } as? AppDest.MapPicker
+                        MapPickerScreen(
+                            initialLocation = if (currentEntry?.initialLat != null && currentEntry.initialLng != null) {
+                                Pair(currentEntry.initialLat, currentEntry.initialLng)
+                            } else null,
+                            title = if (currentEntry?.isDestination == true) "Seleccionar destino" else "Seleccionar origen",
+                            onLocationSelected = { lat, lng ->
+                                if (currentEntry?.isDestination == true) {
+                                    assistanceViewModel.onDestinationLocationChanged(lat, lng)
+                                } else {
+                                    assistanceViewModel.onLocationChanged(lat, lng)
+                                }
+                                tabBackStack.removeAt(tabBackStack.size - 1)
+                            },
+                            onNavigateBack = {
+                                tabBackStack.removeAt(tabBackStack.size - 1)
                             }
                         )
                     }

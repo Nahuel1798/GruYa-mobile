@@ -9,5 +9,6 @@ data class CreateAssistanceRequest(
     val vehicleId: Int,
     val location: Location,
     val issueType: IssueType,
+    val destinationLocation: Location? = null,
     val providerId: Int? = null
 )

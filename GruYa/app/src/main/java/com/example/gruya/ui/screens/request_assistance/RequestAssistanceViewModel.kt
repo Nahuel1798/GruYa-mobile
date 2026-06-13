@@ -66,6 +66,52 @@ class RequestAssistanceViewModel @Inject constructor(
         updateAddress(latitude, longitude, isDestination = true)
     }
 
+    fun onAddressQueryChanged(query: String) {
+        _uiState.update { it.copy(addressQuery = query) }
+    }
+
+    fun onDestinationAddressQueryChanged(query: String) {
+        _uiState.update { it.copy(destinationAddressQuery = query) }
+    }
+
+    fun searchAddress(isDestination: Boolean) {
+        val query = if (isDestination) _uiState.value.destinationAddressQuery else _uiState.value.addressQuery
+        if (query.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val location = withContext(Dispatchers.IO) {
+                try {
+                    val addresses = geocoder.getFromLocationName(query, 1)
+                    addresses?.firstOrNull()?.let { addr ->
+                        Pair(addr.latitude, addr.longitude)
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            _uiState.update { state ->
+                if (location != null) {
+                    if (isDestination) {
+                        state.copy(
+                            destinationLocation = location,
+                            destinationAddress = query,
+                            isLoading = false
+                        )
+                    } else {
+                        state.copy(
+                            location = location,
+                            address = query,
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    state.copy(isLoading = false, error = "No se encontró la dirección")
+                }
+            }
+        }
+    }
+
     private fun updateAddress(latitude: Double, longitude: Double, isDestination: Boolean) {
         viewModelScope.launch {
             val addressText = withContext(Dispatchers.IO) {
@@ -83,9 +129,9 @@ class RequestAssistanceViewModel @Inject constructor(
             }
             _uiState.update {
                 if (isDestination) {
-                    it.copy(destinationAddress = addressText)
+                    it.copy(destinationAddress = addressText, destinationAddressQuery = addressText ?: "")
                 } else {
-                    it.copy(address = addressText)
+                    it.copy(address = addressText, addressQuery = addressText ?: "")
                 }
             }
         }
@@ -119,6 +165,9 @@ class RequestAssistanceViewModel @Inject constructor(
                     latitude = state.location.first,
                     longitude = state.location.second
                 ),
+                destinationLocation = state.destinationLocation?.let {
+                    Location(it.first, it.second)
+                },
                 issueType = state.selectedIssueType
             )
 

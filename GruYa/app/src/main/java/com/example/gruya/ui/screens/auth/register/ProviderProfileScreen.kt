@@ -19,15 +19,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TireRepair
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -51,32 +50,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.ServiceType
-import org.maplibre.compose.camera.CameraPosition
-import org.maplibre.compose.camera.rememberCameraState
-import org.maplibre.compose.expressions.dsl.const
-import org.maplibre.compose.gms.rememberFusedLocationProvider
-import org.maplibre.compose.layers.CircleLayer
-import org.maplibre.compose.location.LocationPuck
-import org.maplibre.compose.location.rememberUserLocationState
-import org.maplibre.compose.map.MapOptions
-import org.maplibre.compose.map.MaplibreMap
-import org.maplibre.compose.map.OrnamentOptions
-import org.maplibre.compose.sources.GeoJsonData
-import org.maplibre.compose.sources.rememberGeoJsonSource
-import org.maplibre.compose.style.BaseStyle
-import org.maplibre.compose.util.ClickResult
-import org.maplibre.spatialk.geojson.Feature
-import org.maplibre.spatialk.geojson.FeatureCollection
-import org.maplibre.spatialk.geojson.Point
-import org.maplibre.spatialk.geojson.Position
-
-private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
-private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/bright"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +65,9 @@ fun ProviderProfileScreen(
     onDescriptionChange: (String) -> Unit,
     onAvailableChange: (Boolean) -> Unit,
     onAddressChange: (String) -> Unit,
+    onSearchAddress: () -> Unit,
     onLocationChange: (Double, Double) -> Unit,
+    onOpenMap: () -> Unit,
     onConfirm: () -> Unit
 ) {
     var hasLocationPermission by remember { mutableStateOf(false) }
@@ -239,13 +218,6 @@ fun ProviderProfileScreen(
                 style = MaterialTheme.typography.labelLarge
             )
 
-            InteractiveMap(
-                latitude = uiState.latitude,
-                longitude = uiState.longitude,
-                hasPermission = hasLocationPermission,
-                onLocationSelected = onLocationChange
-            )
-
             OutlinedTextField(
                 value = uiState.address,
                 onValueChange = onAddressChange,
@@ -256,10 +228,46 @@ fun ProviderProfileScreen(
                         contentDescription = null
                     )
                 },
+                trailingIcon = {
+                    Row {
+                        IconButton(onClick = onSearchAddress) {
+                            Icon(Icons.Default.Search, contentDescription = "Buscar dirección")
+                        }
+                        if (uiState.latitude != null && uiState.longitude != null) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = "Ubicación seleccionada",
+                                tint = Color.Green,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    }
+                },
                 label = {
                     Text("Dirección")
                 }
             )
+
+            Button(
+                onClick = onOpenMap,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text("Seleccionar en el Mapa")
+            }
+
+            if (uiState.latitude != null && uiState.longitude != null) {
+                Text(
+                    text = "Coordenadas: ${uiState.latitude}, ${uiState.longitude}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             uiState.error?.let {
                 Text(
@@ -358,139 +366,6 @@ fun ServiceCard(
             )
 
             Text(title)
-        }
-    }
-}
-
-@SuppressLint("MissingPermission")
-@Composable
-fun InteractiveMap(
-    latitude: Double?,
-    longitude: Double?,
-    hasPermission: Boolean,
-    onLocationSelected: (Double, Double) -> Unit
-) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val cameraState = rememberCameraState(
-        firstPosition = CameraPosition(
-            target = if (latitude != null && longitude != null) {
-                Position(longitude, latitude)
-            } else {
-                Position(-58.3816, -34.6037) // Buenos Aires
-            },
-            zoom = 12.0
-        )
-    )
-
-    val locationProvider = rememberFusedLocationProvider()
-    val userLocationState = if (hasPermission) {
-        rememberUserLocationState(locationProvider)
-    } else {
-        null
-    }
-
-    LaunchedEffect(latitude, longitude) {
-        if (latitude != null && longitude != null) {
-            cameraState.animateTo(
-                CameraPosition(
-                    target = Position(longitude, latitude),
-                    zoom = 15.0
-                )
-            )
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(300.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-    ) {
-        MaplibreMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraState = cameraState,
-            baseStyle = if (isDarkTheme) {
-                BaseStyle.Uri(DARK_STYLE_URL)
-            } else {
-                BaseStyle.Uri(LIGHT_STYLE_URL)
-            },
-            onMapClick = { position, _ ->
-                onLocationSelected(position.latitude, position.longitude)
-                ClickResult.Consume
-            },
-            options = MapOptions(
-                ornamentOptions = OrnamentOptions(
-                    isCompassEnabled = true,
-                    isScaleBarEnabled = true,
-                    isAttributionEnabled = true,
-                    isLogoEnabled = true
-                )
-            )
-        ) {
-            if (hasPermission) {
-                LocationPuck(
-                    idPrefix = "user",
-                    location = userLocationState?.location,
-                    cameraState = cameraState
-                )
-            }
-
-            if (latitude != null && longitude != null) {
-                val selectedLocationSource = rememberGeoJsonSource(
-                    data = GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = Point(
-                                        coordinates = Position(longitude, latitude)
-                                    ),
-                                    properties = null
-                                )
-                            )
-                        )
-                    )
-                )
-
-                CircleLayer(
-                    id = "selected-location",
-                    source = selectedLocationSource,
-                    color = const(MaterialTheme.colorScheme.primary),
-                    radius = const(10.dp),
-                    strokeColor = const(Color.White),
-                    strokeWidth = const(2.dp)
-                )
-            }
-        }
-
-        // Overlay buttons (bottom-end con padding para no pisar atribución)
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 48.dp, end = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (hasPermission) {
-                Button(
-                    onClick = {
-                        userLocationState?.location?.let {
-                            onLocationSelected(
-                                it.position.value.latitude,
-                                it.position.value.longitude
-                            )
-                        }
-                    },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
-                    shape = CircleShape,
-                    modifier = Modifier.size(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
-                }
-            }
         }
     }
 }

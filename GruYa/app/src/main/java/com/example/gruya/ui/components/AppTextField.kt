@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -38,6 +39,7 @@ fun AppTextField(
     imeAction: ImeAction = ImeAction.Next,
     capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
     keyboardType: KeyboardType = KeyboardType.Text,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: @Composable (() -> Unit)? = null,
     readOnly: Boolean = false,
@@ -78,6 +80,7 @@ fun AppTextField(
                     imeAction = imeAction,
                     keyboardType = keyboardType
                 ),
+                keyboardActions = keyboardActions,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surface,

@@ -7,5 +7,6 @@ data class CreateProviderProfileRequest (
     val serviceType: ServiceType,
     val companyName: String,
     val description: String,
-    val location: Location
+    val location: Location,
+    val address: String
 )

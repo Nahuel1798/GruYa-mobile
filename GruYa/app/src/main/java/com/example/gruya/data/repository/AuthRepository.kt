@@ -59,8 +59,7 @@ class AuthRepository @Inject constructor(
                 )
 
             if (response.isSuccessful) {
-                // Devolvemos el usuario si viene en el cuerpo, o null si no
-                Result.success(response.body()?.user)
+                Result.success(response.body())
             } else {
                 Result.failure(
                     Exception("Error ${response.code()}: ${response.message()}")

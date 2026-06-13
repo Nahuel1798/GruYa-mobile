@@ -43,7 +43,7 @@ class ProviderProfileViewModel @Inject constructor(
 
     fun onLocationChange(lat: Double, lng: Double) {
         _uiState.update { it.copy(
-            location = Location(0, lat.toString(), lng.toString()),
+            location = Location(lat, lng),
             latitude = lat,
             longitude = lng
         ) }
@@ -60,7 +60,8 @@ class ProviderProfileViewModel @Inject constructor(
                 serviceType = serviceType,
                 companyName = currentState.companyName,
                 description = currentState.description,
-                location = location
+                location = location,
+                address = currentState.address
             )
             
             _uiState.update { currentValue ->

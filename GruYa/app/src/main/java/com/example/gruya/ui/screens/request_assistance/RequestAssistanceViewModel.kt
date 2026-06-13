@@ -10,6 +10,7 @@ import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.VehicleRepository
 import com.example.gruya.domain.model.IssueType
+import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.ServiceType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -114,7 +115,7 @@ class RequestAssistanceViewModel @Inject constructor(
             val request = CreateAssistanceRequest(
                 serviceType = ServiceType.AUXILIO,
                 vehicleId = state.selectedVehicleId,
-                location = CreateAssistanceRequest.Location(
+                location = Location(
                     latitude = state.location.first,
                     longitude = state.location.second
                 ),

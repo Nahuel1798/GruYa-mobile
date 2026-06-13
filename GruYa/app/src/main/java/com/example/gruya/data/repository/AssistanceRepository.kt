@@ -1,20 +1,45 @@
 package com.example.gruya.data.repository
 
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
+import com.example.gruya.data.remote.dtos.response.AssistanceRequestResponse
+import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
+import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.service.AssistanceService
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AssistanceRepository @Inject constructor(
     private val assistanceService: AssistanceService
 ) {
-    suspend fun create(request: CreateAssistanceRequest): Result<Unit> {
-        val response = assistanceService.create(request)
-        return if (response.isSuccessful) {
-            Result.success(Unit)
-        } else {
-            Result.failure(
-                Exception("${response.code()}: ${response.message()}")
-            )
+    suspend fun create(request: CreateAssistanceRequest): Result<AssistanceRequestResponse?> {
+        return try {
+            val response = assistanceService.create(request)
+            if (response.isSuccessful) {
+                Result.success(response.body())
+            } else {
+                Result.failure(
+                    Exception("${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
+    }
+
+    suspend fun getProviderlocation(
+        latitude: Double,
+        longitude: Double,
+    ): List<ProviderLocationResponse> {
+        return assistanceService.getLocation(
+            latitude = latitude,
+            longitude = longitude,
+        )
+    }
+
+    suspend fun getNearbyAssistances(
+        rangeKm: Double = 20.0
+    ): List<NearbyAssistanceResponse> {
+        return assistanceService.getNearbyAssistances(rangeKm)
     }
 }

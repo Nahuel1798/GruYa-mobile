@@ -26,7 +26,7 @@ interface AuthService{
     @PUT(value = Constants.AUTH_PATH + "/editprofile")
     suspend fun editprofile(
         @Body request: UpdateUserRequest
-    ): Response<AuthResponse>
+    ): Response<UserResponse>
 
     // Logout
     @POST(Constants.AUTH_PATH + "/logout")

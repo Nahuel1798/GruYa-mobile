@@ -2,7 +2,7 @@ package com.example.gruya.ui.screens.home_provider
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gruya.data.repository.ServiceRepository
+import com.example.gruya.data.repository.AssistanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +13,7 @@ import org.maplibre.spatialk.geojson.Position
 
 @HiltViewModel
 class HomeProviderViewModel @Inject constructor(
-    private val serviceRepository: ServiceRepository
+    private val assistanceRepository: AssistanceRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeProviderUiState())
@@ -41,7 +41,7 @@ class HomeProviderViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                val assistances = serviceRepository.getNearbyAssistances()
+                val assistances = assistanceRepository.getNearbyAssistances()
                 _uiState.update {
                     it.copy(
                         nearbyAssistances = assistances,

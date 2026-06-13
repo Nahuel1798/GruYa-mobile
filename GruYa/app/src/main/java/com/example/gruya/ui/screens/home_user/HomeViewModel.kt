@@ -4,7 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
-import com.example.gruya.data.repository.ServiceRepository
+import com.example.gruya.data.repository.AssistanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +16,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val serviceRepository: ServiceRepository
+    private val assistanceRepository: AssistanceRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -60,8 +60,8 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             try {
-                // TODO: reemplazar con llamada real a serviceRepository.requestService(...)
-                // serviceRepository.requestService(location.latitude, location.longitude)
+                // TODO: reemplazar con llamada real a assistanceRepository.create(...)
+                // assistanceRepository.create(request)
 
                 _uiState.update {
                     it.copy(
@@ -96,7 +96,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
-                val providers = serviceRepository.getProviderlocation(
+                val providers = assistanceRepository.getProviderlocation(
                     latitude = latitude,
                     longitude = longitude
                 )

@@ -141,7 +141,8 @@ class ProfileViewModel @Inject constructor(
                     serviceType = serviceType,
                     companyName = companyName,
                     address = address,
-                    description = description
+                    description = description,
+                    location = null
                 )
                 val result = providerRepository.updateProfile(request)
 

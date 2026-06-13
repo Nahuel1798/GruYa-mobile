@@ -8,5 +8,5 @@ object Constants {
     const val AUTH_PATH = "/api/auth"
     const val PROVIDER_PROFILE_PATH = "/api/providerprofiles/"
     const val VEHICLES_PATH = "/api/vehicles"
-    const val SERVICE_PATH = "/api/services"
+    const val ASSISTANCE_PATH = "/api/assistances"
 }

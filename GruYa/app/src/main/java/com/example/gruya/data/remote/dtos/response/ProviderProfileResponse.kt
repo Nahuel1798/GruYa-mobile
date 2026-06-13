@@ -1,5 +1,6 @@
 package com.example.gruya.data.remote.dtos.response
 
+import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.ServiceType
 
 data class ProviderProfileResponse(
@@ -9,6 +10,6 @@ data class ProviderProfileResponse(
     val companyName: String,
     val address: String,
     val serviceType: ServiceType,
-    val location: LocationResponse,
+    val location: Location,
     val isAvailable: Boolean
 )

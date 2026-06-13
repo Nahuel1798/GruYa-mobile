@@ -22,10 +22,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -111,6 +113,8 @@ fun HomeProviderScreen(
         )
     }
 
+    var hasLoadedAssistances by remember { mutableStateOf(false) }
+
     LaunchedEffect(locationState?.location) {
         locationState?.location?.let { location ->
             val lat = location.position.value.latitude
@@ -142,8 +146,11 @@ fun HomeProviderScreen(
                 viewModel.updateLocationName("${"%.4f".format(lat)}, ${"%.4f".format(lng)}")
             }
 
-            // Trigger load when location is first obtained
-            viewModel.loadNearbyAssistances()
+            // Trigger load solo la primera vez que se obtiene ubicación
+            if (!hasLoadedAssistances) {
+                viewModel.loadNearbyAssistances()
+                hasLoadedAssistances = true
+            }
         }
     }
 
@@ -217,7 +224,8 @@ fun HomeProviderScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 CoverageMapCard(
                     assistances = uiState.nearbyAssistances,
-                    userLocationState = locationState
+                    userLocationState = locationState,
+                    onRefresh = { viewModel.loadNearbyAssistances() }
                 )
             }
 
@@ -443,7 +451,8 @@ fun AssistanceRequestCard(
 @Composable
 fun CoverageMapCard(
     assistances: List<NearbyAssistanceResponse>,
-    userLocationState: org.maplibre.compose.location.UserLocationState? = null
+    userLocationState: org.maplibre.compose.location.UserLocationState? = null,
+    onRefresh: () -> Unit = {}
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     var locationCentered by remember { mutableStateOf(false) }
@@ -542,6 +551,25 @@ fun CoverageMapCard(
                 ) {
                     Text("No hay solicitudes cercanas", color = MaterialTheme.colorScheme.onSurface)
                 }
+            }
+
+            // Botón de refrescar manual
+            IconButton(
+                onClick = onRefresh,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .size(36.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Actualizar solicitudes",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

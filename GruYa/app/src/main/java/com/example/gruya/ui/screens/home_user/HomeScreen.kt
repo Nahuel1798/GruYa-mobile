@@ -12,6 +12,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -186,18 +187,18 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
         ) {
-            if (uiState.isLoading) {
-                LinearProgressIndicator(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(padding)
-                        .align(Alignment.TopCenter),
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+                if (uiState.isLoading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(padding)
+                            .align(Alignment.TopCenter),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-            // MAPA (Fondo)
-            val isDarkTheme = isSystemInDarkTheme()
+                // MAPA (Fondo)
+                val isDarkTheme = isSystemInDarkTheme()
 
             MaplibreMap(
                 modifier = Modifier.fillMaxSize(),
@@ -525,6 +526,26 @@ fun HomeScreen(
                         }
                     }
                 }
+            }   // cierra .let
+
+            
+            // Botón de refrescar manual — como en el provider
+            IconButton(
+                onClick = { viewModel.loadService() },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = padding.calculateTopPadding() + 4.dp, end = 8.dp)
+                    .size(36.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shape = CircleShape
+                    )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Refresh,
+                    contentDescription = "Actualizar servicios",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }

@@ -86,7 +86,7 @@ fun LoginContent(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.fondo_nuevo_gruya),
+                    painter = painterResource(id = R.drawable.iconogruya),
                     contentDescription = "Logo",
                     tint = Color.Unspecified,
                     modifier = Modifier.fillMaxSize()

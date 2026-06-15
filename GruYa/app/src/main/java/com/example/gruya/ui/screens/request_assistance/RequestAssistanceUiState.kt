@@ -19,4 +19,5 @@ data class RequestAssistanceUiState(
 ) {
     val isFormValid: Boolean
         get() = selectedVehicleId != null && selectedIssueType != null
+                && location != null && destinationLocation != null
 }

@@ -155,20 +155,26 @@ class RequestAssistanceViewModel @Inject constructor(
             return
         }
 
+        if (state.destinationLocation == null) {
+            _uiState.update { it.copy(error = "Seleccioná un destino") }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             val request = CreateAssistanceRequest(
                 serviceType = ServiceType.AUXILIO,
+                issueType = state.selectedIssueType,
                 vehicleId = state.selectedVehicleId,
-                location = Location(
+                origin = Location(
                     latitude = state.location.first,
                     longitude = state.location.second
                 ),
-                destinationLocation = state.destinationLocation?.let {
-                    Location(it.first, it.second)
-                },
-                issueType = state.selectedIssueType
+                destination = Location(
+                    latitude = state.destinationLocation.first,
+                    longitude = state.destinationLocation.second
+                )
             )
 
             val result = assistanceRepository.create(request)

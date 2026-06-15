@@ -6,9 +6,9 @@ import com.example.gruya.domain.model.ServiceType
 
 data class CreateAssistanceRequest(
     val serviceType: ServiceType,
-    val vehicleId: Int,
-    val location: Location,
     val issueType: IssueType,
-    val destinationLocation: Location? = null,
+    val vehicleId: Int,
+    val origin: Location,
+    val destination: Location,
     val providerId: Int? = null
 )

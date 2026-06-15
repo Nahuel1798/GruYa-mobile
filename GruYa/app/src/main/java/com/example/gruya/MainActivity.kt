@@ -30,6 +30,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -105,15 +107,22 @@ fun GruYaApp(
         return
     }
 
-    key(isLoggedIn) {
-        val backStack = rememberNavBackStack(
-            if (isLoggedIn) AppDest.MainContent
-            else AppDest.Login
-        )
+    val backStack = rememberNavBackStack(
+        if (isLoggedIn) AppDest.MainContent
+        else AppDest.Login
+    )
 
-        val providerViewModel: ProviderProfileViewModel = hiltViewModel()
+    LaunchedEffect(isLoggedIn) {
+        val expected = if (isLoggedIn) AppDest.MainContent else AppDest.Login
+        if (backStack.lastOrNull() != expected) {
+            backStack.clear()
+            backStack.add(expected)
+        }
+    }
 
-        NavDisplay(
+    val providerViewModel: ProviderProfileViewModel = hiltViewModel()
+
+    NavDisplay(
             backStack = backStack,
             entryDecorators = listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),
@@ -202,7 +211,6 @@ fun GruYaApp(
             }
         }
     )
-        }
 }
 
 private data class NavItem(
@@ -222,8 +230,6 @@ fun MainNavigationSuite(
     )
 
     val currentRole by authViewModel.currentRole.collectAsState()
-
-    val assistanceViewModel: RequestAssistanceViewModel = hiltViewModel()
 
     val navItems = buildList {
 
@@ -323,8 +329,14 @@ fun MainNavigationSuite(
             color = MaterialTheme.colorScheme.background
         ) {
 
+            val onMapLocationPicked = remember { mutableStateOf<(Double, Double, Boolean) -> Unit>({ _, _, _ -> }) }
+
             NavDisplay(
                 backStack = tabBackStack,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator()
+                ),
                 entryProvider = entryProvider {
 
                     entry<AppDest.TabKey.Home> {
@@ -368,15 +380,22 @@ fun MainNavigationSuite(
                     }
 
                     entry<AppDest.RequestAssistance> {
+                        val vm: RequestAssistanceViewModel = hiltViewModel()
+
+                        onMapLocationPicked.value = { lat, lng, isDest ->
+                            if (isDest) vm.onDestinationLocationChanged(lat, lng)
+                            else vm.onLocationChanged(lat, lng)
+                        }
+
                         RequestAssistanceScreen(
-                            viewModel = assistanceViewModel,
+                            viewModel = vm,
                             onNavigateBack = {
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)
                                 }
                             },
                             onNavigateToMapPicker = { isDestination ->
-                                val state = assistanceViewModel.uiState.value
+                                val state = vm.uiState.value
                                 val location = if (isDestination) {
                                     state.destinationLocation ?: state.location
                                 } else {
@@ -395,11 +414,7 @@ fun MainNavigationSuite(
                             } else null,
                             title = if (currentEntry?.isDestination == true) "Seleccionar destino" else "Seleccionar origen",
                             onLocationSelected = { lat, lng ->
-                                if (currentEntry?.isDestination == true) {
-                                    assistanceViewModel.onDestinationLocationChanged(lat, lng)
-                                } else {
-                                    assistanceViewModel.onLocationChanged(lat, lng)
-                                }
+                                onMapLocationPicked.value(lat, lng, currentEntry?.isDestination == true)
                                 tabBackStack.removeAt(tabBackStack.size - 1)
                             },
                             onNavigateBack = {

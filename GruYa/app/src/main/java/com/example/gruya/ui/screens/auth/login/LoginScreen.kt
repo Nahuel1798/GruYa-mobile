@@ -34,11 +34,6 @@ fun LoginScreen(
 ) {
     val loginUiState by viewModel.uiState.collectAsState()
 
-    // Safety net: limpia estado si el ViewModel sobrevive entre entries
-    LaunchedEffect(Unit) {
-        viewModel.resetState()
-    }
-
     LaunchedEffect(loginUiState.success) {
         if (loginUiState.success) {
             onLoginSuccess()

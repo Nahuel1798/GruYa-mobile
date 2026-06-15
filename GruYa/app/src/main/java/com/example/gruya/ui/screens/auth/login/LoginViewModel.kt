@@ -60,8 +60,4 @@ class LoginViewModel @Inject constructor(
             curentState.copy(passwordVisible = passwordVisible)
         }
     }
-
-    fun resetState() {
-        _uiState.value = LoginUiState()
-    }
 }

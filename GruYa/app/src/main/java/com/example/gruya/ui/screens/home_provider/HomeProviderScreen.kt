@@ -388,7 +388,7 @@ fun FullCoverageMap(
 
     val initialPosition = remember(assistances) {
         if (assistances.isNotEmpty()) {
-            Position(assistances[0].longitude, assistances[0].latitude)
+            Position(assistances[0].origin.longitude, assistances[0].origin.latitude)
         } else {
             Position(-66.3356, -33.2950)
         }
@@ -442,8 +442,8 @@ fun FullCoverageMap(
                             Feature(
                                 geometry = Point(
                                     coordinates = Position(
-                                        longitude = assistance.longitude,
-                                        latitude = assistance.latitude
+                                        longitude = assistance.origin.longitude,
+                                        latitude = assistance.origin.latitude
                                     )
                                 ),
                                 properties = buildJsonObject {

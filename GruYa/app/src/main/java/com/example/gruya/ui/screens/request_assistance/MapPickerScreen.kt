@@ -1,5 +1,8 @@
 package com.example.gruya.ui.screens.request_assistance
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,8 +77,39 @@ fun MapPickerScreen(
         )
     )
 
+    var hasLocationPermission by remember { mutableStateOf(false) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions.values.any { it }
+    }
+
+    LaunchedEffect(Unit) {
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
+
     val locationProvider = rememberFusedLocationProvider()
     val locationState = rememberUserLocationState(locationProvider = locationProvider)
+
+    LaunchedEffect(locationState.location) {
+        if (initialLocation == null && selectedLocation == null) {
+            locationState.location?.let {
+                val pos = it.position.value
+                cameraState.animateTo(
+                    CameraPosition(
+                        target = pos,
+                        zoom = 15.0
+                    )
+                )
+                selectedLocation = Pair(pos.latitude, pos.longitude)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -118,11 +153,13 @@ fun MapPickerScreen(
                     )
                 )
 
-                LocationPuck(
-                    idPrefix = "user",
-                    location = locationState.location,
-                    cameraState = cameraState
-                )
+                if (hasLocationPermission) {
+                    LocationPuck(
+                        idPrefix = "user",
+                        location = locationState.location,
+                        cameraState = cameraState
+                    )
+                }
 
                 CircleLayer(
                     id = "selected-location",
@@ -145,33 +182,35 @@ fun MapPickerScreen(
             }
 
             // MyLocation FAB
-            Button(
-                onClick = {
-                    locationState.location?.let { loc ->
-                        scope.launch {
-                            cameraState.animateTo(
-                                CameraPosition(
-                                    target = loc.position.value,
-                                    zoom = 16.0
+            if (hasLocationPermission) {
+                Button(
+                    onClick = {
+                        locationState.location?.let { loc ->
+                            scope.launch {
+                                cameraState.animateTo(
+                                    CameraPosition(
+                                        target = loc.position.value,
+                                        zoom = 16.0
+                                    )
                                 )
-                            )
+                            }
+                            selectedLocation = Pair(loc.position.value.latitude, loc.position.value.longitude)
                         }
-                        selectedLocation = Pair(loc.position.value.latitude, loc.position.value.longitude)
-                    }
-                },
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
-                shape = CircleShape,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-                    .padding(bottom = 70.dp)
-                    .size(48.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            ) {
-                Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                    },
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                        .padding(bottom = 70.dp)
+                        .size(48.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                }
             }
 
             // Confirm Button

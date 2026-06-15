@@ -377,12 +377,12 @@ fun MainNavigationSuite(
                             },
                             onNavigateToMapPicker = { isDestination ->
                                 val state = assistanceViewModel.uiState.value
-                                val (lat, lng) = if (isDestination) {
-                                    state.destinationLocation ?: state.location ?: Pair(-34.6037, -58.3816)
+                                val location = if (isDestination) {
+                                    state.destinationLocation ?: state.location
                                 } else {
-                                    state.location ?: Pair(-34.6037, -58.3816)
+                                    state.location
                                 }
-                                tabBackStack.add(AppDest.MapPicker(isDestination, lat, lng))
+                                tabBackStack.add(AppDest.MapPicker(isDestination, location?.first, location?.second))
                             }
                         )
                     }

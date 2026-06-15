@@ -48,12 +48,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.ServiceType
+import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.style.BaseStyle
+import org.maplibre.spatialk.geojson.Feature
+import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.Point
+import org.maplibre.spatialk.geojson.Position
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -262,6 +276,60 @@ fun ProviderProfileScreen(
             }
 
             if (uiState.latitude != null && uiState.longitude != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                ) {
+                    val cameraState = rememberCameraState(
+                        firstPosition = CameraPosition(
+                            target = Position(uiState.longitude, uiState.latitude),
+                            zoom = 14.0
+                        )
+                    )
+
+                    LaunchedEffect(uiState.latitude, uiState.longitude) {
+                        cameraState.animateTo(
+                            CameraPosition(
+                                target = Position(uiState.longitude, uiState.latitude),
+                                zoom = 14.0
+                            )
+                        )
+                    }
+
+                    MaplibreMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraState = cameraState,
+                        baseStyle = if (isSystemInDarkTheme())
+                            BaseStyle.Uri("https://tiles.openfreemap.org/styles/dark")
+                        else
+                            BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty")
+                    ) {
+                        val markerSource = rememberGeoJsonSource(
+                            data = GeoJsonData.Features(
+                                geoJson = FeatureCollection(
+                                    features = listOf(
+                                        Feature(
+                                            geometry = Point(longitude = uiState.longitude, latitude = uiState.latitude),
+                                            properties = null
+                                        )
+                                    )
+                                )
+                            )
+                        )
+
+                        CircleLayer(
+                            id = "provider-location",
+                            source = markerSource,
+                            color = const(MaterialTheme.colorScheme.primary),
+                            radius = const(8.dp),
+                            strokeColor = const(Color.White),
+                            strokeWidth = const(2.dp)
+                        )
+                    }
+                }
+
                 Text(
                     text = "Coordenadas: ${uiState.latitude}, ${uiState.longitude}",
                     style = MaterialTheme.typography.bodySmall,

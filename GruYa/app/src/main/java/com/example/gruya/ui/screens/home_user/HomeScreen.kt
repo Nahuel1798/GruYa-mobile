@@ -24,19 +24,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.em
 import android.annotation.SuppressLint
 import android.Manifest
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.painterResource
+import com.example.gruya.R
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.gms.rememberFusedLocationProvider
-import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.location.LocationPuck
 import org.maplibre.compose.location.LocationTrackingEffect
@@ -249,20 +247,31 @@ fun HomeScreen(
                     )
                 }
 
-                // Tow truck circles
-                CircleLayer(
-                    id = "tow-trucks-circles",
+                val auxilioIcon = image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
+                val gomeriaIcon = image(painterResource(R.drawable.ic_gomeria), drawAsSdf = true)
+                val mecanicoIcon = image(painterResource(R.drawable.ic_mecanico), drawAsSdf = true)
+
+                // Tow truck icons
+                SymbolLayer(
+                    id = "tow-trucks-icons",
                     source = towTruckSource,
-                    color = switch(
+                    iconImage = switch(
+                        input = feature["serviceType"].asString(),
+                        case("AUXILIO", auxilioIcon),
+                        case("GOMERIA", gomeriaIcon),
+                        case("MECANICO", mecanicoIcon),
+                        fallback = auxilioIcon
+                    ),
+                    iconColor = switch(
                         input = feature["serviceType"].asString(),
                         case("AUXILIO", const(Color(0xFFFFEB3B))),
                         case("GOMERIA", const(Color(0xFFF4F6F8))),
                         case("MECANICO", const(Color(0xFF3F51B5))),
                         fallback = const(Color.Gray)
                     ),
-                    radius = const(10.dp),
-                    strokeColor = const(Color.White),
-                    strokeWidth = const(2.dp),
+                    iconSize = const(1.5f),
+                    iconAllowOverlap = const(true),
+                    iconIgnorePlacement = const(true),
                     onClick = { features ->
                         val clickedFeature = features.firstOrNull()
                         val id = clickedFeature?.properties?.get("id")?.jsonPrimitive?.intOrNull

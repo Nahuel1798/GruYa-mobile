@@ -99,6 +99,19 @@ fun LocationPickerScreen(
         null
     }
 
+    LaunchedEffect(userLocationState?.location) {
+        if (initialLat == null && initialLng == null && selectedLat == null && selectedLng == null) {
+            userLocationState?.location?.let {
+                cameraState.animateTo(
+                    CameraPosition(
+                        target = it.position.value,
+                        zoom = 15.0
+                    )
+                )
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(

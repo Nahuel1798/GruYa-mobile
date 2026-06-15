@@ -29,11 +29,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -154,229 +155,157 @@ fun HomeProviderScreen(
         }
     }
 
-    Scaffold(
+    val scaffoldState = rememberBottomSheetScaffoldState()
+
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
+        sheetPeekHeight = 200.dp,
+        sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         "GruYa",
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 actions = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Text(
+                            text = if (uiState.isOnline) "En línea" else "Desconectado",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (uiState.isOnline) Color.Green else Color.Gray,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Switch(
+                            checked = uiState.isOnline,
+                            onCheckedChange = {
+                                viewModel.toggleAvailability()
+                            }
+                        )
+                    }
 
-                    Switch(
-                        checked = uiState.isOnline,
-                        onCheckedChange = {
-                            viewModel.toggleAvailability()
-                        }
-                    )
-
-                    Icon(
-                        imageVector = Icons.Default.Notifications,
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 16.dp)
-                    )
+                    IconButton(onClick = { /* TODO: Notifications */ }) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = null
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 )
             )
+        },
+        sheetContent = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                // Barra de arrastre (visual)
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
+                        .align(Alignment.CenterHorizontally)
+                )
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                            ),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Tu ubicación actual",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = uiState.currentLocation,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Text(
+                            text = "Solicitudes Cercanas",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    if (uiState.nearbyAssistances.isEmpty()) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                )
+                            ) {
+                                Text(
+                                    "No hay solicitudes pendientes en tu zona",
+                                    modifier = Modifier.padding(16.dp),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    items(uiState.nearbyAssistances) { assistance ->
+                        AssistanceRequestCard(assistance)
+                    }
+
+                    item {
+                        Spacer(modifier = Modifier.height(32.dp))
+                    }
+                }
+            }
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-
-            item {
-
-                Text(
-                    text = "Panel de Operador",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                StatusBadge(uiState.isOnline)
-            }
-
-            item {
-
-                StatsSection(
-                    services = uiState.todayServices,
-                    earnings = uiState.earnings,
-                    location = uiState.currentLocation
-                )
-            }
-
-            item {
-                Text(
-                    text = "Mapa de Solicitudes",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                CoverageMapCard(
-                    assistances = uiState.nearbyAssistances,
-                    userLocationState = locationState,
-                    onRefresh = { viewModel.loadNearbyAssistances() }
-                )
-            }
-
-            item {
-                Text(
-                    text = "Solicitudes Cercanas",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            items(uiState.nearbyAssistances) { assistance ->
-                AssistanceRequestCard(assistance)
-            }
-        }
-    }
-}
-@Composable
-fun StatusBadge(
-    isOnline: Boolean
-) {
-
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .background(
-                        if (isOnline)
-                            Color.Green
-                        else
-                            Color.Red,
-                        CircleShape
-                    )
-            )
-
-            Spacer(modifier = Modifier.size(8.dp))
-
-            Text(
-                text =
-                    if (isOnline)
-                        "Disponible"
-                    else
-                        "Desconectado",
-                color = MaterialTheme.colorScheme.onSurface
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)) {
+            FullCoverageMap(
+                assistances = uiState.nearbyAssistances,
+                userLocationState = locationState,
+                onRefresh = { viewModel.loadNearbyAssistances() }
             )
         }
     }
 }
-
-@Composable
-fun StatsSection(
-    services: Int,
-    earnings: Double,
-    location: String
-) {
-
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            StatCard(
-                title = "SERVICIOS HOY",
-                value = services.toString(),
-                modifier = Modifier.weight(1f)
-            )
-
-            StatCard(
-                title = "GANANCIAS",
-                value = "$$earnings",
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            )
-        ) {
-
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-
-                Icon(
-                    Icons.Default.LocationOn,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-
-                Spacer(modifier = Modifier.size(8.dp))
-
-                Text(
-                    location,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun StatCard(
-    title: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-
-            Text(
-                title,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium
-            )
-
-            Text(
-                value,
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-        }
-    }
-}
-
 @Composable
 fun AssistanceRequestCard(
     assistance: NearbyAssistanceResponse,
@@ -449,7 +378,7 @@ fun AssistanceRequestCard(
 }
 
 @Composable
-fun CoverageMapCard(
+fun FullCoverageMap(
     assistances: List<NearbyAssistanceResponse>,
     userLocationState: org.maplibre.compose.location.UserLocationState? = null,
     onRefresh: () -> Unit = {}
@@ -487,90 +416,73 @@ fun CoverageMapCard(
         }
     }
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(280.dp),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            MaplibreMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraState = cameraState,
-                baseStyle = if (isDarkTheme) {
-                    BaseStyle.Uri(DARK_STYLE_URL)
-                } else {
-                    BaseStyle.Uri(LIGHT_STYLE_URL)
-                }
-            ) {
-                userLocationState?.let {
-                    LocationTrackingEffect(locationState = it, onLocationChange = {})
-                    LocationPuck(
-                        idPrefix = "provider-location",
-                        location = it.location,
-                        cameraState = cameraState
-                    )
-                }
-
-                val assistanceSource = rememberGeoJsonSource(
-                    data = GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = assistances.map { assistance ->
-                                Feature(
-                                    geometry = Point(
-                                        coordinates = Position(
-                                            longitude = assistance.longitude,
-                                            latitude = assistance.latitude
-                                        )
-                                    ),
-                                    properties = buildJsonObject {
-                                        put("id", assistance.id)
-                                        put("type", assistance.serviceType)
-                                    }
-                                )
-                            }
-                        )
-                    )
-                )
-
-                CircleLayer(
-                    id = "assistance-markers",
-                    source = assistanceSource,
-                    color = const(MaterialTheme.colorScheme.primary),
-                    radius = const(8.dp),
-                    strokeColor = const(Color.White),
-                    strokeWidth = const(2.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        MaplibreMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraState = cameraState,
+            baseStyle = if (isDarkTheme) {
+                BaseStyle.Uri(DARK_STYLE_URL)
+            } else {
+                BaseStyle.Uri(LIGHT_STYLE_URL)
+            }
+        ) {
+            userLocationState?.let {
+                LocationTrackingEffect(locationState = it, onLocationChange = {})
+                LocationPuck(
+                    idPrefix = "provider-location",
+                    location = it.location,
+                    cameraState = cameraState
                 )
             }
-            
-            if (assistances.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("No hay solicitudes cercanas", color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
 
-            // Botón de refrescar manual
-            IconButton(
-                onClick = onRefresh,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .size(36.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shape = CircleShape
+            val assistanceSource = rememberGeoJsonSource(
+                data = GeoJsonData.Features(
+                    geoJson = FeatureCollection(
+                        features = assistances.map { assistance ->
+                            Feature(
+                                geometry = Point(
+                                    coordinates = Position(
+                                        longitude = assistance.longitude,
+                                        latitude = assistance.latitude
+                                    )
+                                ),
+                                properties = buildJsonObject {
+                                    put("id", assistance.id)
+                                    put("type", assistance.serviceType)
+                                }
+                            )
+                        }
                     )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Actualizar solicitudes",
-                    tint = MaterialTheme.colorScheme.primary
                 )
-            }
+            )
+
+            CircleLayer(
+                id = "assistance-markers",
+                source = assistanceSource,
+                color = const(MaterialTheme.colorScheme.primary),
+                radius = const(10.dp),
+                strokeColor = const(Color.White),
+                strokeWidth = const(2.dp)
+            )
+        }
+
+        // Botón de refrescar manual
+        IconButton(
+            onClick = onRefresh,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(48.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = CircleShape
+                )
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = "Actualizar solicitudes",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }

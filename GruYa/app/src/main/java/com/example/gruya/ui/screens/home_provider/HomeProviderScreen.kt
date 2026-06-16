@@ -34,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.Button
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -72,9 +73,12 @@ import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.maplibre.compose.util.ClickResult
 
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
@@ -83,7 +87,8 @@ private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeProviderScreen(
-    viewModel: HomeProviderViewModel = hiltViewModel()
+    viewModel: HomeProviderViewModel = hiltViewModel(),
+    onNavigateToQuote: (Int) -> Unit = {}
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -285,7 +290,10 @@ fun HomeProviderScreen(
                     }
 
                     items(uiState.nearbyAssistances) { assistance ->
-                        AssistanceRequestCard(assistance)
+                        AssistanceRequestCard(
+                            assistance = assistance,
+                            onClick = { onNavigateToQuote(assistance.id) }
+                        )
                     }
 
                     item {
@@ -301,7 +309,8 @@ fun HomeProviderScreen(
             FullCoverageMap(
                 assistances = uiState.nearbyAssistances,
                 userLocationState = locationState,
-                onRefresh = { viewModel.loadNearbyAssistances() }
+                onRefresh = { viewModel.loadNearbyAssistances() },
+                onAssistanceClick = onNavigateToQuote
             )
         }
     }
@@ -381,10 +390,12 @@ fun AssistanceRequestCard(
 fun FullCoverageMap(
     assistances: List<NearbyAssistanceResponse>,
     userLocationState: org.maplibre.compose.location.UserLocationState? = null,
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    onAssistanceClick: (Int) -> Unit = {}
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     var locationCentered by remember { mutableStateOf(false) }
+    var selectedAssistance by remember { mutableStateOf<NearbyAssistanceResponse?>(null) }
 
     val initialPosition = remember(assistances) {
         if (assistances.isNotEmpty()) {
@@ -424,6 +435,10 @@ fun FullCoverageMap(
                 BaseStyle.Uri(DARK_STYLE_URL)
             } else {
                 BaseStyle.Uri(LIGHT_STYLE_URL)
+            },
+            onMapClick = { _, _ ->
+                selectedAssistance = null
+                ClickResult.Pass
             }
         ) {
             userLocationState?.let {
@@ -462,8 +477,52 @@ fun FullCoverageMap(
                 color = const(MaterialTheme.colorScheme.primary),
                 radius = const(10.dp),
                 strokeColor = const(Color.White),
-                strokeWidth = const(2.dp)
+                strokeWidth = const(2.dp),
+                onClick = { features ->
+                    features.firstOrNull()?.properties?.get("id")?.jsonPrimitive?.intOrNull?.let { id ->
+                        selectedAssistance = assistances.find { it.id == id }
+                    }
+                    ClickResult.Consume
+                }
             )
+        }
+
+        // Overlay Button for Selected Assistance
+        selectedAssistance?.let { assistance ->
+            Card(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 220.dp) // Above the bottom sheet peek
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = assistance.clientName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "${assistance.serviceType} • ${"%.1f".format(assistance.distanceKm)} km",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Button(
+                        onClick = { onAssistanceClick(assistance.id) },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Revisar")
+                    }
+                }
+            }
         }
 
         // Botón de refrescar manual

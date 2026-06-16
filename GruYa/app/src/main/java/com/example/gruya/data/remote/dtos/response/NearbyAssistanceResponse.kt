@@ -10,5 +10,6 @@ data class NearbyAssistanceResponse(
     val vehicle: String,
     val origin: Location,
     val destination: Location,
-    val distanceKm: Double
+    val distanceKm: Double,
+    val isDirected: Boolean
 )

@@ -51,6 +51,7 @@ import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.screens.favorites.FavoritesScreen
 import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
+import com.example.gruya.ui.screens.quote.QuoteScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
 import com.example.gruya.ui.screens.vehicle.VehiclesScreen
@@ -346,7 +347,11 @@ fun MainNavigationSuite(
                                     tabBackStack.add(AppDest.RequestAssistance)
                                 }
                             )
-                            Role.PROVIDER -> HomeProviderScreen()
+                            Role.PROVIDER -> HomeProviderScreen(
+                                onNavigateToQuote = { assistanceId ->
+                                    tabBackStack.add(AppDest.Quote(assistanceId))
+                                }
+                            )
                             else -> {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
@@ -451,6 +456,18 @@ fun MainNavigationSuite(
                                     }
                                 )
                             },
+                            onNavigateBack = {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            }
+                        )
+                    }
+
+                    entry<AppDest.Quote> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.Quote } as? AppDest.Quote
+                        QuoteScreen(
+                            assistanceId = currentEntry?.assistanceId,
                             onNavigateBack = {
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)

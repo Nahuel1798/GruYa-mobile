@@ -43,6 +43,11 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
+    data class Quote(val assistanceId: Int) : AppDest {
+        override val requieresAuth = true
+    }
+
+    @Serializable
     data object MainContent : AppDest {
         override val requieresAuth = false
     }

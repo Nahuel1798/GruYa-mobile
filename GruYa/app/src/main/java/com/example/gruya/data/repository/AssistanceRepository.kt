@@ -1,7 +1,7 @@
 package com.example.gruya.data.repository
 
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
-import com.example.gruya.data.remote.dtos.response.AssistanceRequestResponse
+import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.service.AssistanceService
@@ -12,7 +12,7 @@ import javax.inject.Singleton
 class AssistanceRepository @Inject constructor(
     private val assistanceService: AssistanceService
 ) {
-    suspend fun create(request: CreateAssistanceRequest): Result<AssistanceRequestResponse?> {
+    suspend fun create(request: CreateAssistanceRequest): Result<AssistanceResponse?> {
         return try {
             val response = assistanceService.create(request)
             if (response.isSuccessful) {
@@ -41,5 +41,26 @@ class AssistanceRepository @Inject constructor(
         rangeKm: Double = 20.0
     ): List<NearbyAssistanceResponse> {
         return assistanceService.getNearbyAssistances(rangeKm)
+    }
+    
+    suspend fun getAssistanceDetails(id: Int): Result<AssistanceResponse?> {
+        return try {
+            val response = assistanceService.getDetailsAssistances(id)
+            if (response.isSuccessful) {
+                Result.success(response.body())
+            } else {
+                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendQuote(assistanceId: Int, price: Double): Boolean {
+        // TODO: Implement API call when available
+        // val response = assistanceService.sendQuote(QuoteRequest(assistanceId, price))
+        // return response.isSuccessful
+        kotlinx.coroutines.delay(1000)
+        return true
     }
 }

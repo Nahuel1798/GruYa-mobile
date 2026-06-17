@@ -27,6 +27,9 @@ interface AssistanceService {
         @Query("rangeKm") rangeKm: Double = 20.0
     ): List<NearbyAssistanceResponse>
 
+    @GET("${Constants.ASSISTANCE_PATH}/my")
+    suspend fun getUserAssistances(): List<AssistanceResponse>
+
     @GET("${Constants.ASSISTANCE_PATH}/{id}")
     suspend fun getDetailsAssistances(
         @Path("id") id: Int

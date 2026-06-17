@@ -17,5 +17,6 @@ data class AssistanceResponse(
     val etaMinutes: Double?,
     val routeGeometry: String?,
     val origin: Location,
-    val destination: Location
+    val destination: Location,
+    val isDirected: Boolean
 )

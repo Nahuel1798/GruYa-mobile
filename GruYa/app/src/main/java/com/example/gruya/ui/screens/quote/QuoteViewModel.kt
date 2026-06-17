@@ -3,6 +3,7 @@ package com.example.gruya.ui.screens.quote
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.AssistanceRepository
+import com.example.gruya.data.repository.QuoteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class QuoteViewModel @Inject constructor(
-    private val assistanceRepository: AssistanceRepository
+    private val assistanceRepository: AssistanceRepository,
+    private val quoteRepository: QuoteRepository
 ) : ViewModel() {
 
     private var assistanceId: Int? = null
@@ -94,17 +96,16 @@ class QuoteViewModel @Inject constructor(
         val id = assistanceId ?: return
 
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            try {
-                val success = assistanceRepository.sendQuote(id, currentPrice)
-                if (success) {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val result = quoteRepository.sendQuote(id, currentPrice)
+            result.fold(
+                onSuccess = {
                     _uiState.update { it.copy(isLoading = false, isSubmitted = true) }
-                } else {
-                    _uiState.update { it.copy(isLoading = false, error = "Error al enviar el presupuesto") }
+                },
+                onFailure = { e ->
+                    _uiState.update { it.copy(isLoading = false, error = e.message ?: "Error al enviar el presupuesto") }
                 }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = "Error: ${e.message}") }
-            }
+            )
         }
     }
 

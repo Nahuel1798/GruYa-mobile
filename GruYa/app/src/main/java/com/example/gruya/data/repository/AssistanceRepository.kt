@@ -56,11 +56,4 @@ class AssistanceRepository @Inject constructor(
         }
     }
 
-    suspend fun sendQuote(assistanceId: Int, price: Double): Boolean {
-        // TODO: Implement API call when available
-        // val response = assistanceService.sendQuote(QuoteRequest(assistanceId, price))
-        // return response.isSuccessful
-        kotlinx.coroutines.delay(1000)
-        return true
-    }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Address
 import android.location.Geocoder
 import android.os.Build
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
@@ -28,6 +29,7 @@ import javax.inject.Inject
 class RequestAssistanceViewModel @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val assistanceRepository: AssistanceRepository,
+    private val savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -37,7 +39,35 @@ class RequestAssistanceViewModel @Inject constructor(
     private val geocoder = Geocoder(context, Locale.getDefault())
 
     init {
+        val providerId: Int? = savedStateHandle.get<Int>("providerId")
+        val serviceType: String? = savedStateHandle.get<String>("serviceType")
+
+        _uiState.update { 
+            it.copy(
+                providerId = providerId,
+                serviceType = serviceType,
+                selectedIssueType = mapServiceTypeToIssueType(serviceType)
+            )
+        }
+
         loadVehicles()
+    }
+
+    private fun mapServiceTypeToIssueType(serviceType: String?): IssueType? {
+        return when (serviceType?.uppercase()) {
+            "GOMERIA" -> IssueType.NEUMATICO_PINCHADO
+            "MECANICO" -> IssueType.FALLA_MOTOR
+            "AUXILIO" -> IssueType.NECESITA_REMOLQUE
+            else -> null
+        }
+    }
+
+    private fun mapStringToServiceType(serviceType: String?): ServiceType {
+        return when (serviceType?.uppercase()) {
+            "GOMERIA" -> ServiceType.GOMERIA
+            "MECANICO" -> ServiceType.MECANICO
+            else -> ServiceType.AUXILIO
+        }
     }
 
     private fun loadVehicles() {
@@ -164,7 +194,7 @@ class RequestAssistanceViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             val request = CreateAssistanceRequest(
-                serviceType = ServiceType.AUXILIO,
+                serviceType = mapStringToServiceType(state.serviceType),
                 issueType = state.selectedIssueType,
                 vehicleId = state.selectedVehicleId,
                 origin = Location(
@@ -174,7 +204,8 @@ class RequestAssistanceViewModel @Inject constructor(
                 destination = Location(
                     latitude = state.destinationLocation.first,
                     longitude = state.destinationLocation.second
-                )
+                ),
+                providerId = state.providerId
             )
 
             val result = assistanceRepository.create(request)

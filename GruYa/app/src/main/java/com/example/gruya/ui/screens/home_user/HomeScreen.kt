@@ -30,6 +30,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.location.Geocoder
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.core.net.toUri
 import com.example.gruya.R
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -58,11 +65,12 @@ import org.maplibre.spatialk.geojson.Position
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToRequestAssistance: () -> Unit = {},
+    onNavigateToRequestAssistance: (Int?, String?) -> Unit = { _, _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // 1. Map & Location State
     val locationProvider = rememberFusedLocationProvider()
@@ -439,7 +447,7 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(18.dp))
 
                             Button(
-                                onClick = onNavigateToRequestAssistance,
+                                onClick = { onNavigateToRequestAssistance(null, null) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(55.dp),
@@ -470,6 +478,28 @@ fun HomeScreen(
 
             uiState.selectedProvider?.let { provider ->
 
+                var addressText by remember(provider.id) { mutableStateOf("Cargando ubicación...") }
+
+                LaunchedEffect(provider.id) {
+                    try {
+                        val geocoder = Geocoder(context, Locale.getDefault())
+                        val addresses = withContext(Dispatchers.IO) {
+                            geocoder.getFromLocation(provider.latitude, provider.longitude, 1)
+                        }
+                        if (!addresses.isNullOrEmpty()) {
+                            val address = addresses[0]
+                            val street = address.thoroughfare ?: ""
+                            val number = address.subThoroughfare ?: ""
+                            val city = address.locality ?: ""
+                            addressText = if (street.isNotEmpty()) "$street $number, $city" else city
+                        } else {
+                            addressText = "Ubicación no disponible"
+                        }
+                    } catch (_: Exception) {
+                        addressText = "Lat: ${provider.latitude}, Lng: ${provider.longitude}"
+                    }
+                }
+
                 ModalBottomSheet(
                     onDismissRequest = {
                         viewModel.clearSelectedProvider()
@@ -479,59 +509,144 @@ fun HomeScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp)
+                            .padding(horizontal = 20.dp, vertical = 10.dp)
                     ) {
 
-                        val icon = when(provider.serviceType.uppercase()) {
-                            "AUXILIO" -> "🚚"
-                            "GOMERIA" -> "🛞"
-                            "MECANICO" -> "🔧"
-                            else -> "📍"
-                        }
-
                         Text(
-                            text = "$icon ${provider.companyName}",
-                            style = MaterialTheme.typography.headlineSmall
+                            text = provider.companyName,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(4.dp))
 
-                        AssistChip(
-                            onClick = {},
-                            label = {
-                                Text(provider.serviceType)
-                            }
-                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = provider.serviceType.uppercase(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
 
                         Spacer(Modifier.height(12.dp))
 
+                        // Fila de Disponibilidad
+                        Surface(
+                            color = (if (provider.isAvailable) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = if (provider.isAvailable) "DISPONIBLE" else "NO DISPONIBLE",
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                color = if (provider.isAvailable) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Text(
+                            text = "Descripción",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Text(
                             text = provider.description,
                             style = MaterialTheme.typography.bodyLarge
                         )
 
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(8.dp))
 
                         Text(
-                            text = if (provider.isAvailable)
-                                "Disponible"
-                            else
-                                "No disponible",
-                            color = if (provider.isAvailable)
-                                Color(0xFF4CAF50)
-                            else
-                                Color.Red
+                            text = "Contacto",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = provider.phone,
+                            style = MaterialTheme.typography.bodyMedium
                         )
 
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(8.dp))
 
-                        Button(
+                        Text(
+                            text = "Ubicación",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = addressText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+
+                        Spacer(Modifier.height(24.dp))
+
+                        // Botones de acción
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = {
-                                viewModel.requestTowTruck()
-                            }
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Solicitar asistencia")
+                            // WhatsApp
+                            Button(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp),
+                                onClick = {
+                                    val url = "https://wa.me/${provider.phone.filter { it.isDigit() }}"
+                                    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                                    context.startActivity(intent)
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF25D366),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text("WhatsApp", style = MaterialTheme.typography.labelLarge)
+                            }
+
+                            // Llamar
+                            OutlinedButton(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(50.dp),
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_DIAL, "tel:${provider.phone}".toUri())
+                                    context.startActivity(intent)
+                                },
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Llamar", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
+                        // Botón Solicitar (Principal)
+                        Button(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp),
+                            onClick = {
+                                viewModel.clearSelectedProvider()
+                                onNavigateToRequestAssistance(provider.id, provider.serviceType)
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(
+                                "SOLICITAR ASISTENCIA",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
                         }
                     }
                 }

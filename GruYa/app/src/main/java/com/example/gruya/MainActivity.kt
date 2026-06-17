@@ -343,8 +343,8 @@ fun MainNavigationSuite(
                     entry<AppDest.TabKey.Home> {
                         when (currentRole) {
                             Role.USER -> HomeScreen(
-                                onNavigateToRequestAssistance = {
-                                    tabBackStack.add(AppDest.RequestAssistance)
+                                onNavigateToRequestAssistance = { providerId, serviceType ->
+                                    tabBackStack.add(AppDest.RequestAssistance(providerId, serviceType))
                                 }
                             )
                             Role.PROVIDER -> HomeProviderScreen(
@@ -385,6 +385,7 @@ fun MainNavigationSuite(
                     }
 
                     entry<AppDest.RequestAssistance> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.RequestAssistance } as? AppDest.RequestAssistance
                         val vm: RequestAssistanceViewModel = hiltViewModel()
 
                         onMapLocationPicked.value = { lat, lng, isDest ->

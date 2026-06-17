@@ -13,6 +13,8 @@ data class RequestAssistanceUiState(
     val destinationLocation: Pair<Double, Double>? = null,
     val destinationAddress: String? = null,
     val destinationAddressQuery: String = "",
+    val providerId: Int? = null,
+    val serviceType: String? = null,
     val isLoading: Boolean = false,
     val isSubmitted: Boolean = false,
     val error: String? = null

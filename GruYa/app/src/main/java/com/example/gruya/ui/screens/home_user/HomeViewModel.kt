@@ -50,37 +50,6 @@ class HomeViewModel @Inject constructor(
         _uiState.update { it.copy(error = null) }
     }
 
-    // FIXED: requestTowTruck ahora limpia isLoading y cierra el sheet al terminar
-    fun requestTowTruck() {
-        val location = _uiState.value.userLocation ?: run {
-            _uiState.update { it.copy(error = "No se pudo obtener tu ubicación") }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            try {
-                // TODO: reemplazar con llamada real a assistanceRepository.create(...)
-                // assistanceRepository.create(request)
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        selectedProvider = null   // cierra el ModalBottomSheet
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("GRUYA", "Error solicitando grúa", e)
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message ?: "Error al solicitar el servicio"
-                    )
-                }
-            }
-        }
-    }
-
     fun selectProvider(provider: ProviderLocationResponse) {
         _uiState.update { it.copy(selectedProvider = provider) }
     }

@@ -33,7 +33,7 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
-    data object RequestAssistance : AppDest {
+    data class RequestAssistance(val providerId: Int? = null, val serviceType: String? = null) : AppDest {
         override val requieresAuth = true
     }
 

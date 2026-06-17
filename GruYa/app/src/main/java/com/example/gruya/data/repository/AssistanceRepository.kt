@@ -1,10 +1,12 @@
 package com.example.gruya.data.repository
 
+import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.service.AssistanceService
+import com.example.gruya.domain.model.Assistance
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,4 +58,12 @@ class AssistanceRepository @Inject constructor(
         }
     }
 
+    suspend fun getUserAssistances(): Result<List<Assistance>> {
+        return try {
+            val response = assistanceService.getUserAssistances()
+            Result.success(response.toDomain())
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al obtener las solicitudes de auxilio", e))
+        }
+    }
 }

@@ -59,7 +59,9 @@ sealed interface AppDest : NavKey {
         @Serializable
         data object Vehicles : TabKey
         @Serializable
-        data object Favourites : TabKey
+        data object Assistances : TabKey
+        @Serializable
+        data class QuotesList(val assistanceId: Int) : TabKey
         @Serializable
         data object Profile : TabKey
     }

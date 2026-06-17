@@ -1,7 +1,9 @@
 package com.example.gruya.data.repository
 
+import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateQuoteRequest
 import com.example.gruya.data.service.QuoteService
+import com.example.gruya.domain.model.Quote
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,6 +27,46 @@ class QuoteRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Error de conexión: ${e.message}", e))
+        }
+    }
+
+    suspend fun getByAssistance(assistanceId: Int): Result<List<Quote>> {
+        return try {
+            val response = quoteService.getByAssistance(assistanceId)
+            if (response.isSuccessful) {
+                val quotes = response.body()?.toDomain().orEmpty()
+                Result.success(quotes)
+            } else {
+                Result.failure(Exception("No se encontraron presupuestos"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al cargar presupuestos", e))
+        }
+    }
+
+    suspend fun acceptQuote(quoteId: Int): Result<Unit> {
+        return try {
+            val response = quoteService.accept(quoteId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al aceptar el presupuesto"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al aceptar el presupuesto", e))
+        }
+    }
+
+    suspend fun rejectQuote(quoteId: Int): Result<Unit> {
+        return try {
+            val response = quoteService.reject(quoteId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al rechazar el presupuesto"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al rechazar el presupuesto", e))
         }
     }
 }

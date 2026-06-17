@@ -1,8 +1,12 @@
 package com.example.gruya.ui.screens.quote
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -50,6 +54,7 @@ fun QuoteScreen(
     viewModel: QuoteViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var isExpanded by remember { mutableStateOf(false) }
 
     // Initialize ID in ViewModel
     LaunchedEffect(assistanceId) {
@@ -214,7 +219,8 @@ fun QuoteScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .animateContentSize(),
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                 colors = CardDefaults.cardColors(
@@ -224,116 +230,134 @@ fun QuoteScreen(
                 Column(
                     modifier = Modifier
                         .padding(20.dp)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .then(if (isExpanded) Modifier.verticalScroll(rememberScrollState()) else Modifier),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     if (uiState.isLoading && uiState.assistanceRequest == null) {
                         CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
                     } else if (uiState.assistanceRequest != null) {
                         val assistance = uiState.assistanceRequest!!
-                        
+
+                        // Header (Clickable to expand/collapse)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isExpanded = !isExpanded },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = "${assistance.client.firstName} ${assistance.client.lastName}",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "${assistance.vehicle.brand} ${assistance.vehicle.model} • ${assistance.vehicle.licensePlate}",
+                                    text = "${assistance.vehicle.brand} ${assistance.vehicle.model}",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = RoundedCornerShape(12.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = assistance.issueType.displayName,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                }
+                                Icon(
+                                    imageVector = if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(start = 8.dp)
+                                )
+                            }
+                        }
+                        
+                        if (isExpanded) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                DetailItem(
+                                    icon = Icons.Outlined.DirectionsCar,
+                                    label = "Vehículo",
+                                    value = "${assistance.vehicle.brand} ${assistance.vehicle.model} (${assistance.vehicle.licensePlate})"
+                                )
+                                uiState.originAddress?.let {
+                                    DetailItem(
+                                        icon = Icons.Outlined.LocationOn,
+                                        label = "Origen",
+                                        value = it
+                                    )
+                                }
+                                uiState.destinationAddress?.let {
+                                    DetailItem(
+                                        icon = Icons.Outlined.Flag,
+                                        label = "Destino",
+                                        value = it
+                                    )
+                                }
+                                DetailItem(
+                                    icon = Icons.Outlined.Route,
+                                    label = "Distancia",
+                                    value = "${"%.1f".format(assistance.distanceKm ?: 0.0)} km"
+                                )
+                                // ETA Estimado
+                                val eta = assistance.etaMinutes?.toInt() ?: (assistance.distanceKm?.let { (it * 3).toInt() } ?: 5).coerceAtLeast(5)
+                                DetailItem(
+                                    icon = Icons.Outlined.AccessTime,
+                                    label = "Llegada estimada",
+                                    value = "~$eta min"
+                                )
+                                DetailItem(
+                                    icon = Icons.Outlined.Build,
+                                    label = "Servicio",
+                                    value = assistance.serviceType.displayName
+                                )
+                                DetailItem(
+                                    icon = Icons.Outlined.Info,
+                                    label = "Problema",
+                                    value = assistance.issueType.displayName
+                                )
+                            }
+
+                            AppTextField(
+                                value = uiState.price,
+                                onValueChange = viewModel::onPriceChanged,
+                                placeholder = "Precio del servicio",
+                                leadingIcon = Icons.Default.AttachMoney,
+                                keyboardType = KeyboardType.Number,
+                                errorMessage = uiState.error
+                            )
+
+                            Button(
+                                onClick = viewModel::submitQuote,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                enabled = uiState.price.isNotBlank() && !uiState.isLoading,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary,
+                                    contentColor = MaterialTheme.colorScheme.onSecondary
+                                )
                             ) {
-                                Text(
-                                    text = assistance.issueType.displayName,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                        
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            uiState.originAddress?.let {
-                                DetailItem(
-                                    icon = Icons.Outlined.LocationOn,
-                                    label = "Origen",
-                                    value = it
-                                )
-                            }
-                            uiState.destinationAddress?.let {
-                                DetailItem(
-                                    icon = Icons.Outlined.Flag,
-                                    label = "Destino",
-                                    value = it
-                                )
-                            }
-                            DetailItem(
-                                icon = Icons.Outlined.Route,
-                                label = "Distancia",
-                                value = "${"%.1f".format(assistance.distanceKm ?: 0.0)} km"
-                            )
-                            // ETA Estimado
-                            val eta = assistance.etaMinutes?.toInt() ?: (assistance.distanceKm?.let { (it * 3).toInt() } ?: 5).coerceAtLeast(5)
-                            DetailItem(
-                                icon = Icons.Outlined.AccessTime,
-                                label = "Llegada estimada",
-                                value = "~$eta min"
-                            )
-                            DetailItem(
-                                icon = Icons.Outlined.Build,
-                                label = "Servicio",
-                                value = assistance.serviceType.displayName
-                            )
-                            DetailItem(
-                                icon = Icons.Outlined.Info,
-                                label = "Problema",
-                                value = assistance.issueType.displayName
-                            )
-                        }
-
-                        AppTextField(
-                            value = uiState.price,
-                            onValueChange = viewModel::onPriceChanged,
-                            placeholder = "Precio del servicio",
-                            leadingIcon = Icons.Default.AttachMoney,
-                            keyboardType = KeyboardType.Number,
-                            errorMessage = uiState.error
-                        )
-
-                        Button(
-                            onClick = viewModel::submitQuote,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            enabled = uiState.price.isNotBlank() && !uiState.isLoading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary,
-                                contentColor = MaterialTheme.colorScheme.onSecondary
-                            )
-                        ) {
-                            if (uiState.isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = MaterialTheme.colorScheme.onSecondary
-                                )
-                            } else {
-                                Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Enviar Presupuesto", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                if (uiState.isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.onSecondary
+                                    )
+                                } else {
+                                    Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = null)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Enviar Presupuesto", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                }
                             }
                         }
                     } else if (uiState.error != null) {

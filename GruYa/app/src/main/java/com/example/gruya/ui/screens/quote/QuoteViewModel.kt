@@ -44,7 +44,7 @@ class QuoteViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { assistance ->
                         if (assistance != null) {
-                            _uiState.update { 
+                            _uiState.update {
                                 it.copy(
                                     assistanceRequest = assistance, 
                                     isLoading = false 

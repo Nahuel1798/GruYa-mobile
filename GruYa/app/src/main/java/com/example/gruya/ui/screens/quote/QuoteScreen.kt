@@ -35,7 +35,6 @@ import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.LineString
 import org.maplibre.spatialk.geojson.Point
-import org.maplibre.spatialk.geojson.Position
 
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.gruya.ui.theme.GruYaTheme
@@ -45,6 +44,26 @@ import android.location.Geocoder
 import android.os.Build
 import androidx.compose.ui.platform.LocalContext
 import java.util.Locale
+
+import org.json.JSONArray
+import org.maplibre.spatialk.geojson.Position
+
+fun parseRouteGeometry(routeGeometry: String): List<Position> {
+    val json = JSONArray(routeGeometry)
+
+    return buildList {
+        for (i in 0 until json.length()) {
+            val coord = json.getJSONArray(i)
+
+            add(
+                Position(
+                    longitude = coord.getDouble(0),
+                    latitude = coord.getDouble(1)
+                )
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -170,31 +189,36 @@ fun QuoteScreen(
                     }
 
                     // Trazar la ruta (línea recta entre origen y destino)
-                    if (assistance.destination.latitude != 0.0) {
-                        val routeSource = rememberGeoJsonSource(
-                            data = GeoJsonData.Features(
-                                geoJson = FeatureCollection(
-                                    features = listOf(
-                                        Feature(
-                                            geometry = LineString(
-                                                coordinates = listOf(
-                                                    Position(assistance.origin.longitude, assistance.origin.latitude),
-                                                    Position(assistance.destination.longitude, assistance.destination.latitude)
-                                                )
-                                            ),
-                                            properties = null
+                    assistance.routeGeometry?.let { geometry ->
+
+                        val routePositions = remember(geometry) {
+                            parseRouteGeometry(geometry)
+                        }
+
+                        if (routePositions.isNotEmpty()) {
+
+                            val routeSource = rememberGeoJsonSource(
+                                data = GeoJsonData.Features(
+                                    geoJson = FeatureCollection(
+                                        features = listOf(
+                                            Feature(
+                                                geometry = LineString(
+                                                    coordinates = routePositions
+                                                ),
+                                                properties = null
+                                            )
                                         )
                                     )
                                 )
                             )
-                        )
-                        
-                        LineLayer(
-                            id = "assistance-route",
-                            source = routeSource,
-                            color = const(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)),
-                            width = const(5.dp)
-                        )
+
+                            LineLayer(
+                                id = "assistance-route",
+                                source = routeSource,
+                                color = const(MaterialTheme.colorScheme.primary),
+                                width = const(6.dp)
+                            )
+                        }
                     }
 
                     val markersSource = rememberGeoJsonSource(

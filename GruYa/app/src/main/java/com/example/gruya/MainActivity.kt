@@ -49,7 +49,9 @@ import com.example.gruya.ui.screens.auth.register.LocationPickerScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
-import com.example.gruya.ui.screens.favorites.FavoritesScreen
+import com.example.gruya.ui.screens.assistances.AssistancesScreen
+import com.example.gruya.ui.screens.quotes_list.QuotesListScreen
+import com.example.gruya.ui.screens.quotes_list.QuotesListViewModel
 import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
 import com.example.gruya.ui.screens.quote.QuoteScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
@@ -245,8 +247,8 @@ fun MainNavigationSuite(
 
         add(
             NavItem(
-                key = AppDest.TabKey.Favourites,
-                label = "Favoritos",
+                key = AppDest.TabKey.Assistances,
+                label = "Solicitudes",
                 selectedIcon = Icons.Filled.Favorite,
                 unselectedIcon = Icons.Outlined.FavoriteBorder
             )
@@ -363,8 +365,30 @@ fun MainNavigationSuite(
                         }
                     }
 
-                    entry<AppDest.TabKey.Favourites> {
-                        FavoritesScreen()
+                    entry<AppDest.TabKey.Assistances> {
+                        AssistancesScreen(
+                            onNavigateToQuotes = { assistanceId ->
+                                tabBackStack.add(AppDest.TabKey.QuotesList(assistanceId))
+                            }
+                        )
+                    }
+
+                    entry<AppDest.TabKey.QuotesList> {
+                        val quotesListViewModel: QuotesListViewModel = hiltViewModel()
+                        val currentEntry = tabBackStack.findLast { it is AppDest.TabKey.QuotesList } as? AppDest.TabKey.QuotesList
+                        val assistanceId = currentEntry?.assistanceId ?: return@entry
+
+                        LaunchedEffect(assistanceId) {
+                            quotesListViewModel.loadQuotes(assistanceId)
+                        }
+
+                        QuotesListScreen(
+                            onNavigateBack = {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            }
+                        )
                     }
 
                     entry<AppDest.TabKey.Vehicles> {

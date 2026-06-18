@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -76,6 +77,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.maplibre.compose.util.ClickResult
@@ -88,10 +90,33 @@ private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 @Composable
 fun HomeProviderScreen(
     viewModel: HomeProviderViewModel = hiltViewModel(),
-    onNavigateToQuote: (Int) -> Unit = {}
+    onNavigateToQuote: (Int) -> Unit = {},
+    onNavigateToCompleteProfile: () -> Unit = {}
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.checkProfileCompletion()
+        onPauseOrDispose { }
+    }
+
+    LaunchedEffect(uiState.isProfileComplete) {
+        if (uiState.isProfileComplete == false) {
+            onNavigateToCompleteProfile()
+        }
+    }
+
+    if (uiState.isProfileComplete == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
     val context = LocalContext.current
     val geocoder = remember { Geocoder(context, Locale.getDefault()) }
 

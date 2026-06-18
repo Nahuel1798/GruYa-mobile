@@ -3,8 +3,11 @@ package com.example.gruya.ui.screens.request_assistance
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -57,6 +60,7 @@ import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
 
+@RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapPickerScreen(
@@ -197,7 +201,7 @@ fun MapPickerScreen(
                             selectedLocation = Pair(loc.position.value.latitude, loc.position.value.longitude)
                         }
                     },
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                    contentPadding = PaddingValues(8.dp),
                     shape = CircleShape,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -229,7 +233,7 @@ fun MapPickerScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Outlined.CheckCircle, contentDescription = null)
-                androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(8.dp))
+                Spacer(modifier = Modifier.size(8.dp))
                 Text("Confirmar ubicación", fontWeight = FontWeight.SemiBold)
             }
         }

@@ -53,6 +53,7 @@ import com.example.gruya.ui.screens.assistances.AssistancesScreen
 import com.example.gruya.ui.screens.quotes_list.QuotesListScreen
 import com.example.gruya.ui.screens.quotes_list.QuotesListViewModel
 import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
+import com.example.gruya.ui.screens.home_provider.HomeProviderViewModel
 import com.example.gruya.ui.screens.quote.QuoteScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
 import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
@@ -163,6 +164,8 @@ fun GruYaApp(
                 LaunchedEffect(providerUiState.success) {
                     if (providerUiState.success) {
                         authViewModel.onLoginSuccess()
+                        backStack.clear()
+                        backStack.add(AppDest.MainContent)
                     }
                 }
 
@@ -207,6 +210,7 @@ fun GruYaApp(
             entry<AppDest.MainContent> {
                 MainNavigationSuite(
                     authViewModel = authViewModel,
+                    providerViewModel = providerViewModel,
                     onLogout = {
                         authViewModel.logout()
                     }
@@ -226,6 +230,7 @@ private data class NavItem(
 @Composable
 fun MainNavigationSuite(
     authViewModel: AuthViewModel,
+    providerViewModel: ProviderProfileViewModel,
     onLogout: () -> Unit
 ) {
     val tabBackStack = rememberNavBackStack(
@@ -233,6 +238,14 @@ fun MainNavigationSuite(
     )
 
     val currentRole by authViewModel.currentRole.collectAsState()
+    val homeProviderViewModel: HomeProviderViewModel = hiltViewModel()
+    val homeProviderUiState by homeProviderViewModel.uiState.collectAsState()
+
+    val showNav = if (currentRole == Role.PROVIDER) {
+        homeProviderUiState.isProfileComplete == true
+    } else {
+        true
+    }
 
     val navItems = buildList {
 
@@ -290,39 +303,40 @@ fun MainNavigationSuite(
             navigationBarContainerColor = MaterialTheme.colorScheme.surface,
         ),
         navigationSuiteItems = {
+            if (showNav) {
+                navItems.forEach { item ->
 
-            navItems.forEach { item ->
+                    val selected =
+                        tabBackStack.lastOrNull() == item.key
 
-                val selected =
-                    tabBackStack.lastOrNull() == item.key
+                    item(
+                        selected = selected,
 
-                item(
-                    selected = selected,
+                        onClick = {
+                            if (!selected) {
+                                tabBackStack.clear()
+                                tabBackStack.add(item.key)
+                            }
+                        },
 
-                    onClick = {
-                        if (!selected) {
-                            tabBackStack.clear()
-                            tabBackStack.add(item.key)
-                        }
-                    },
+                        icon = {
+                            Icon(
+                                imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                contentDescription = item.label
+                            )
+                        },
 
-                    icon = {
-                        Icon(
-                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                            contentDescription = item.label
-                        )
-                    },
+                        label = {
+                            Text(
+                                text = item.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        },
 
-                    label = {
-                        Text(
-                            text = item.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
-                        )
-                    },
-
-                    colors = navSuiteItemColors
-                )
+                        colors = navSuiteItemColors
+                    )
+                }
             }
         }
     ) {
@@ -350,8 +364,12 @@ fun MainNavigationSuite(
                                 }
                             )
                             Role.PROVIDER -> HomeProviderScreen(
+                                viewModel = homeProviderViewModel,
                                 onNavigateToQuote = { assistanceId ->
                                     tabBackStack.add(AppDest.Quote(assistanceId))
+                                },
+                                onNavigateToCompleteProfile = {
+                                    tabBackStack.add(AppDest.ProviderProfile)
                                 }
                             )
                             else -> {
@@ -497,6 +515,55 @@ fun MainNavigationSuite(
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)
                                 }
+                            }
+                        )
+                    }
+
+                    entry<AppDest.ProviderProfile> {
+                        val providerUiState by providerViewModel.uiState.collectAsState()
+
+                        LaunchedEffect(providerUiState.success) {
+                            if (providerUiState.success) {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            }
+                        }
+
+                        ProviderProfileScreen(
+                            uiState = providerUiState,
+                            onBack = {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            },
+                            onCompanyNameChange = providerViewModel::onCompanyNameChange,
+                            onServiceTypeChange = providerViewModel::onServiceTypeChange,
+                            onDescriptionChange = providerViewModel::onDescriptionChange,
+                            onAvailableChange = providerViewModel::onAvailableChange,
+                            onAddressChange = providerViewModel::onAddressChange,
+                            onSearchAddress = providerViewModel::searchAddress,
+                            onLocationChange = providerViewModel::onLocationChange,
+                            onOpenMap = {
+                                tabBackStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
+                            },
+                            onConfirm = {
+                                providerViewModel.createProfile()
+                            }
+                        )
+                    }
+
+                    entry<AppDest.LocationPicker> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.LocationPicker } as? AppDest.LocationPicker
+                        LocationPickerScreen(
+                            initialLat = currentEntry?.initialLat,
+                            initialLng = currentEntry?.initialLng,
+                            onLocationSelected = { lat, lng ->
+                                providerViewModel.onLocationChange(lat, lng)
+                                tabBackStack.removeAt(tabBackStack.size - 1)
+                            },
+                            onBack = {
+                                tabBackStack.removeAt(tabBackStack.size - 1)
                             }
                         )
                     }

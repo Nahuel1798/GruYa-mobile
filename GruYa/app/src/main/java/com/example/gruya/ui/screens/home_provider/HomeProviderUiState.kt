@@ -1,6 +1,7 @@
 package com.example.gruya.ui.screens.home_provider
 
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
+import com.example.gruya.domain.model.ProviderProfile
 import org.maplibre.spatialk.geojson.Position
 
 data class HomeProviderUiState(
@@ -12,5 +13,7 @@ data class HomeProviderUiState(
     val currentLocation: String = "",
     val nearbyAssistances: List<NearbyAssistanceResponse> = emptyList(),
     val hasLocationPermission: Boolean = false,
-    val userLocation: Position? = null
+    val userLocation: Position? = null,
+    val isProfileComplete: Boolean? = null,
+    val providerProfile: ProviderProfile? = null
 )

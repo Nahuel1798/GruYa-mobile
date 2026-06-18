@@ -112,7 +112,8 @@ class ProviderProfileViewModel @Inject constructor(
                 companyName = currentState.companyName,
                 description = currentState.description,
                 location = location,
-                address = currentState.address
+                address = currentState.address,
+                isAvailable = currentState.available
             )
             
             _uiState.update { currentValue ->

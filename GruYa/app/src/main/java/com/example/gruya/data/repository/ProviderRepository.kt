@@ -15,17 +15,21 @@ import javax.inject.Inject
 class ProviderRepository @Inject constructor(
     private val providerService: ProviderService
 ) {
-    suspend fun create(serviceType: ServiceType, companyName: String, description: String, location: Location, address: String): Boolean{
+    suspend fun create(serviceType: ServiceType, companyName: String, description: String, location: Location, address: String, isAvailable: Boolean = true): Boolean{
         val request = CreateProviderProfileRequest(
             serviceType = serviceType,
             companyName = companyName,
             description = description,
             location = location,
-            address = address
+            address = address,
+            isAvailable = isAvailable
         )
         val response = providerService.create(
             request
         )
+        if (!response.isSuccessful) {
+            Log.e("API", "Error creating profile: ${response.code()} ${response.errorBody()?.string()}")
+        }
         Log.d("API",response.toString())
         return response.isSuccessful
     }

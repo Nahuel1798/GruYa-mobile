@@ -5,10 +5,11 @@ import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -86,7 +87,7 @@ fun LocationPickerScreen(
             target = if (selectedLat != null && selectedLng != null) {
                 Position(selectedLng!!, selectedLat!!)
             } else {
-                Position(-58.3816, -34.6037) // Buenos Aires
+                Position(-66.3356, -33.2950) // San Luis como fallback
             },
             zoom = 15.0
         )
@@ -124,11 +125,43 @@ fun LocationPickerScreen(
             )
         },
         floatingActionButton = {
-            if (selectedLat != null && selectedLng != null) {
-                FloatingActionButton(
-                    onClick = { onLocationSelected(selectedLat!!, selectedLng!!) }
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = "Confirmar")
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Botón de mi ubicación
+                if (hasLocationPermission) {
+                    FloatingActionButton(
+                        onClick = {
+                            userLocationState?.location?.let {
+                                val lat = it.position.value.latitude
+                                val lng = it.position.value.longitude
+                                selectedLat = lat
+                                selectedLng = lng
+                                scope.launch {
+                                    cameraState.animateTo(
+                                        CameraPosition(
+                                            target = Position(lng, lat),
+                                            zoom = 15.0
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                    }
+                }
+
+                // Botón de confirmar
+                if (selectedLat != null && selectedLng != null) {
+                    FloatingActionButton(
+                        onClick = { onLocationSelected(selectedLat!!, selectedLng!!) }
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Confirmar")
+                    }
                 }
             }
         }
@@ -178,35 +211,6 @@ fun LocationPickerScreen(
                         strokeColor = const(Color.White),
                         strokeWidth = const(2.dp)
                     )
-                }
-            }
-
-            // Botón de mi ubicación
-            if (hasLocationPermission) {
-                Button(
-                    onClick = {
-                        userLocationState?.location?.let {
-                            val lat = it.position.value.latitude
-                            val lng = it.position.value.longitude
-                            selectedLat = lat
-                            selectedLng = lng
-                            scope.launch {
-                                cameraState.animateTo(CameraPosition(target = Position(lng, lat), zoom = 15.0))
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom = 16.dp, end = 16.dp)
-                        .size(56.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)
-                ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
                 }
             }
         }

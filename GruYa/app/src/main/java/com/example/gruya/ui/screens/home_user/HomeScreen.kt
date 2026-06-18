@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import kotlinx.coroutines.launch
@@ -38,6 +40,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
 import com.example.gruya.R
+import com.example.gruya.ui.theme.Success
+import com.example.gruya.ui.theme.Warning
+import com.example.gruya.ui.theme.Info
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -65,7 +70,7 @@ import org.maplibre.spatialk.geojson.Position
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToRequestAssistance: (Int?, String?) -> Unit = { _, _ -> },
+    onNavigateToRequestAssistance: (Int?, String?, Double?, Double?) -> Unit = { _, _, _, _ -> },
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -447,13 +452,20 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(18.dp))
 
                             Button(
-                                onClick = { onNavigateToRequestAssistance(null, null) },
+                                onClick = { 
+                                    onNavigateToRequestAssistance(
+                                        null, 
+                                        null, 
+                                        uiState.userLocation?.latitude, 
+                                        uiState.userLocation?.longitude
+                                    ) 
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(55.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.secondary,
-                                    contentColor = MaterialTheme.colorScheme.onSecondary
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                 ),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
@@ -515,99 +527,97 @@ fun HomeScreen(
                         Text(
                             text = provider.companyName,
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(8.dp))
 
-                        Surface(
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            shape = RoundedCornerShape(8.dp)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = provider.serviceType.uppercase(),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = provider.serviceType.uppercase(),
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+
+                            // Fila de Disponibilidad
+                            Surface(
+                                color = if (provider.isAvailable) Success.copy(alpha = 0.1f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = if (provider.isAvailable) "DISPONIBLE" else "NO DISPONIBLE",
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    color = if (provider.isAvailable) Success else MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
 
-                        Spacer(Modifier.height(12.dp))
-
-                        // Fila de Disponibilidad
-                        Surface(
-                            color = (if (provider.isAvailable) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = if (provider.isAvailable) "DISPONIBLE" else "NO DISPONIBLE",
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                color = if (provider.isAvailable) Color(0xFF2E7D32) else Color(0xFFC62828),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(20.dp))
 
                         Text(
                             text = "Descripción",
                             style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = provider.description,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Text(
-                            text = "Contacto",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = provider.phone,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Text(
-                            text = "Ubicación",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = addressText,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
                         )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            InfoRow(
+                                icon = Icons.Default.Phone,
+                                label = "Contacto",
+                                value = provider.phone
+                            )
+                            InfoRow(
+                                icon = Icons.Default.LocationOn,
+                                label = "Ubicación",
+                                value = addressText
+                            )
+                        }
 
                         Spacer(Modifier.height(24.dp))
 
                         // Botones de acción
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // WhatsApp
                             Button(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(50.dp),
+                                    .height(52.dp),
                                 onClick = {
                                     val url = "https://wa.me/${provider.phone.filter { it.isDigit() }}"
                                     val intent = Intent(Intent.ACTION_VIEW, url.toUri())
                                     context.startActivity(intent)
                                 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color(0xFF25D366),
                                     contentColor = Color.White
                                 )
                             ) {
+                                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text("WhatsApp", style = MaterialTheme.typography.labelLarge)
                             }
 
@@ -615,18 +625,21 @@ fun HomeScreen(
                             OutlinedButton(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(50.dp),
+                                    .height(52.dp),
                                 onClick = {
                                     val intent = Intent(Intent.ACTION_DIAL, "tel:${provider.phone}".toUri())
                                     context.startActivity(intent)
                                 },
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(16.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                             ) {
+                                Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
                                 Text("Llamar", style = MaterialTheme.typography.labelLarge)
                             }
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
 
                         // Botón Solicitar (Principal)
                         Button(
@@ -635,16 +648,23 @@ fun HomeScreen(
                                 .height(56.dp),
                             onClick = {
                                 viewModel.clearSelectedProvider()
-                                onNavigateToRequestAssistance(provider.id, provider.serviceType)
+                                onNavigateToRequestAssistance(
+                                    provider.id, 
+                                    provider.serviceType,
+                                    uiState.userLocation?.latitude,
+                                    uiState.userLocation?.longitude
+                                )
                             },
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                         ) {
                             Text(
                                 "SOLICITAR ASISTENCIA",
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -671,6 +691,46 @@ fun HomeScreen(
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+            shape = CircleShape,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }

@@ -374,8 +374,8 @@ fun MainNavigationSuite(
                     entry<AppDest.TabKey.Home> {
                         when (currentRole) {
                             Role.USER -> HomeScreen(
-                                onNavigateToRequestAssistance = { providerId, serviceType ->
-                                    tabBackStack.add(AppDest.RequestAssistance(providerId, serviceType))
+                                onNavigateToRequestAssistance = { providerId, serviceType, lat, lng ->
+                                    tabBackStack.add(AppDest.RequestAssistance(providerId, serviceType, lat, lng))
                                 }
                             )
                             Role.PROVIDER -> HomeProviderScreen(

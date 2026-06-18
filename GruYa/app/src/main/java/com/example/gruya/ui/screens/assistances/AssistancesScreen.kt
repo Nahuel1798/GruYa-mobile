@@ -89,7 +89,7 @@ fun AssistancesScreen(
                 )
             }
 
-            uiState.assistances.isEmpty() -> {
+            uiState.assistances.isEmpty() && uiState.activeAssistance == null -> {
                 AssistancesEmptyContent(
                     modifier = Modifier.padding(padding)
                 )
@@ -97,6 +97,7 @@ fun AssistancesScreen(
 
             else -> {
                 AssistancesListContent(
+                    activeAssistance = uiState.activeAssistance,
                     assistances = uiState.assistances,
                     onNavigateToQuotes = onNavigateToQuotes,
                     modifier = Modifier.padding(padding)
@@ -108,6 +109,7 @@ fun AssistancesScreen(
 
 @Composable
 private fun AssistancesListContent(
+    activeAssistance: Assistance?,
     assistances: List<Assistance>,
     onNavigateToQuotes: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -118,14 +120,114 @@ private fun AssistancesListContent(
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item { Spacer(modifier = Modifier.height(4.dp)) }
-        items(assistances, key = { it.id }) { assistance ->
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+
+        activeAssistance?.let {
+            item {
+                Text(
+                    text = "Solicitud Activa",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                ActiveAssistanceCard(
+                    assistance = it,
+                    onNavigateToQuotes = onNavigateToQuotes
+                )
+            }
+            item {
+                if (assistances.isNotEmpty()) {
+                    Text(
+                        text = "Historial y otras solicitudes",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        items(assistances.filter { it.id != activeAssistance?.id }, key = { it.id }) { assistance ->
             AssistanceCard(
                 assistance = assistance,
                 onNavigateToQuotes = onNavigateToQuotes
             )
         }
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+    }
+}
+
+@Composable
+private fun ActiveAssistanceCard(
+    assistance: Assistance,
+    onNavigateToQuotes: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconForServiceType(
+                        serviceType = assistance.serviceType,
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = assistance.issueType.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+                StatusBadge(status = assistance.status)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = "${assistance.vehicle.brand} ${assistance.vehicle.model}",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Text(
+                text = assistance.vehicle.licensePlate,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { onNavigateToQuotes(assistance.id) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    text = "Ver detalles y seguimiento",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
     }
 }
 
@@ -205,7 +307,8 @@ private fun AssistanceCard(
 @Composable
 private fun IconForServiceType(
     serviceType: ServiceType,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.primary
 ) {
     val icon: ImageVector = when (serviceType) {
         ServiceType.AUXILIO -> Icons.Default.CarRepair
@@ -216,7 +319,7 @@ private fun IconForServiceType(
         imageVector = icon,
         contentDescription = serviceType.displayName,
         modifier = modifier.size(24.dp),
-        tint = MaterialTheme.colorScheme.primary
+        tint = tint
     )
 }
 

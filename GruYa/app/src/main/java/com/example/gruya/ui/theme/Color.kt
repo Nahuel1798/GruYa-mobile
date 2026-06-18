@@ -2,43 +2,54 @@ package com.example.gruya.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand Colors
-val Primary = Color(0xFFFFB95F)      // Amarillo GruYa
-val Secondary = Color(0xFF374151)    // Gris oscuro
-val Tertiary = Color(0xFF6B7280)     // Gris medio
+// --- Core Palette ---
+val PrimaryYellow = Color(0xFFFFB95F)    // Amarillo firma GruYa
+val SecondaryGrey = Color(0xFF64748B)    // Gris azulado moderno
+val TertiarySlate = Color(0xFF94A3B8)    // Slate claro
 
-// Light Theme Palette
-val PrimaryLight = Color(0xFFFFB95F)
-val OnPrimaryLight = Color(0xFF000000)
-val SecondaryLight = Color(0xFF374151)
+// --- Light Theme ---
+val PrimaryLight = PrimaryYellow
+val OnPrimaryLight = Color(0xFF1A1C1E)
+
+val SecondaryLight = SecondaryGrey
 val OnSecondaryLight = Color(0xFFFFFFFF)
-val TertiaryLight = Color(0xFF6B7280)
+
+val TertiaryLight = TertiarySlate
 val OnTertiaryLight = Color(0xFFFFFFFF)
-val BackgroundLight = Color(0xFFF8FAFC)
-val SurfaceLight = Color(0xFFFFFFFF)
-val OnBackgroundLight = Color(0xFF191C1E)
-val OnSurfaceLight = Color(0xFF191C1E)
 
-// Dark Theme Palette (Premium Dark Aesthetic)
-val PrimaryDark = Color(0xFFFFB95F)     // Amarillo firma
-val OnPrimaryDark = Color(0xFF000000)
+val BackgroundLight = Color(0xFFF8FAFC)  // Fondo muy claro, casi blanco
+val OnBackgroundLight = Color(0xFF0F172A)
 
-val SecondaryDark = Color(0xFFB4B9BE)    // Gris azulado claro para contraste suave
-val OnSecondaryDark = Color(0xFF1A1C1E)
+val SurfaceLight = Color(0xFFFFFFFF)      // Cards blancas
+val OnSurfaceLight = Color(0xFF0F172A)
+val SurfaceVariantLight = Color(0xFFF1F5F9) // Contraste suave para cards/inputs
+val OnSurfaceVariantLight = Color(0xFF475569)
 
-val TertiaryDark = Color(0xFF8E9193)     // Gris neutro
-val OnTertiaryDark = Color(0xFF1A1C1E)
+val OutlineLight = Color(0xFFCBD5E1)     // Bordes sutiles
+val ErrorLight = Color(0xFFEF4444)
 
-val BackgroundDark = Color(0xFF0F1113)  // Negro profundo (no puro)
-val SurfaceDark = Color(0xFF191C1E)     // Superficie base para cards y inputs
-val SurfaceVariantDark = Color(0xFF23272A) // Variante para elementos anidados
-val OutlineDark = Color(0xFF3F4447)     // Bordes sutiles
+// --- Dark Theme (Minimalist & Premium) ---
+val PrimaryDark = PrimaryYellow
+val OnPrimaryDark = Color(0xFF0F1113)
 
-val OnBackgroundDark = Color(0xFFE2E2E2) // Blanco roto para lectura cómoda
-val OnSurfaceDark = Color(0xFFE2E2E2)
-val OnSurfaceVariantDark = Color(0xFFA1A4A6) // Texto secundario / placeholders
+val SecondaryDark = Color(0xFF94A3B8)
+val OnSecondaryDark = Color(0xFF0F172A)
 
-// Status Colors (Modern & Accessible)
+val TertiaryDark = Color(0xFF475569)
+val OnTertiaryDark = Color(0xFFF8FAFC)
+
+val BackgroundDark = Color(0xFF0B0C0E)   // Negro profundo
+val OnBackgroundDark = Color(0xFFF1F5F9)
+
+val SurfaceDark = Color(0xFF1E2025)      // Color para Cards (más contraste con el fondo)
+val OnSurfaceDark = Color(0xFFF1F5F9)
+val SurfaceVariantDark = Color(0xFF2B2F36) // Variante para elementos destacados o estados hover
+val OnSurfaceVariantDark = Color(0xFF94A3B8)
+
+val OutlineDark = Color(0xFF3F444D)      // Bordes un poco más visibles para minimalismo definido
+val ErrorDark = Color(0xFFF87171)
+
+// --- Status Colors ---
 val Success = Color(0xFF22C55E)
 val Warning = Color(0xFFF59E0B)
-val Error = Color(0xFFEF4444)
+val Info = Color(0xFF3B82F6)

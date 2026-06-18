@@ -66,4 +66,20 @@ class AssistanceRepository @Inject constructor(
             Result.failure(Exception("Error al obtener las solicitudes de auxilio", e))
         }
     }
+
+
+    suspend fun getAssistanceActive(): Result<AssistanceResponse?> {
+        return try {
+            val response = assistanceService.getActiveAssistances()
+            if (response.isSuccessful) {
+                Result.success(response.body())
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al obtener la solicitud activa", e))
+        }
+    }
 }

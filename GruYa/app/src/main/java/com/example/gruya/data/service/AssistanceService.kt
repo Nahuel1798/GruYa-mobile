@@ -34,4 +34,8 @@ interface AssistanceService {
     suspend fun getDetailsAssistances(
         @Path("id") id: Int
     ): Response<AssistanceResponse>
+
+    @GET("${Constants.ASSISTANCE_PATH}/active")
+    suspend fun getActiveAssistances():
+            Response<AssistanceResponse>
 }

@@ -76,7 +76,7 @@ fun MapPickerScreen(
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = initialLocation?.let { Position(it.second, it.first) }
-                ?: Position(-58.3816, -34.6037),
+                ?: Position(-66.3356, -33.2950), // San Luis como fallback
             zoom = 15.0
         )
     )

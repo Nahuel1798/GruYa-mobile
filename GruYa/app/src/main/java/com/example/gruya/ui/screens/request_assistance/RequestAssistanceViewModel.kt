@@ -41,13 +41,20 @@ class RequestAssistanceViewModel @Inject constructor(
     init {
         val providerId: Int? = savedStateHandle.get<Int>("providerId")
         val serviceType: String? = savedStateHandle.get<String>("serviceType")
+        val initialLat: Double? = savedStateHandle.get<Double>("initialLat")
+        val initialLng: Double? = savedStateHandle.get<Double>("initialLng")
 
         _uiState.update { 
             it.copy(
                 providerId = providerId,
                 serviceType = serviceType,
-                selectedIssueType = mapServiceTypeToIssueType(serviceType)
+                selectedIssueType = mapServiceTypeToIssueType(serviceType),
+                location = if (initialLat != null && initialLng != null) Pair(initialLat, initialLng) else it.location
             )
+        }
+
+        if (initialLat != null && initialLng != null) {
+            updateAddress(initialLat, initialLng, isDestination = false)
         }
 
         loadVehicles()

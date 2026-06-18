@@ -2,6 +2,7 @@ package com.example.gruya.ui.screens.assistances
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.repository.AssistanceRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,19 +27,25 @@ class AssistancesViewModel @Inject constructor(
     fun loadAssistances() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val result = assistanceRepository.getUserAssistances()
-            result.fold(
-                onSuccess = { assistances ->
-                    _uiState.update {
-                        it.copy(assistances = assistances, isLoading = false)
-                    }
-                },
-                onFailure = { throwable ->
-                    _uiState.update {
-                        it.copy(error = throwable.message, isLoading = false)
-                    }
+            
+            val assistancesResult = assistanceRepository.getUserAssistances()
+            val activeResult = assistanceRepository.getAssistanceActive()
+
+            _uiState.update { state ->
+                var newState = state.copy(isLoading = false)
+                
+                assistancesResult.onSuccess { list ->
+                    newState = newState.copy(assistances = list)
+                }.onFailure { t ->
+                    newState = newState.copy(error = t.message)
                 }
-            )
+
+                activeResult.onSuccess { response ->
+                    newState = newState.copy(activeAssistance = response?.toDomain())
+                }
+                
+                newState
+            }
         }
     }
 

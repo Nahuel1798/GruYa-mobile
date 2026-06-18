@@ -8,5 +8,6 @@ data class Assistance(
     val vehicle: Vehicle,
     val origin: Location,
     val destination: Location,
-    val isDirected: Boolean
+    val isDirected: Boolean,
+    val clientName: String = ""
 )

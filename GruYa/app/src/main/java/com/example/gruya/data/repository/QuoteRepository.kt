@@ -1,9 +1,11 @@
 package com.example.gruya.data.repository
 
 import com.example.gruya.data.mapper.toDomain
+import com.example.gruya.data.mapper.toDomainOrNull
 import com.example.gruya.data.remote.dtos.request.CreateQuoteRequest
 import com.example.gruya.data.service.QuoteService
 import com.example.gruya.domain.model.Quote
+import com.example.gruya.domain.model.QuoteStatus
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -67,6 +69,35 @@ class QuoteRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Error al rechazar el presupuesto", e))
+        }
+    }
+
+    suspend fun getMine(statuses: List<QuoteStatus> = emptyList()): Result<List<Quote>> {
+        return try {
+            val response = quoteService.getMine(statuses.map { it.name })
+            if (response.isSuccessful) {
+                val quotes = response.body()
+                    .orEmpty()
+                    .mapNotNull { it.toDomainOrNull() }
+                Result.success(quotes)
+            } else {
+                Result.failure(Exception("Error al cargar cotizaciones"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.message}", e))
+        }
+    }
+
+    suspend fun cancel(quoteId: Int): Result<Unit> {
+        return try {
+            val response = quoteService.cancel(quoteId)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al cancelar la cotización"))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al cancelar la cotización", e))
         }
     }
 }

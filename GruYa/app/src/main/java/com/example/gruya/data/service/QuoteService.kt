@@ -17,7 +17,7 @@ interface QuoteService {
     suspend fun create(@Body request: CreateQuoteRequest): Response<QuoteResponse>
 
     @GET(Constants.QUOTES_PATH + "/mine")
-    suspend fun getMine(@Query("status") status: String? = null): Response<List<QuoteResponse>>
+    suspend fun getMine(@Query("status") statuses: List<String> = emptyList()): Response<List<QuoteResponse>>
 
     @GET(Constants.QUOTES_PATH + "/by-assistance/{assistanceId}")
     suspend fun getByAssistance(@Path("assistanceId") id: Int): Response<List<QuoteResponse>>

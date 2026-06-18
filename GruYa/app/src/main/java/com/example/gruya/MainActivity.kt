@@ -12,12 +12,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.DirectionsCar
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocalAtm
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -50,6 +52,7 @@ import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.screens.assistances.AssistancesScreen
+import com.example.gruya.ui.screens.provider_quotes.ProviderQuotesScreen
 import com.example.gruya.ui.screens.quotes_list.QuotesListScreen
 import com.example.gruya.ui.screens.quotes_list.QuotesListViewModel
 import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
@@ -259,14 +262,25 @@ fun MainNavigationSuite(
             )
         )
 
-        add(
-            NavItem(
-                key = AppDest.TabKey.Assistances,
-                label = "Solicitudes",
-                selectedIcon = Icons.Filled.Favorite,
-                unselectedIcon = Icons.Outlined.FavoriteBorder
+        when (currentRole) {
+            Role.USER -> add(
+                NavItem(
+                    key = AppDest.TabKey.Assistances,
+                    label = "Solicitudes",
+                    selectedIcon = Icons.Filled.Assignment,
+                    unselectedIcon = Icons.Outlined.Assignment
+                )
             )
-        )
+            Role.PROVIDER -> add(
+                NavItem(
+                    key = AppDest.TabKey.ProviderQuotes,
+                    label = "Cotizaciones",
+                    selectedIcon = Icons.Filled.LocalAtm,
+                    unselectedIcon = Icons.Outlined.LocalAtm
+                )
+            )
+            else -> {}
+        }
 
         if (currentRole == Role.USER) {
             add(
@@ -390,6 +404,10 @@ fun MainNavigationSuite(
                                 tabBackStack.add(AppDest.TabKey.QuotesList(assistanceId))
                             }
                         )
+                    }
+
+                    entry<AppDest.TabKey.ProviderQuotes> {
+                        ProviderQuotesScreen()
                     }
 
                     entry<AppDest.TabKey.QuotesList> {

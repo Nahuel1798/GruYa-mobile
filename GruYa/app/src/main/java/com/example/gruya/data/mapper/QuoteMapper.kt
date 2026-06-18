@@ -15,3 +15,17 @@ fun QuoteResponse.toDomain(): Quote = Quote(
 )
 
 fun List<QuoteResponse>.toDomain(): List<Quote> = map { it.toDomain() }
+
+fun QuoteResponse.toDomainOrNull(): Quote? {
+    val assistance = assistance ?: return null
+    return Quote(
+        id = id,
+        assistanceId = assistanceId,
+        price = price,
+        status = status,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        providerName = providerName,
+        assistance = assistance.toDomain()
+    )
+}

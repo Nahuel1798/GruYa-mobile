@@ -11,7 +11,8 @@ fun AssistanceResponse.toDomain(): Assistance = Assistance(
     vehicle = vehicle.toDomain(),
     origin = origin,
     destination = destination,
-    isDirected = isDirected
+    isDirected = isDirected,
+    clientName = runCatching { "${client.firstName} ${client.lastName}" }.getOrDefault("")
 )
 
 fun List<AssistanceResponse>.toDomain(): List<Assistance> = map { it.toDomain() }

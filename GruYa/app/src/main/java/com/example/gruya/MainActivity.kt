@@ -164,6 +164,7 @@ fun GruYaApp(
                 LaunchedEffect(providerUiState.success) {
                     if (providerUiState.success) {
                         authViewModel.onLoginSuccess()
+                        providerViewModel.resetSuccess()
                         backStack.clear()
                         backStack.add(AppDest.MainContent)
                     }
@@ -524,6 +525,7 @@ fun MainNavigationSuite(
 
                         LaunchedEffect(providerUiState.success) {
                             if (providerUiState.success) {
+                                providerViewModel.resetSuccess()
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)
                                 }

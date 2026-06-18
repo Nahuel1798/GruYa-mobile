@@ -100,25 +100,49 @@ class ProviderProfileViewModel @Inject constructor(
         }
     }
 
-    fun createProfile(){
+    fun createProfile() {
         val currentState = _uiState.value
-        val serviceType = currentState.serviceType ?: return
-        val location = currentState.location ?: return
-        
-        viewModelScope.launch { 
-            _uiState.update { it.copy(loading = true) }
-            val result = providerRepository.create(
-                serviceType = serviceType,
-                companyName = currentState.companyName,
-                description = currentState.description,
-                location = location,
-                address = currentState.address,
-                isAvailable = currentState.available
-            )
-            
-            _uiState.update { currentValue ->
-                currentValue.copy(success = result, loading = false)
+        val serviceType = currentState.serviceType
+        val location = currentState.location
+        val companyName = currentState.companyName
+
+        if (serviceType == null) {
+            _uiState.update { it.copy(error = "Por favor, seleccione un tipo de servicio") }
+            return
+        }
+        if (companyName.isBlank()) {
+            _uiState.update { it.copy(error = "Por favor, ingrese el nombre de la empresa") }
+            return
+        }
+        if (location == null) {
+            _uiState.update { it.copy(error = "Por favor, seleccione la ubicación en el mapa o busque una dirección") }
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(loading = true, error = null) }
+                val result = providerRepository.create(
+                    serviceType = serviceType,
+                    companyName = companyName,
+                    description = currentState.description,
+                    location = location,
+                    address = currentState.address,
+                    isAvailable = currentState.available
+                )
+
+                if (result) {
+                    _uiState.update { it.copy(success = true, loading = false) }
+                } else {
+                    _uiState.update { it.copy(error = "No se pudo crear el perfil. Verifique los datos.", loading = false) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Error de red: ${e.localizedMessage}", loading = false) }
             }
         }
+    }
+
+    fun resetSuccess() {
+        _uiState.update { it.copy(success = false) }
     }
 }

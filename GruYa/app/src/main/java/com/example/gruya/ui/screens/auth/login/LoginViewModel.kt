@@ -46,6 +46,7 @@ class LoginViewModel @Inject constructor(
                     val authResponse = result.body()!!
                     sessionManager.saveJwt(authResponse.token)
                     authResponse.user.role?.let { sessionManager.saveRole(it) }
+                    authRepository.updateFcmToken(fcmToken)
                     _uiState.update { it.copy(success = true) }
                 } else {
                     _uiState.update {

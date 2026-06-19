@@ -1,5 +1,6 @@
 package com.example.gruya.ui.screens.quotes_list
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,11 +27,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,8 +42,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.gruya.domain.model.Assistance
 import com.example.gruya.domain.model.Quote
 import com.example.gruya.domain.model.QuoteStatus
+import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.style.BaseStyle
+import org.maplibre.spatialk.geojson.Feature
+import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.Point
+import org.maplibre.spatialk.geojson.Position
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,13 +65,16 @@ fun QuotesListScreen(
     viewModel: QuotesListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val acceptedQuote = remember(uiState.quotes) {
+        uiState.quotes.find { it.status == QuoteStatus.ACEPTADA }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        text = "Respuestas",
+                        text = if (acceptedQuote != null) "Servicio en curso" else "Respuestas",
                         style = MaterialTheme.typography.titleLarge
                     )
                 },
@@ -67,64 +87,163 @@ fun QuotesListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = if (acceptedQuote != null) Color.Transparent else MaterialTheme.colorScheme.background
                 )
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        when {
-            uiState.isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            when {
+                uiState.isLoading && uiState.quotes.isEmpty() -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-            }
 
-            uiState.error != null && uiState.quotes.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
+                uiState.error != null && uiState.quotes.isEmpty() -> {
                     Text(
                         text = uiState.error ?: "Error desconocido",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
-            }
 
-            uiState.quotes.isEmpty() -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
+                uiState.quotes.isEmpty() -> {
                     Text(
                         text = "No hay presupuestos disponibles",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                else -> {
+                    // Background Map
+                    val firstAssistance = uiState.quotes.firstOrNull()?.assistance
+                    if (firstAssistance != null) {
+                        QuotesListMap(
+                            assistance = acceptedQuote?.assistance ?: firstAssistance,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
+                    if (acceptedQuote == null) {
+                        // Full screen list hiding the map
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.background
+                        ) {
+                            QuotesListContent(
+                                quotes = uiState.quotes,
+                                actionLoading = uiState.actionLoading,
+                                onAccept = viewModel::accept,
+                                onReject = viewModel::reject
+                            )
+                        }
+                    } else {
+                        // Active Quote Card at the bottom
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.BottomCenter
+                        ) {
+                            QuoteCard(
+                                quote = acceptedQuote,
+                                actionLoading = uiState.actionLoading,
+                                onAccept = {},
+                                onReject = {}
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuotesListMap(
+    assistance: Assistance,
+    modifier: Modifier = Modifier
+) {
+    val isDark = isSystemInDarkTheme()
+    val cameraState = rememberCameraState(
+        firstPosition = CameraPosition(
+            target = Position(assistance.origin.longitude, assistance.origin.latitude),
+            zoom = 13.0
+        )
+    )
+
+    LaunchedEffect(assistance) {
+        val target = if (assistance.destination.latitude != 0.0) {
+            Position(
+                (assistance.origin.longitude + assistance.destination.longitude) / 2.0,
+                (assistance.origin.latitude + assistance.destination.latitude) / 2.0
+            )
+        } else {
+            Position(assistance.origin.longitude, assistance.origin.latitude)
+        }
+
+        cameraState.animateTo(
+            CameraPosition(
+                target = target,
+                zoom = 12.0
+            )
+        )
+    }
+
+    MaplibreMap(
+        modifier = modifier,
+        cameraState = cameraState,
+        baseStyle = BaseStyle.Uri(
+            if (isDark) "https://tiles.openfreemap.org/styles/dark" else "https://tiles.openfreemap.org/styles/liberty"
+        )
+    ) {
+        val features = remember(assistance) {
+            buildList {
+                add(
+                    Feature(
+                        geometry = Point(
+                            longitude = assistance.origin.longitude,
+                            latitude = assistance.origin.latitude
+                        ),
+                        properties = null
+                    )
+                )
+
+                if (assistance.destination.latitude != 0.0) {
+                    add(
+                        Feature(
+                            geometry = Point(
+                                longitude = assistance.destination.longitude,
+                                latitude = assistance.destination.latitude
+                            ),
+                            properties = null
+                        )
                     )
                 }
             }
-
-            else -> {
-                QuotesListContent(
-                    quotes = uiState.quotes,
-                    actionLoading = uiState.actionLoading,
-                    onAccept = viewModel::accept,
-                    onReject = viewModel::reject,
-                    modifier = Modifier.padding(padding)
-                )
-            }
         }
+
+        val markersSource = rememberGeoJsonSource(
+            data = GeoJsonData.Features(
+                geoJson = FeatureCollection(features = features)
+            )
+        )
+
+        CircleLayer(
+            id = "assistance-points",
+            source = markersSource,
+            color = const(MaterialTheme.colorScheme.primary),
+            radius = const(10.dp),
+            strokeColor = const(Color.White),
+            strokeWidth = const(2.dp)
+        )
     }
 }
 

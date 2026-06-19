@@ -39,6 +39,8 @@ import org.maplibre.spatialk.geojson.Point
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.gruya.ui.theme.GruYaTheme
 import com.example.gruya.domain.model.displayName
+import com.example.gruya.domain.model.*
+import com.example.gruya.data.remote.dtos.response.*
 
 import android.location.Geocoder
 import android.os.Build
@@ -79,7 +81,6 @@ fun QuoteScreen(
     LaunchedEffect(assistanceId) {
         assistanceId?.let { viewModel.setAssistanceId(it) }
     }
-    val isDark = isSystemInDarkTheme()
     val context = LocalContext.current
     val geocoder = remember { Geocoder(context, Locale.getDefault()) }
 
@@ -112,6 +113,28 @@ fun QuoteScreen(
         }
     }
 
+    QuoteContent(
+        uiState = uiState,
+        isExpanded = isExpanded,
+        onExpandedToggle = { isExpanded = !isExpanded },
+        onPriceChanged = viewModel::onPriceChanged,
+        onSubmitQuote = viewModel::submitQuote,
+        onNavigateBack = onNavigateBack
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QuoteContent(
+    uiState: QuoteUiState,
+    isExpanded: Boolean,
+    onExpandedToggle: () -> Unit,
+    onPriceChanged: (String) -> Unit,
+    onSubmitQuote: () -> Unit,
+    onNavigateBack: () -> Unit
+) {
+    val isDark = isSystemInDarkTheme()
+    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -267,7 +290,7 @@ fun QuoteScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { isExpanded = !isExpanded },
+                                .clickable { onExpandedToggle() },
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -353,7 +376,7 @@ fun QuoteScreen(
 
                             AppTextField(
                                 value = uiState.price,
-                                onValueChange = viewModel::onPriceChanged,
+                                onValueChange = onPriceChanged,
                                 placeholder = "Precio del servicio",
                                 leadingIcon = Icons.Default.AttachMoney,
                                 keyboardType = KeyboardType.Number,
@@ -361,7 +384,7 @@ fun QuoteScreen(
                             )
 
                             Button(
-                                onClick = viewModel::submitQuote,
+                                onClick = onSubmitQuote,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(56.dp),
@@ -401,7 +424,7 @@ fun QuoteScreen(
             }
         }
     }
-    
+
     // Success Dialog
     if (uiState.isSubmitted) {
         AlertDialog(
@@ -449,8 +472,51 @@ fun DetailItem(
 @Composable
 fun QuoteScreenPreview() {
     GruYaTheme {
-        // We can't easily preview with the real ViewModel, so we'd need to extract a Content composable
-        // but for now, I'll just leave it as is or create a stateless version if I had time.
-        // To keep it simple, I'll just end it here.
+        val mockAssistance = AssistanceResponse(
+            id = 1,
+            serviceType = ServiceType.AUXILIO,
+            issueType = IssueType.NEUMATICO_PINCHADO,
+            status = AssistanceStatus.PENDIENTE,
+            vehicle = VehicleResponse(
+                id = 1,
+                type = VehicleType.AUTO,
+                licensePlate = "ABC-123",
+                brand = "Toyota",
+                model = "Corolla",
+                insurance = "La Caja",
+                color = "Blanco"
+            ),
+            providerProfile = null,
+            client = UserResponse(
+                id = 1,
+                firstName = "Juan",
+                lastName = "Pérez",
+                email = "juan@example.com",
+                role = null,
+                avatarUrl = null,
+                phone = "12345678"
+            ),
+            distanceKm = 5.4,
+            etaMinutes = 15.0,
+            routeGeometry = null,
+            origin = Location(-34.6037, -58.3816),
+            destination = Location(-34.6137, -58.3916),
+            isDirected = false
+        )
+
+        QuoteContent(
+            uiState = QuoteUiState(
+                assistanceRequest = mockAssistance,
+                isLoading = false,
+                price = "15000",
+                originAddress = "Av. 9 de Julio, CABA",
+                destinationAddress = "Congreso, CABA"
+            ),
+            isExpanded = true,
+            onExpandedToggle = {},
+            onPriceChanged = {},
+            onSubmitQuote = {},
+            onNavigateBack = {}
+        )
     }
 }

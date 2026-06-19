@@ -66,6 +66,7 @@ import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
 import com.example.gruya.ui.screens.assistances.AssistancesScreen
 import com.example.gruya.ui.screens.provider_quotes.ProviderQuotesScreen
+import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
 import com.example.gruya.ui.screens.quotes_list.QuotesListScreen
 import com.example.gruya.ui.screens.quotes_list.QuotesListViewModel
 import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
@@ -462,7 +463,24 @@ fun MainNavigationSuite(
                     }
 
                     entry<AppDest.TabKey.ProviderQuotes> {
-                        ProviderQuotesScreen()
+                        ProviderQuotesScreen(
+                            onNavigateToTracking = { assistanceId ->
+                                tabBackStack.add(AppDest.AssistanceTracking(assistanceId))
+                            }
+                        )
+                    }
+
+                    entry<AppDest.AssistanceTracking> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.AssistanceTracking } as? AppDest.AssistanceTracking
+                        val assistanceId = currentEntry?.assistanceId ?: return@entry
+                        AssistanceTrackingScreen(
+                            assistanceId = assistanceId,
+                            onNavigateBack = {
+                                if (tabBackStack.size > 1) {
+                                    tabBackStack.removeAt(tabBackStack.size - 1)
+                                }
+                            }
+                        )
                     }
 
                     entry<AppDest.TabKey.QuotesList> {

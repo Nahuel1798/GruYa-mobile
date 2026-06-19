@@ -1,5 +1,6 @@
 package com.example.gruya.ui.screens.provider_quotes
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,7 +56,8 @@ import com.example.gruya.domain.model.ServiceType
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProviderQuotesScreen(
-    viewModel: ProviderQuotesViewModel = hiltViewModel()
+    viewModel: ProviderQuotesViewModel = hiltViewModel(),
+    onNavigateToTracking: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -118,6 +120,11 @@ fun ProviderQuotesScreen(
                         selectedFilter = uiState.selectedFilter,
                         onRefresh = viewModel::onRefresh,
                         onCancelQuote = viewModel::onCancelQuote,
+                        onQuoteClick = { quote ->
+                            if (quote.status == QuoteStatus.ACEPTADA) {
+                                onNavigateToTracking(quote.assistance.id)
+                            }
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -162,6 +169,7 @@ private fun ProviderQuotesListContent(
     selectedFilter: ProviderQuoteFilter,
     onRefresh: () -> Unit,
     onCancelQuote: (Int) -> Unit,
+    onQuoteClick: (Quote) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (quotes.isEmpty()) {
@@ -199,7 +207,8 @@ private fun ProviderQuotesListContent(
                 items(quotes, key = { it.id }) { quote ->
                     QuoteCard(
                         quote = quote,
-                        onCancel = { onCancelQuote(quote.id) }
+                        onCancel = { onCancelQuote(quote.id) },
+                        onClick = { onQuoteClick(quote) }
                     )
                 }
                 item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -218,10 +227,13 @@ private fun emptyMessageFor(filter: ProviderQuoteFilter): String = when (filter)
 private fun QuoteCard(
     quote: Quote,
     onCancel: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = quote.status == QuoteStatus.ACEPTADA) { onClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(

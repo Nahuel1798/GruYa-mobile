@@ -1,8 +1,16 @@
 package com.example.gruya
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -23,6 +31,10 @@ import androidx.compose.material.icons.outlined.LocalAtm
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
@@ -44,6 +56,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.domain.model.Role
+import com.example.gruya.ui.NotificationViewModel
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.screens.home_user.HomeScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
@@ -89,10 +102,48 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun GruYaApp(
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    notificationViewModel: NotificationViewModel = hiltViewModel()
 ) {
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
     val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Launcher para el permiso de notificaciones (Android 13+)
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Log.d("FCM", "Permiso de notificaciones concedido")
+        } else {
+            Log.w("FCM", "Permiso de notificaciones denegado")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // Solicitar permiso en Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        // Obtener y loguear el token de FCM para debug
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w("FCM", "Error obteniendo el token de FCM", task.exception)
+                return@addOnCompleteListener
+            }
+            val token = task.result
+            Log.d("FCM", "Token actual de FCM: $token")
+        }
+
+        notificationViewModel.notifications.collect { (title, body) ->
+            snackbarHostState.showSnackbar(
+                message = "$title: $body",
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
 
     LaunchedEffect(Unit) {
         authViewModel.authEvents.collect { event ->
@@ -129,7 +180,10 @@ fun GruYaApp(
 
     val providerViewModel: ProviderProfileViewModel = hiltViewModel()
 
-    NavDisplay(
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { _ ->
+        NavDisplay(
             backStack = backStack,
             entryDecorators = listOf(
                 rememberSaveableStateHolderNavEntryDecorator(),
@@ -222,6 +276,7 @@ fun GruYaApp(
             }
         }
     )
+    }
 }
 
 private data class NavItem(

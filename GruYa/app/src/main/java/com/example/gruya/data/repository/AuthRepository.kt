@@ -1,6 +1,7 @@
 package com.example.gruya.data.repository
 
 import android.util.Log
+import com.example.gruya.data.remote.dtos.request.FcmTokenRequest
 import com.example.gruya.data.remote.dtos.request.LoginRequest
 import com.example.gruya.data.remote.dtos.request.RegisterRequest
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
@@ -14,10 +15,23 @@ import javax.inject.Inject
 class AuthRepository @Inject constructor(
     private val authService: AuthService
 ) {
-    suspend fun login(email: String, password: String): Response<AuthResponse> {
-        val request = LoginRequest(email, password)
+    suspend fun login(email: String, password: String, fcmToken: String? = null): Response<AuthResponse> {
+        val request = LoginRequest(email, password, fcmToken)
         val response = authService.login(request)
         return response
+    }
+
+    suspend fun updateFcmToken(token: String): Result<Unit> {
+        return try {
+            val response = authService.updateFcmToken(FcmTokenRequest(token))
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al actualizar token: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun register(firstname: String, lastname: String, email: String, password: String, phone: String, role: Role): Response<AuthResponse>{

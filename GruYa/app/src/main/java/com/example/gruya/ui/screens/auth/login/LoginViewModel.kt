@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.AuthRepository
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,9 +35,12 @@ class LoginViewModel @Inject constructor(
     fun onLoginButtonClick() {
         viewModelScope.launch {
             try {
+                val fcmToken = FirebaseMessaging.getInstance().getToken().await()
+
                 val result = authRepository.login(
                     _uiState.value.email,
-                    _uiState.value.password
+                    _uiState.value.password,
+                    fcmToken
                 )
                 if (result.isSuccessful) {
                     val authResponse = result.body()!!

@@ -5,28 +5,37 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -42,12 +51,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
+import com.example.gruya.R
+import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.layers.SymbolLayer
+import org.maplibre.compose.expressions.dsl.*
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
-import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.gms.rememberFusedLocationProvider
-import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.location.LocationPuck
 import org.maplibre.compose.location.rememberUserLocationState
 import org.maplibre.compose.map.MaplibreMap
@@ -67,11 +85,29 @@ fun MapPickerScreen(
     initialLocation: Pair<Double, Double>?,
     onLocationSelected: (Double, Double) -> Unit,
     onNavigateBack: () -> Unit,
-    title: String = "Seleccionar ubicación"
+    title: String = "Seleccionar ubicación",
+    showNearby: Boolean = false,
+    viewModel: MapPickerViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var selectedLocation by remember { mutableStateOf(initialLocation) }
     val isDark = isSystemInDarkTheme()
     val scope = rememberCoroutineScope()
+
+    val locationProvider = rememberFusedLocationProvider()
+    val locationState = rememberUserLocationState(locationProvider = locationProvider)
+
+    LaunchedEffect(showNearby, locationState.location) {
+        if (showNearby) {
+            val location = selectedLocation?.let { Position(it.second, it.first) }
+                ?: initialLocation?.let { Position(it.second, it.first) }
+                ?: locationState.location?.position?.value
+
+            location?.let {
+                viewModel.loadNearbyProviders(it.latitude, it.longitude)
+            }
+        }
+    }
 
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
@@ -96,9 +132,6 @@ fun MapPickerScreen(
             )
         )
     }
-
-    val locationProvider = rememberFusedLocationProvider()
-    val locationState = rememberUserLocationState(locationProvider = locationProvider)
 
     LaunchedEffect(locationState.location) {
         if (initialLocation == null && selectedLocation == null) {
@@ -157,6 +190,25 @@ fun MapPickerScreen(
                     )
                 )
 
+                val nearbySource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = uiState.nearbyProviders.map { provider ->
+                                Feature(
+                                    geometry = Point(
+                                        longitude = provider.longitude,
+                                        latitude = provider.latitude
+                                    ),
+                                    properties = buildJsonObject {
+                                        put("id", provider.id)
+                                        put("serviceType", provider.serviceType.uppercase())
+                                    }
+                                )
+                            }
+                        )
+                    )
+                )
+
                 if (hasLocationPermission) {
                     LocationPuck(
                         idPrefix = "user",
@@ -164,6 +216,40 @@ fun MapPickerScreen(
                         cameraState = cameraState
                     )
                 }
+
+                val auxilioIcon = image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
+                val gomeriaIcon = image(painterResource(R.drawable.ic_gomeria), drawAsSdf = true)
+                val mecanicoIcon = image(painterResource(R.drawable.ic_mecanico), drawAsSdf = true)
+
+                SymbolLayer(
+                    id = "nearby-providers-icons",
+                    source = nearbySource,
+                    iconImage = switch(
+                        input = feature["serviceType"].asString(),
+                        case("AUXILIO", auxilioIcon),
+                        case("GOMERIA", gomeriaIcon),
+                        case("MECANICO", mecanicoIcon),
+                        fallback = auxilioIcon
+                    ),
+                    iconColor = switch(
+                        input = feature["serviceType"].asString(),
+                        case("AUXILIO", const(Color(0xFFFFEB3B))),
+                        case("GOMERIA", const(Color(0xFFF4F6F8))),
+                        case("MECANICO", const(Color(0xFF3F51B5))),
+                        fallback = const(Color.Gray)
+                    ),
+                    iconSize = const(1.2f),
+                    iconAllowOverlap = const(true),
+                    iconIgnorePlacement = const(true),
+                    onClick = { features ->
+                        features.firstOrNull()?.properties?.get("id")?.jsonPrimitive?.intOrNull?.let { id ->
+                            uiState.nearbyProviders.find { it.id == id }?.let { provider ->
+                                viewModel.selectProvider(provider)
+                            }
+                        }
+                        ClickResult.Consume
+                    }
+                )
 
                 CircleLayer(
                     id = "selected-location",
@@ -235,6 +321,56 @@ fun MapPickerScreen(
                 Icon(Icons.Outlined.CheckCircle, contentDescription = null)
                 Spacer(modifier = Modifier.size(8.dp))
                 Text("Confirmar ubicación", fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        uiState.selectedProvider?.let { provider ->
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.clearSelectedProvider() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = provider.companyName,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = provider.serviceType.uppercase(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Text(
+                        text = provider.description,
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Phone, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(text = provider.phone, style = MaterialTheme.typography.bodyMedium)
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                }
             }
         }
     }

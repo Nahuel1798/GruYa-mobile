@@ -49,14 +49,17 @@ import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.LineString
 import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
+import org.json.JSONArray
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,6 +207,37 @@ private fun QuotesListMap(
             if (isDark) "https://tiles.openfreemap.org/styles/dark" else "https://tiles.openfreemap.org/styles/liberty"
         )
     ) {
+        // Route
+        assistance.routeGeometry?.let { geometry ->
+            val routePositions = remember(geometry) {
+                parseRouteGeometry(geometry)
+            }
+
+            if (routePositions.isNotEmpty()) {
+                val routeSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = LineString(
+                                        coordinates = routePositions
+                                    ),
+                                    properties = null
+                                )
+                            )
+                        )
+                    )
+                )
+
+                LineLayer(
+                    id = "assistance-route",
+                    source = routeSource,
+                    color = const(MaterialTheme.colorScheme.primary),
+                    width = const(5.dp)
+                )
+            }
+        }
+
         val features = remember(assistance) {
             buildList {
                 add(
@@ -410,5 +444,24 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold
         )
+    }
+}
+
+private fun parseRouteGeometry(routeGeometry: String): List<Position> {
+    return try {
+        val json = JSONArray(routeGeometry)
+        buildList {
+            for (i in 0 until json.length()) {
+                val coord = json.getJSONArray(i)
+                add(
+                    Position(
+                        longitude = coord.getDouble(0),
+                        latitude = coord.getDouble(1)
+                    )
+                )
+            }
+        }
+    } catch (e: Exception) {
+        emptyList()
     }
 }

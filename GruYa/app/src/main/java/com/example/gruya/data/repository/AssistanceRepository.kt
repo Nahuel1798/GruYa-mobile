@@ -1,5 +1,6 @@
 package com.example.gruya.data.repository
 
+import android.util.Log
 import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.remote.dtos.response.AssistanceResponse
@@ -18,7 +19,9 @@ class AssistanceRepository @Inject constructor(
         return try {
             val response = assistanceService.create(request)
             if (response.isSuccessful) {
-                Result.success(response.body())
+                val body = response.body()
+                Log.d("AssistanceRepository", "Solicitud de auxilio creada: $body")
+                Result.success(body)
             } else {
                 Result.failure(
                     Exception("${response.code()}: ${response.message()}")
@@ -42,14 +45,18 @@ class AssistanceRepository @Inject constructor(
     suspend fun getNearbyAssistances(
         rangeKm: Double = 20.0
     ): List<NearbyAssistanceResponse> {
-        return assistanceService.getNearbyAssistances(rangeKm)
+        val result = assistanceService.getNearbyAssistances(rangeKm)
+        Log.d("AssistanceRepository", "Solicitudes de auxilio cercanas: $result")
+        return result
     }
     
     suspend fun getAssistanceDetails(id: Int): Result<AssistanceResponse?> {
         return try {
             val response = assistanceService.getDetailsAssistances(id)
             if (response.isSuccessful) {
-                Result.success(response.body())
+                val body = response.body()
+                Log.d("AssistanceRepository", "Solicitud de auxilio creada: $body")
+                Result.success(body)
             } else {
                 Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
@@ -61,7 +68,9 @@ class AssistanceRepository @Inject constructor(
     suspend fun getUserAssistances(): Result<List<Assistance>> {
         return try {
             val response = assistanceService.getUserAssistances()
-            Result.success(response.toDomain())
+            val domain = response.toDomain()
+            Log.d("AssistanceRepository", "Solicitudes de auxilio del usuario: $domain")
+            Result.success(domain)
         } catch (e: Exception) {
             Result.failure(Exception("Error al obtener las solicitudes de auxilio", e))
         }
@@ -72,7 +81,9 @@ class AssistanceRepository @Inject constructor(
         return try {
             val response = assistanceService.getActiveAssistances()
             if (response.isSuccessful) {
-                Result.success(response.body())
+                val body = response.body()
+                Log.d("AssistanceRepository", "Solicitud de auxilio activa: $body")
+                Result.success(body)
             } else {
                 Result.failure(
                     Exception("Error ${response.code()}: ${response.message()}")

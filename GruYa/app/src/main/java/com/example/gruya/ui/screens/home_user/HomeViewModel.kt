@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.repository.AssistanceRepository
+import com.example.gruya.data.repository.FuelStationRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val assistanceRepository: AssistanceRepository
+    private val assistanceRepository: AssistanceRepository,
+    private val fuelStationRepository: FuelStationRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -47,7 +49,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun dismissError() {
-        _uiState.update { it.copy(error = null) }
+        _uiState.update { it.copy(error = null, stationsError = null) }
     }
 
     fun selectProvider(provider: ProviderLocationResponse) {
@@ -65,16 +67,34 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
+                // Fetch providers
                 val providers = assistanceRepository.getProviderlocation(
                     latitude = latitude,
                     longitude = longitude
                 )
-                Log.d("GRUYA", "Providers encontrados: ${providers.size}")
-                providers.forEach {
-                    Log.d("GRUYA", "  - ${it.companyName} (${it.latitude}, ${it.longitude})")
+                
+                // Fetch fuel stations
+                val stations = try {
+                    val result = fuelStationRepository.getNearbyStations(latitude, longitude)
+                    _uiState.update { it.copy(stationsError = null) }
+                    result
+                } catch (e: Exception) {
+                    Log.e("GRUYA", "Error cargando estaciones", e)
+                    val errorMsg = if (e.message?.contains("504") == true || e.message?.contains("timeout") == true) {
+                        "El servidor de estaciones (Overpass) está saturado. Reintente en unos momentos."
+                    } else {
+                        "No se pudieron cargar las estaciones de servicio."
+                    }
+                    _uiState.update { it.copy(stationsError = errorMsg) }
+                    emptyList()
                 }
+
                 _uiState.update {
-                    it.copy(nearbyTowTrucks = providers, isLoading = false)
+                    it.copy(
+                        nearbyTowTrucks = providers,
+                        nearbyFuelStations = stations,
+                        isLoading = false
+                    )
                 }
             } catch (e: Exception) {
                 Log.e("GRUYA", "Error cargando proveedores", e)

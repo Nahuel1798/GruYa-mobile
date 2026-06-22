@@ -12,7 +12,8 @@ fun AssistanceResponse.toDomain(): Assistance = Assistance(
     origin = origin,
     destination = destination,
     isDirected = isDirected,
-    clientName = runCatching { "${client.firstName} ${client.lastName}" }.getOrDefault("")
+    clientName = runCatching { "${client.firstName} ${client.lastName}" }.getOrDefault(""),
+    routeGeometry = routeGeometry
 )
 
 fun List<AssistanceResponse>.toDomain(): List<Assistance> = map { it.toDomain() }

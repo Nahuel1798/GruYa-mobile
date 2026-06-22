@@ -76,6 +76,18 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Mostrar error de estaciones si existe
+    LaunchedEffect(uiState.stationsError) {
+        uiState.stationsError?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.dismissError()
+        }
+    }
 
     // 1. Map & Location State
     val locationProvider = rememberFusedLocationProvider()
@@ -142,6 +154,7 @@ fun HomeScreen(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             AnimatedVisibility(
                 visible = !uiState.isMapFullScreen,
@@ -251,6 +264,28 @@ fun HomeScreen(
                     )
                 )
 
+                // Fuel station GeoJSON source
+                val fuelStationSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = uiState.nearbyFuelStations.map { station ->
+                                Feature(
+                                    geometry = Point(
+                                        coordinates = Position(
+                                            longitude = station.longitude,
+                                            latitude = station.latitude
+                                        )
+                                    ),
+                                    properties = buildJsonObject {
+                                        put("id", station.id)
+                                        put("name", station.name)
+                                    }
+                                )
+                            }
+                        )
+                    )
+                )
+
                 locationState?.let {
                     LocationTrackingEffect(locationState = it, onLocationChange = {})
                     LocationPuck(
@@ -263,6 +298,7 @@ fun HomeScreen(
                 val auxilioIcon = image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
                 val gomeriaIcon = image(painterResource(R.drawable.ic_gomeria), drawAsSdf = true)
                 val mecanicoIcon = image(painterResource(R.drawable.ic_mecanico), drawAsSdf = true)
+                val fuelStationIcon = image(painterResource(R.drawable.ic_estacionservicio), drawAsSdf = true)
 
                 // Tow truck icons
                 SymbolLayer(
@@ -295,6 +331,17 @@ fun HomeScreen(
                         }
                         ClickResult.Consume
                     }
+                )
+
+                // Fuel station icons
+                SymbolLayer(
+                    id = "fuel-stations-icons",
+                    source = fuelStationSource,
+                    iconImage = fuelStationIcon,
+                    iconColor = const(Color(0xFF4CAF50)),
+                    iconSize = const(1.2f),
+                    iconAllowOverlap = const(true),
+                    iconIgnorePlacement = const(true)
                 )
             }
 

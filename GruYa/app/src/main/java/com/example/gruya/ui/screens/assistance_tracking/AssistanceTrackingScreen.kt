@@ -25,14 +25,19 @@ import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
 import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.layers.LineLayer
 import org.maplibre.compose.map.MaplibreMap
-import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.style.BaseStyle
 import org.maplibre.spatialk.geojson.Feature
 import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.LineString
 import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
+import org.json.JSONArray
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Info
 
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
@@ -182,11 +187,59 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
         )
     )
 
+    // Center map between origin and destination
+    LaunchedEffect(assistance) {
+        val target = if (assistance.destination.latitude != 0.0) {
+            Position(
+                (assistance.origin.longitude + assistance.destination.longitude) / 2.0,
+                (assistance.origin.latitude + assistance.destination.latitude) / 2.0
+            )
+        } else {
+            Position(assistance.origin.longitude, assistance.origin.latitude)
+        }
+        
+        cameraState.animateTo(
+            CameraPosition(
+                target = target,
+                zoom = 12.0
+            )
+        )
+    }
+
     MaplibreMap(
         modifier = Modifier.fillMaxSize(),
         cameraState = cameraState,
         baseStyle = if (isDarkTheme) BaseStyle.Uri(DARK_STYLE_URL) else BaseStyle.Uri(LIGHT_STYLE_URL)
     ) {
+        // Trace the route if available
+        assistance.routeGeometry?.let { geometry ->
+            val routePositions = remember(geometry) {
+                parseRouteGeometry(geometry)
+            }
+
+            if (routePositions.isNotEmpty()) {
+                val routeSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = LineString(coordinates = routePositions),
+                                    properties = null
+                                )
+                            )
+                        )
+                    )
+                )
+
+                LineLayer(
+                    id = "assistance-route",
+                    source = routeSource,
+                    color = const(MaterialTheme.colorScheme.primary),
+                    width = const(6.dp)
+                )
+            }
+        }
+
         val markersSource = rememberGeoJsonSource(
             data = GeoJsonData.Features(
                 geoJson = FeatureCollection(
@@ -212,5 +265,24 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
             strokeColor = const(Color.White),
             strokeWidth = const(2.dp)
         )
+    }
+}
+
+private fun parseRouteGeometry(routeGeometry: String): List<Position> {
+    return try {
+        val json = JSONArray(routeGeometry)
+        buildList {
+            for (i in 0 until json.length()) {
+                val coord = json.getJSONArray(i)
+                add(
+                    Position(
+                        longitude = coord.getDouble(0),
+                        latitude = coord.getDouble(1)
+                    )
+                )
+            }
+        }
+    } catch (e: Exception) {
+        emptyList()
     }
 }

@@ -638,6 +638,7 @@ fun MainNavigationSuite(
                                 Pair(currentEntry.initialLat, currentEntry.initialLng)
                             } else null,
                             title = if (currentEntry?.isDestination == true) "Seleccionar destino" else "Seleccionar origen",
+                            showNearby = currentEntry?.isDestination == true,
                             onLocationSelected = { lat, lng ->
                                 onMapLocationPicked.value(lat, lng, currentEntry?.isDestination == true)
                                 tabBackStack.removeAt(tabBackStack.size - 1)

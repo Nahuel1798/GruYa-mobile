@@ -156,12 +156,12 @@ fun HomeProviderScreen(
                 longitude = lng
             )
 
-            // Reverse Geocoding to get address name
+            // Reverse Geocoding to get the most accurate address
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     geocoder.getFromLocation(lat, lng, 1) { addresses ->
                         val address = addresses.firstOrNull()?.let {
-                            it.locality ?: it.subAdminArea ?: it.adminArea ?: "Ubicación desconocida"
+                            it.getAddressLine(0) ?: it.locality ?: "Ubicación desconocida"
                         } ?: "${"%.4f".format(lat)}, ${"%.4f".format(lng)}"
                         viewModel.updateLocationName(address)
                     }
@@ -169,7 +169,7 @@ fun HomeProviderScreen(
                     @Suppress("DEPRECATION")
                     val addresses = geocoder.getFromLocation(lat, lng, 1)
                     val address = addresses?.firstOrNull()?.let {
-                        it.locality ?: it.subAdminArea ?: it.adminArea ?: "Ubicación desconocida"
+                        it.getAddressLine(0) ?: it.locality ?: "Ubicación desconocida"
                     } ?: "${"%.4f".format(lat)}, ${"%.4f".format(lng)}"
                     viewModel.updateLocationName(address)
                 }

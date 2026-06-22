@@ -35,6 +35,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -52,6 +55,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.ServiceType
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -78,9 +83,11 @@ fun ProviderProfileScreen(
     onSearchAddress: () -> Unit,
     onLocationChange: (Double, Double) -> Unit,
     onOpenMap: () -> Unit,
-    onConfirm: () -> Unit
+    onConfirm: () -> Unit,
+    onClearError: () -> Unit
 ) {
     var hasLocationPermission by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -92,7 +99,22 @@ fun ProviderProfileScreen(
         locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { errorMsg ->
+            val snackbarJob = launch {
+                snackbarHostState.showSnackbar(
+                    message = errorMsg,
+                    duration = SnackbarDuration.Indefinite
+                )
+            }
+            delay(10000)
+            snackbarJob.cancel()
+            onClearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -330,13 +352,6 @@ fun ProviderProfileScreen(
                     text = "Coordenadas: ${uiState.latitude}, ${uiState.longitude}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            uiState.error?.let {
-                Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error
                 )
             }
 

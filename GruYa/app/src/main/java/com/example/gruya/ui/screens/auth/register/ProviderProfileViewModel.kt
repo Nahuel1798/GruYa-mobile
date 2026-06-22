@@ -145,4 +145,8 @@ class ProviderProfileViewModel @Inject constructor(
     fun resetSuccess() {
         _uiState.update { it.copy(success = false) }
     }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
 }

@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gruya.ui.theme.GruYaTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -33,10 +35,25 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val loginUiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(loginUiState.success) {
         if (loginUiState.success) {
             onLoginSuccess()
+        }
+    }
+
+    LaunchedEffect(loginUiState.error) {
+        if (loginUiState.error.isNotEmpty()) {
+            val snackbarJob = launch {
+                snackbarHostState.showSnackbar(
+                    message = loginUiState.error,
+                    duration = SnackbarDuration.Indefinite
+                )
+            }
+            delay(10000)
+            snackbarJob.cancel()
+            viewModel.clearError()
         }
     }
 
@@ -47,7 +64,8 @@ fun LoginScreen(
         onLoginClick = viewModel::onLoginButtonClick,
         onPasswordVisibilityClick = viewModel::onPasswordVisibilityClick,
         onNavigateToRegister = onNavigateToRegister,
-        onForgotPasswordClick = { /* TODO */ }
+        onForgotPasswordClick = { /* TODO */ },
+        snackbarHostState = snackbarHostState
     )
 }
 
@@ -59,10 +77,12 @@ fun LoginContent(
     onLoginClick: () -> Unit,
     onPasswordVisibilityClick: (Boolean) -> Unit,
     onNavigateToRegister: () -> Unit,
-    onForgotPasswordClick: () -> Unit
+    onForgotPasswordClick: () -> Unit,
+    snackbarHostState: SnackbarHostState
 ) {
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -179,15 +199,6 @@ fun LoginContent(
                 }
             }
 
-            if (uiState.error.isNotEmpty()) {
-                Text(
-                    text = uiState.error,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 14.sp,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
 
             // BOTON LOGIN
@@ -260,7 +271,8 @@ private fun LoginScreenPreview() {
             onLoginClick = {},
             onPasswordVisibilityClick = {},
             onNavigateToRegister = {},
-            onForgotPasswordClick = {}
+            onForgotPasswordClick = {},
+            snackbarHostState = remember { SnackbarHostState() }
         )
     }
 }

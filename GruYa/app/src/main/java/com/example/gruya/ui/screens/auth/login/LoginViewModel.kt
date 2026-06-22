@@ -66,4 +66,8 @@ class LoginViewModel @Inject constructor(
             curentState.copy(passwordVisible = passwordVisible)
         }
     }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = "") }
+    }
 }

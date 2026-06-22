@@ -24,15 +24,24 @@ class AssistancesViewModel @Inject constructor(
         loadAssistances()
     }
 
-    fun loadAssistances() {
+    fun loadAssistances(isRefreshing: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { 
+                it.copy(
+                    isLoading = !isRefreshing,
+                    isRefreshing = isRefreshing,
+                    error = null
+                )
+            }
             
             val assistancesResult = assistanceRepository.getUserAssistances()
             val activeResult = assistanceRepository.getAssistanceActive()
 
             _uiState.update { state ->
-                var newState = state.copy(isLoading = false)
+                var newState = state.copy(
+                    isLoading = false,
+                    isRefreshing = false
+                )
                 
                 assistancesResult.onSuccess { list ->
                     newState = newState.copy(assistances = list)
@@ -49,7 +58,19 @@ class AssistancesViewModel @Inject constructor(
         }
     }
 
-    fun refresh() {
-        loadAssistances()
+    fun onRefresh() {
+        loadAssistances(isRefreshing = true)
+    }
+
+    fun cancelActiveAssistance() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = assistanceRepository.cancelAssistance()
+            result.onSuccess {
+                loadAssistances()
+            }.onFailure { t ->
+                _uiState.update { it.copy(isLoading = false, error = t.message) }
+            }
+        }
     }
 }

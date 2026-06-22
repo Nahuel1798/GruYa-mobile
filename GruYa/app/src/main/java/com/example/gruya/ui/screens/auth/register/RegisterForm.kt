@@ -203,16 +203,6 @@ fun RegisterForm(
                     }
                 )
 
-                if (uiState.error.isNotEmpty()) {
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = uiState.error,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-
                 Spacer(modifier = Modifier.height(28.dp))
 
                 // BOTON REGISTER

@@ -8,6 +8,7 @@ import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -38,4 +39,8 @@ interface AssistanceService {
     @GET("${Constants.ASSISTANCE_PATH}/active")
     suspend fun getActiveAssistances():
             Response<AssistanceResponse>
+
+    @PATCH("${Constants.ASSISTANCE_PATH}/active/cancel")
+    suspend fun cancelAssistances():
+            Response<Unit>
 }

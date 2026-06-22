@@ -50,12 +50,14 @@ fun AssistanceTrackingScreen(
     viewModel: AssistanceTrackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val scaffoldState = rememberBottomSheetScaffoldState()
 
     LaunchedEffect(assistanceId) {
         viewModel.loadAssistance(assistanceId)
     }
 
-    Scaffold(
+    BottomSheetScaffold(
+        scaffoldState = scaffoldState,
         topBar = {
             TopAppBar(
                 title = { Text("Seguimiento de Asistencia") },
@@ -68,6 +70,68 @@ fun AssistanceTrackingScreen(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 )
             )
+        },
+        sheetPeekHeight = 140.dp,
+        sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        sheetShadowElevation = 8.dp,
+        sheetDragHandle = { BottomSheetDefaults.DragHandle() },
+        sheetContent = {
+            uiState.assistance?.let { assistance ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 32.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "${assistance.client.firstName} ${assistance.client.lastName}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = assistance.serviceType.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    InfoRow(Icons.Default.LocationOn, "Origen", uiState.originAddress ?: "Cargando...")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InfoRow(Icons.Default.LocationOn, "Destino", uiState.destinationAddress ?: "Cargando...")
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = { /* TODO: Call client */ },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Phone, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Llamar Cliente")
+                    }
+                }
+            } ?: Box(Modifier.fillMaxWidth().height(100.dp))
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
@@ -90,73 +154,11 @@ fun AssistanceTrackingScreen(
                 }
             } else {
                 TrackingMapContent(uiState)
-                
-                // Bottom Info Card
-                uiState.assistance?.let { assistance ->
-                    Card(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        shape = RoundedCornerShape(24.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                    ) {
-                        Column(modifier = Modifier.padding(24.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Column {
-                                    Text(
-                                        text = "${assistance.client.firstName} ${assistance.client.lastName}",
-                                        style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = assistance.serviceType.name,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            InfoRow(Icons.Default.LocationOn, "Origen", uiState.originAddress ?: "Cargando...")
-                            Spacer(modifier = Modifier.height(8.dp))
-                            InfoRow(Icons.Default.LocationOn, "Destino", uiState.destinationAddress ?: "Cargando...")
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            Button(
-                                onClick = { /* TODO: Call client */ },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Icon(Icons.Default.Phone, contentDescription = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Llamar Cliente")
-                            }
-                        }
-                    }
-                }
             }
         }
     }
 }
+
 
 @Composable
 private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
@@ -187,23 +189,44 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
         )
     )
 
-    // Center map between origin and destination
+    // Adapt zoom depending on the route
     LaunchedEffect(assistance) {
-        val target = if (assistance.destination.latitude != 0.0) {
-            Position(
-                (assistance.origin.longitude + assistance.destination.longitude) / 2.0,
-                (assistance.origin.latitude + assistance.destination.latitude) / 2.0
-            )
-        } else {
-            Position(assistance.origin.longitude, assistance.origin.latitude)
-        }
+        val routePositions = assistance.routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
         
-        cameraState.animateTo(
-            CameraPosition(
-                target = target,
-                zoom = 12.0
+        val points = mutableListOf<Position>()
+        points.add(Position(assistance.origin.longitude, assistance.origin.latitude))
+        if (assistance.destination.latitude != 0.0) {
+            points.add(Position(assistance.destination.longitude, assistance.destination.latitude))
+        }
+        points.addAll(routePositions)
+
+        if (points.isNotEmpty()) {
+            val minLat = points.minOf { it.latitude }
+            val maxLat = points.maxOf { it.latitude }
+            val minLon = points.minOf { it.longitude }
+            val maxLon = points.maxOf { it.longitude }
+
+            val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
+            val deltaLat = maxLat - minLat
+            val deltaLon = maxLon - minLon
+            
+            val zoom = when {
+                deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
+                deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
+                deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
+                deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
+                deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
+                deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
+                else -> 15.0
+            }
+
+            cameraState.animateTo(
+                CameraPosition(
+                    target = target,
+                    zoom = zoom
+                )
             )
-        )
+        }
     }
 
     MaplibreMap(

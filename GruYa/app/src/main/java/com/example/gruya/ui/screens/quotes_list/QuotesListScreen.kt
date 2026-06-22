@@ -183,21 +183,42 @@ private fun QuotesListMap(
     )
 
     LaunchedEffect(assistance) {
-        val target = if (assistance.destination.latitude != 0.0) {
-            Position(
-                (assistance.origin.longitude + assistance.destination.longitude) / 2.0,
-                (assistance.origin.latitude + assistance.destination.latitude) / 2.0
-            )
-        } else {
-            Position(assistance.origin.longitude, assistance.origin.latitude)
+        val routePositions = assistance.routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
+        val points = buildList {
+            add(Position(assistance.origin.longitude, assistance.origin.latitude))
+            if (assistance.destination.latitude != 0.0) {
+                add(Position(assistance.destination.longitude, assistance.destination.latitude))
+            }
+            addAll(routePositions)
         }
 
-        cameraState.animateTo(
-            CameraPosition(
-                target = target,
-                zoom = 12.0
+        if (points.isNotEmpty()) {
+            val minLat = points.minOf { it.latitude }
+            val maxLat = points.maxOf { it.latitude }
+            val minLon = points.minOf { it.longitude }
+            val maxLon = points.maxOf { it.longitude }
+
+            val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
+            val deltaLat = maxLat - minLat
+            val deltaLon = maxLon - minLon
+
+            val zoom = when {
+                deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
+                deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
+                deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
+                deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
+                deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
+                deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
+                else -> 15.0
+            }
+
+            cameraState.animateTo(
+                CameraPosition(
+                    target = target,
+                    zoom = zoom
+                )
             )
-        )
+        }
     }
 
     MaplibreMap(

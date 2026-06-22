@@ -93,4 +93,20 @@ class AssistanceRepository @Inject constructor(
             Result.failure(Exception("Error al obtener la solicitud activa", e))
         }
     }
+
+    suspend fun cancelAssistance(): Result<Unit> {
+        return try {
+            val response = assistanceService.cancelAssistances()
+            if (response.isSuccessful) {
+                Log.d("AssistanceRepository", "Solicitud de auxilio cancelada")
+                Result.success(Unit)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error al cancelar la solicitud", e))
+        }
+    }
 }

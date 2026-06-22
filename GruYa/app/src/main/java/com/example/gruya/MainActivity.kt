@@ -298,7 +298,8 @@ fun GruYaApp(
                     },
                     onConfirm = {
                         providerViewModel.createProfile()
-                    }
+                    },
+                    onClearError = providerViewModel::clearError
                 )
             }
 
@@ -728,7 +729,8 @@ fun MainNavigationSuite(
                             },
                             onConfirm = {
                                 providerViewModel.createProfile()
-                            }
+                            },
+                            onClearError = providerViewModel::clearError
                         )
                     }
 

@@ -76,14 +76,21 @@ class RegisterViewModel @Inject constructor(
     fun onContinueClick(){
         val s = _uiState.value
         val error = when {
-            s.firstname.isEmpty() -> "Ingrese sun nombre"
+            s.firstname.isEmpty() -> "Ingrese su nombre"
             s.lastname.isEmpty() -> "Ingrese su apellido"
             s.phone.isEmpty() -> "Ingrese su teléfono"
             s.email.isEmpty() -> "Ingrese su email"
             s.password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
             else -> null
         }
-        _uiState.update { it.copy(step = RegisterStep.RoleSelector) }
+        if (error != null) {
+            _uiState.update { it.copy(error = error) }
+        } else {
+            _uiState.update { it.copy(step = RegisterStep.RoleSelector, error = "") }
+        }
+    }
 
+    fun clearError() {
+        _uiState.update { it.copy(error = "") }
     }
 }

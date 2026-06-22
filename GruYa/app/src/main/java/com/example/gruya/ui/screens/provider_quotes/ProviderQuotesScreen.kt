@@ -38,6 +38,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,9 +58,17 @@ import com.example.gruya.domain.model.ServiceType
 @Composable
 fun ProviderQuotesScreen(
     viewModel: ProviderQuotesViewModel = hiltViewModel(),
+    initialFilter: ProviderQuoteFilter? = null,
     onNavigateToTracking: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Apply initial filter on first composition (one-shot)
+    LaunchedEffect(initialFilter) {
+        if (initialFilter != null) {
+            viewModel.loadQuotes(initialFilter)
+        }
+    }
 
     Scaffold(
         topBar = {

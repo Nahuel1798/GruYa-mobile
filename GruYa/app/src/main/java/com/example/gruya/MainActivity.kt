@@ -1,6 +1,7 @@
 package com.example.gruya
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -8,19 +9,14 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
-import com.google.firebase.messaging.FirebaseMessaging
-import dagger.hilt.android.AndroidEntryPoint
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
-import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -28,6 +24,7 @@ import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalAtm
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -35,22 +32,27 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -58,31 +60,43 @@ import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.NotificationViewModel
 import com.example.gruya.ui.navigation.AppDest
-import com.example.gruya.ui.screens.home_user.HomeScreen
+import com.example.gruya.ui.navigation.EXTRA_ASSISTANCE_ID
+import com.example.gruya.ui.navigation.EXTRA_NAV_TYPE
+import com.example.gruya.ui.navigation.NavEvent
+import com.example.gruya.ui.navigation.NavigationEventBus
+import com.example.gruya.ui.navigation.navEventFromExtras
+import com.example.gruya.ui.screens.assistances.AssistancesScreen
+import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
 import com.example.gruya.ui.screens.auth.register.LocationPickerScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileViewModel
 import com.example.gruya.ui.screens.auth.register.RegisterScreen
-import com.example.gruya.ui.screens.assistances.AssistancesScreen
-import com.example.gruya.ui.screens.provider_quotes.ProviderQuotesScreen
-import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
-import com.example.gruya.ui.screens.quotes_list.QuotesListScreen
-import com.example.gruya.ui.screens.quotes_list.QuotesListViewModel
 import com.example.gruya.ui.screens.home_provider.HomeProviderScreen
 import com.example.gruya.ui.screens.home_provider.HomeProviderViewModel
-import com.example.gruya.ui.screens.quote.QuoteScreen
-import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
-import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
-import com.example.gruya.ui.screens.vehicle.VehiclesScreen
+import com.example.gruya.ui.screens.home_user.HomeScreen
 import com.example.gruya.ui.screens.profile.ProfileScreen
+import com.example.gruya.ui.screens.provider_quotes.ProviderQuoteFilter
+import com.example.gruya.ui.screens.provider_quotes.ProviderQuotesScreen
+import com.example.gruya.ui.screens.quote.QuoteScreen
+import com.example.gruya.ui.screens.quotes_list.QuotesListScreen
+import com.example.gruya.ui.screens.quotes_list.QuotesListViewModel
 import com.example.gruya.ui.screens.request_assistance.MapPickerScreen
 import com.example.gruya.ui.screens.request_assistance.RequestAssistanceScreen
 import com.example.gruya.ui.screens.request_assistance.RequestAssistanceViewModel
+import com.example.gruya.ui.screens.vehicle.AddVehicleScreen
+import com.example.gruya.ui.screens.vehicle.AddVehicleViewModel
+import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.theme.GruYaTheme
+import com.google.firebase.messaging.FirebaseMessaging
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var navEventBus: NavigationEventBus
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,8 +108,20 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    GruYaApp()
+                    GruYaApp(navEventBus = navEventBus)
                 }
+            }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val navType = intent.getStringExtra(EXTRA_NAV_TYPE)
+        val assistanceId = intent.getIntExtra(EXTRA_ASSISTANCE_ID, -1)
+        if (navType != null && assistanceId > 0) {
+            val event = navEventFromExtras(navType, assistanceId)
+            if (event != null) {
+                navEventBus.emit(event)
             }
         }
     }
@@ -104,12 +130,16 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun GruYaApp(
     authViewModel: AuthViewModel = hiltViewModel(),
-    notificationViewModel: NotificationViewModel = hiltViewModel()
+    notificationViewModel: NotificationViewModel = hiltViewModel(),
+    navEventBus: NavigationEventBus
 ) {
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
     val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // State for pending notification navigation to tab destinations
+    val pendingNavEvent = remember { mutableStateOf<NavEvent?>(null) }
 
     // Launcher para el permiso de notificaciones (Android 13+)
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -138,12 +168,33 @@ fun GruYaApp(
             Log.d("FCM", "Token actual de FCM: $token")
         }
 
+        // Collect existing legacy notifications for snackbar
         notificationViewModel.notifications.collect { (title, body) ->
             snackbarHostState.showSnackbar(
                 message = "$title: $body",
                 duration = SnackbarDuration.Short
             )
         }
+    }
+
+    // Observe NavigationEventBus for notification-driven navigation events
+    LaunchedEffect(Unit) {
+        navEventBus.events.collect { event ->
+            val message = snackbarMessageFor(event)
+            val result = snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = "Ver",
+                duration = SnackbarDuration.Indefinite
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                pendingNavEvent.value = event
+            }
+        }
+    }
+
+    // Track foreground state for the NavigationEventBus
+    LaunchedEffect(Unit) {
+        navEventBus.isForeground = true
     }
 
     LaunchedEffect(Unit) {
@@ -272,12 +323,22 @@ fun GruYaApp(
                     providerViewModel = providerViewModel,
                     onLogout = {
                         authViewModel.logout()
-                    }
+                    },
+                    pendingNavEvent = pendingNavEvent
                 )
             }
         }
     )
     }
+}
+
+private fun snackbarMessageFor(event: NavEvent): String = when (event) {
+    is NavEvent.NewAssistance -> "Nueva solicitud de auxilio"
+    is NavEvent.DirectedAssistance -> "Nueva solicitud de auxilio"
+    is NavEvent.NewQuote -> "Nueva cotización recibida"
+    is NavEvent.QuoteAcceptedProvider -> "Cotización aceptada"
+    is NavEvent.QuoteAcceptedClient -> "Cotización aceptada"
+    is NavEvent.QuoteRejected -> "Cotización rechazada"
 }
 
 private data class NavItem(
@@ -291,7 +352,8 @@ private data class NavItem(
 fun MainNavigationSuite(
     authViewModel: AuthViewModel,
     providerViewModel: ProviderProfileViewModel,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    pendingNavEvent: MutableState<NavEvent?>
 ) {
     val tabBackStack = rememberNavBackStack(
         AppDest.TabKey.Home
@@ -305,6 +367,23 @@ fun MainNavigationSuite(
         homeProviderUiState.isProfileComplete == true
     } else {
         true
+    }
+
+    // Handle pending navigation from notification tap
+    LaunchedEffect(pendingNavEvent.value) {
+        val event = pendingNavEvent.value ?: return@LaunchedEffect
+        val dest: NavKey = when (event) {
+            is NavEvent.NewAssistance -> AppDest.Quote(event.assistanceId)
+            is NavEvent.DirectedAssistance -> AppDest.Quote(event.assistanceId)
+            is NavEvent.NewQuote -> AppDest.TabKey.QuotesList(event.assistanceId)
+            is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(event.assistanceId)
+            is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
+            is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
+        }
+        if (tabBackStack.lastOrNull() != dest) {
+            tabBackStack.add(dest)
+        }
+        pendingNavEvent.value = null
     }
 
     val navItems = buildList {
@@ -329,7 +408,7 @@ fun MainNavigationSuite(
             )
             Role.PROVIDER -> add(
                 NavItem(
-                    key = AppDest.TabKey.ProviderQuotes,
+                    key = AppDest.TabKey.ProviderQuotes(),
                     label = "Cotizaciones",
                     selectedIcon = Icons.Filled.LocalAtm,
                     unselectedIcon = Icons.Outlined.LocalAtm
@@ -377,8 +456,10 @@ fun MainNavigationSuite(
             if (showNav) {
                 navItems.forEach { item ->
 
-                    val selected =
-                        tabBackStack.lastOrNull() == item.key
+                    val selected = when (item.key) {
+                        is AppDest.TabKey.ProviderQuotes -> tabBackStack.lastOrNull() is AppDest.TabKey.ProviderQuotes
+                        else -> tabBackStack.lastOrNull() == item.key
+                    }
 
                     item(
                         selected = selected,
@@ -463,7 +544,11 @@ fun MainNavigationSuite(
                     }
 
                     entry<AppDest.TabKey.ProviderQuotes> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.TabKey.ProviderQuotes } as? AppDest.TabKey.ProviderQuotes
+                        val initialFilter = currentEntry?.initialFilter
+
                         ProviderQuotesScreen(
+                            initialFilter = initialFilter,
                             onNavigateToTracking = { assistanceId ->
                                 tabBackStack.add(AppDest.AssistanceTracking(assistanceId))
                             }
@@ -665,4 +750,5 @@ fun MainNavigationSuite(
         }
     }
 }
+
 

@@ -1,6 +1,7 @@
 package com.example.gruya.ui.navigation
 
 import androidx.navigation3.runtime.NavKey
+import com.example.gruya.ui.screens.provider_quotes.ProviderQuoteFilter
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -71,7 +72,7 @@ sealed interface AppDest : NavKey {
         @Serializable
         data object Assistances : TabKey
         @Serializable
-        data object ProviderQuotes : TabKey
+        data class ProviderQuotes(val initialFilter: ProviderQuoteFilter? = null) : TabKey
         @Serializable
         data class QuotesList(val assistanceId: Int) : TabKey
         @Serializable

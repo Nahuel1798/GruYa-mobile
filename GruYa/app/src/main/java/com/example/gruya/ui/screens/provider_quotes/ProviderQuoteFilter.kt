@@ -1,5 +1,8 @@
 package com.example.gruya.ui.screens.provider_quotes
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class ProviderQuoteFilter(
     val label: String,
     val description: String

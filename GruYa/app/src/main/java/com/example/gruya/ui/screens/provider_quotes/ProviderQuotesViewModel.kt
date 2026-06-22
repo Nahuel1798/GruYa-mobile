@@ -1,5 +1,6 @@
 package com.example.gruya.ui.screens.provider_quotes
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.QuoteRepository
@@ -14,14 +15,19 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProviderQuotesViewModel @Inject constructor(
-    private val quoteRepository: QuoteRepository
+    private val quoteRepository: QuoteRepository,
+    private val savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProviderQuotesUiState())
     val uiState: StateFlow<ProviderQuotesUiState> = _uiState.asStateFlow()
 
     init {
-        loadQuotes()
+        val filterName = savedStateHandle.get<String>("initialFilter")
+        val initialFilter = filterName?.let {
+            try { ProviderQuoteFilter.valueOf(it) } catch (_: IllegalArgumentException) { null }
+        }
+        loadQuotes(initialFilter)
     }
 
     fun loadQuotes(filter: ProviderQuoteFilter? = null) {

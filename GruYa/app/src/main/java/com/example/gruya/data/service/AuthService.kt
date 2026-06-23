@@ -4,6 +4,7 @@ import com.example.gruya.data.remote.Constants
 import com.example.gruya.data.remote.dtos.request.FcmTokenRequest
 import com.example.gruya.data.remote.dtos.request.LoginRequest
 import com.example.gruya.data.remote.dtos.request.RegisterRequest
+import com.example.gruya.data.remote.dtos.request.UpdatePasswordRequest
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.remote.dtos.response.AuthResponse
 import com.example.gruya.data.remote.dtos.response.UserResponse
@@ -42,4 +43,9 @@ interface AuthService{
     // Validate token
     @GET(Constants.AUTH_PATH + "/validate")
     suspend fun validateToken(): Response<Unit>
+
+    @PATCH(Constants.AUTH_PATH + "/password")
+    suspend fun resetpassword(
+        @Body request: UpdatePasswordRequest
+    ): Response<Unit>
 }

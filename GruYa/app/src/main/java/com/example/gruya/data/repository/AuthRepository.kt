@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.gruya.data.remote.dtos.request.FcmTokenRequest
 import com.example.gruya.data.remote.dtos.request.LoginRequest
 import com.example.gruya.data.remote.dtos.request.RegisterRequest
+import com.example.gruya.data.remote.dtos.request.UpdatePasswordRequest
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.remote.dtos.response.AuthResponse
 import com.example.gruya.data.remote.dtos.response.UserResponse
@@ -78,6 +79,19 @@ class AuthRepository @Inject constructor(
                 Result.failure(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resetPassword(old: String, new: String): Result<Unit> {
+        return try {
+            val response = authService.resetpassword(UpdatePasswordRequest(old, new))
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al resetear contraseña: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

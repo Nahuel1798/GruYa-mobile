@@ -17,6 +17,7 @@ data class ProfileUiState(
     val phone: String = "",
     val avatarUrl: String? = null,
 
+    val isProvider: Boolean = false,
     val isEditing: Boolean = false,
     val isSaving: Boolean = false,
 
@@ -30,5 +31,14 @@ data class ProfileUiState(
     // Editable provider fields
     val providerCompanyName: String = "",
     val providerAddress: String = "",
-    val providerServiceType: ServiceType = ServiceType.AUXILIO
+    val providerServiceType: ServiceType = ServiceType.AUXILIO,
+
+    // Password change fields
+    val isPasswordDialogOpen: Boolean = false,
+    val oldPassword: String = "",
+    val newPassword: String = "",
+    val confirmPassword: String = "",
+    val isUpdatingPassword: Boolean = false,
+    val passwordError: String? = null,
+    val passwordSuccess: Boolean = false
 )

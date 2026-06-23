@@ -11,11 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -30,6 +30,7 @@ fun VehiclesScreen(
     onEditVehicle: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     // Refresca la lista al reanudar la pantalla (vuelta de add/edit)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -49,28 +50,31 @@ fun VehiclesScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            TopAppBar(
+            MediumTopAppBar(
                 title = {
                     Text(
                         text = "Mis Vehículos",
                         fontWeight = FontWeight.Bold
                     )
                 },
+                actions = {
+                    IconButton(onClick = viewModel::onAddVehicle) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Agregar Vehículo",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
                 )
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = viewModel::onAddVehicle,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar Vehículo")
-            }
         }
     ) { padding ->
         Box(
@@ -87,14 +91,14 @@ fun VehiclesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp)
+                    contentPadding = PaddingValues(bottom = 24.dp, top = 8.dp)
                 ) {
                     item {
                         Text(
-                            text = "Gestiona tu flota registrada para asistencia rápida.",
+                            text = "Gestiona tu flota registrada para recibir asistencia rápida en el camino.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp,
-                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp)
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                         )
                     }
 
@@ -107,7 +111,7 @@ fun VehiclesScreen(
                     }
 
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                         AddVehicleCard(onAddClick = viewModel::onAddVehicle)
                     }
                 }

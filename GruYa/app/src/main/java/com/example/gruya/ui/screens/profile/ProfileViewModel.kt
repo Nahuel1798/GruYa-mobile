@@ -29,11 +29,97 @@ class ProfileViewModel @Inject constructor(
 
     init {
         val role = sessionManager.getRole()
-        if (role == Role.PROVIDER) {
-            loadUser()
-            loadProviderProfile()
-        } else {
-            loadUser()
+        val isProvider = role == Role.PROVIDER
+        _uiState.update { it.copy(isProvider = isProvider) }
+        loadAll()
+    }
+
+    fun loadAll() {
+        val isProvider = sessionManager.getRole() == Role.PROVIDER
+        
+        viewModelScope.launch {
+            _uiState.update { 
+                it.copy(
+                    isProvider = isProvider,
+                    isLoading = it.user == null,
+                    isLoadingProvider = isProvider && it.providerProfile == null,
+                    error = null,
+                    providerError = null
+                )
+            }
+
+            // Launch both in parallel
+            launch { loadUserInternal() }
+            if (isProvider) {
+                launch { loadProviderProfileInternal() }
+            }
+        }
+    }
+
+    private suspend fun loadUserInternal() {
+        try {
+            val result = authRepository.getProfile()
+
+            result.onSuccess { userResponse ->
+                Log.d("ProfileVM", "Perfil cargado con éxito: ${userResponse.firstName}")
+                _uiState.update {
+                    it.copy(
+                        user = userResponse,
+                        name = "${userResponse.firstName} ${userResponse.lastName}",
+                        email = userResponse.email,
+                        avatarUrl = userResponse.avatarUrl,
+                        isLoading = false,
+                        isProvider = userResponse.role == Role.PROVIDER
+                    )
+                }
+            }.onFailure { error ->
+                Log.e("ProfileVM", "Error en el repositorio", error)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = error.message ?: "Error desconocido"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileVM", "Error recuperando token o ejecutando", e)
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "No se encontró una sesión activa o error interno"
+                )
+            }
+        }
+    }
+
+    private suspend fun loadProviderProfileInternal() {
+        try {
+            val result = providerRepository.getMyProfile()
+            result.onSuccess { profile ->
+                Log.d("ProfileVM", "Provider profile loaded: ${profile.companyName}")
+                _uiState.update {
+                    it.copy(
+                        providerProfile = profile,
+                        isLoadingProvider = false
+                    )
+                }
+            }.onFailure { error ->
+                Log.e("ProfileVM", "Error loading provider profile", error)
+                _uiState.update {
+                    it.copy(
+                        isLoadingProvider = false,
+                        providerError = error.message ?: "Error al cargar perfil de proveedor"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ProfileVM", "Exception loading provider profile", e)
+            _uiState.update {
+                it.copy(
+                    isLoadingProvider = false,
+                    providerError = "Error inesperado: ${e.message}"
+                )
+            }
         }
     }
 
@@ -41,84 +127,23 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    isLoading = true,
+                    isLoading = it.user == null,
                     error = null
                 )
             }
-
-            try {
-                val result = authRepository.getProfile()
-
-                result.onSuccess { userResponse ->
-                    Log.d("ProfileVM", "Perfil cargado con éxito: ${userResponse.firstName}")
-                    _uiState.update {
-                        it.copy(
-                            user = userResponse,
-                            name = "${userResponse.firstName} ${userResponse.lastName}",
-                            email = userResponse.email,
-                            avatarUrl = userResponse.avatarUrl,
-                            isLoading = false
-                        )
-                    }
-                }.onFailure { error ->
-                    Log.e("ProfileVM", "Error en el repositorio", error)
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = error.message ?: "Error desconocido"
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("ProfileVM", "Error recuperando token o ejecutando", e)
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = "No se encontró una sesión activa o error interno"
-                    )
-                }
-            }
+            loadUserInternal()
         }
     }
 
-    private fun loadProviderProfile() {
+    fun loadProviderProfile() {
         viewModelScope.launch {
             _uiState.update {
                 it.copy(
-                    isLoadingProvider = true,
-                    providerError = null,
-                    providerProfile = null
+                    isLoadingProvider = it.providerProfile == null,
+                    providerError = null
                 )
             }
-
-            try {
-                val result = providerRepository.getMyProfile()
-                result.onSuccess { profile ->
-                    Log.d("ProfileVM", "Provider profile loaded: ${profile.companyName}")
-                    _uiState.update {
-                        it.copy(
-                            providerProfile = profile,
-                            isLoadingProvider = false
-                        )
-                    }
-                }.onFailure { error ->
-                    Log.e("ProfileVM", "Error loading provider profile", error)
-                    _uiState.update {
-                        it.copy(
-                            isLoadingProvider = false,
-                            providerError = error.message ?: "Error al cargar perfil de proveedor"
-                        )
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("ProfileVM", "Exception loading provider profile", e)
-                _uiState.update {
-                    it.copy(
-                        isLoadingProvider = false,
-                        providerError = "Error inesperado: ${e.message}"
-                    )
-                }
-            }
+            loadProviderProfileInternal()
         }
     }
 
@@ -254,5 +279,47 @@ class ProfileViewModel @Inject constructor(
         sessionManager.clearSession()
 
         _uiState.value = ProfileUiState()
+    }
+
+    fun onOpenPasswordDialog() {
+        _uiState.update { it.copy(isPasswordDialogOpen = true, passwordError = null, passwordSuccess = false, oldPassword = "", newPassword = "", confirmPassword = "") }
+    }
+
+    fun onClosePasswordDialog() {
+        _uiState.update { it.copy(isPasswordDialogOpen = false) }
+    }
+
+    fun onOldPasswordChange(value: String) {
+        _uiState.update { it.copy(oldPassword = value) }
+    }
+
+    fun onNewPasswordChange(value: String) {
+        _uiState.update { it.copy(newPassword = value) }
+    }
+
+    fun onConfirmPasswordChange(value: String) {
+        _uiState.update { it.copy(confirmPassword = value) }
+    }
+
+    fun updatePassword() {
+        val state = _uiState.value
+        if (state.newPassword != state.confirmPassword) {
+            _uiState.update { it.copy(passwordError = "Las contraseñas no coinciden") }
+            return
+        }
+        if (state.newPassword.length < 6) {
+            _uiState.update { it.copy(passwordError = "La contraseña debe tener al menos 6 caracteres") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingPassword = true, passwordError = null) }
+            val result = authRepository.resetPassword(state.oldPassword, state.newPassword)
+            result.onSuccess {
+                _uiState.update { it.copy(isUpdatingPassword = false, passwordSuccess = true) }
+            }.onFailure { error ->
+                _uiState.update { it.copy(isUpdatingPassword = false, passwordError = error.message ?: "Error al cambiar la contraseña") }
+            }
+        }
     }
 }

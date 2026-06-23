@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
@@ -43,7 +45,7 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     LaunchedEffect(Unit) {
-        viewModel.loadUser()
+        viewModel.loadAll()
     }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -69,7 +71,13 @@ fun ProfileScreen(
         },
         onCancelProviderEdit = {
             viewModel.cancelProviderEdit()
-        }
+        },
+        onOpenPasswordDialog = viewModel::onOpenPasswordDialog,
+        onClosePasswordDialog = viewModel::onClosePasswordDialog,
+        onOldPasswordChange = viewModel::onOldPasswordChange,
+        onNewPasswordChange = viewModel::onNewPasswordChange,
+        onConfirmPasswordChange = viewModel::onConfirmPasswordChange,
+        onUpdatePassword = viewModel::updatePassword
     )
 }
 
@@ -81,7 +89,13 @@ fun ProfileContent(
     onUpdateProfile: (String, String, String, String) -> Unit,
     onUpdateProviderProfile: (String, String, ServiceType, String) -> Unit = { _, _, _, _ -> },
     onToggleProviderEdit: () -> Unit = {},
-    onCancelProviderEdit: () -> Unit = {}
+    onCancelProviderEdit: () -> Unit = {},
+    onOpenPasswordDialog: () -> Unit = {},
+    onClosePasswordDialog: () -> Unit = {},
+    onOldPasswordChange: (String) -> Unit = {},
+    onNewPasswordChange: (String) -> Unit = {},
+    onConfirmPasswordChange: (String) -> Unit = {},
+    onUpdatePassword: () -> Unit = {}
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var editedFirstName by remember(uiState.user) { mutableStateOf(uiState.user?.firstName ?: "") }
@@ -269,16 +283,7 @@ fun ProfileContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Provider Profile Section
-                if (uiState.isLoadingProvider) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                if (uiState.providerProfile != null || uiState.providerError != null) {
+                if (uiState.isProvider) {
                     SectionHeader(
                         title = "Perfil de Proveedor",
                         isEditing = uiState.isEditingProvider,
@@ -287,6 +292,15 @@ fun ProfileContent(
                         onSaveClick = { /* Handled inside ProviderProfileSection component */ },
                         showActions = uiState.providerProfile != null && !uiState.isEditingProvider 
                     )
+
+                    if (uiState.isLoadingProvider && uiState.providerProfile == null) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                     
                     ProviderProfileSection(
                         providerProfile = uiState.providerProfile,
@@ -297,7 +311,8 @@ fun ProfileContent(
                         providerAddress = uiState.providerAddress,
                         providerServiceType = uiState.providerServiceType,
                         onCancelEdit = onCancelProviderEdit,
-                        onSave = onUpdateProviderProfile
+                        onSave = onUpdateProviderProfile,
+                        isLoading = uiState.isLoadingProvider && uiState.providerProfile == null
                     )
                 }
 
@@ -318,18 +333,22 @@ fun ProfileContent(
                 AccountActionItem(
                     icon = Icons.Outlined.Lock,
                     label = "Cambiar contraseña",
-                    onClick = { /* TODO */ }
-                )
-                
-                AccountActionItem(
-                    icon = Icons.Outlined.DeleteForever,
-                    label = "Eliminar cuenta",
-                    contentColor = MaterialTheme.colorScheme.error,
-                    onClick = { /* TODO */ }
+                    onClick = onOpenPasswordDialog
                 )
 
                 Spacer(modifier = Modifier.height(40.dp))
             }
+        }
+
+        if (uiState.isPasswordDialogOpen) {
+            PasswordChangeDialog(
+                uiState = uiState,
+                onClose = onClosePasswordDialog,
+                onOldPasswordChange = onOldPasswordChange,
+                onNewPasswordChange = onNewPasswordChange,
+                onConfirmPasswordChange = onConfirmPasswordChange,
+                onUpdate = onUpdatePassword
+            )
         }
 
         // Loading Overlay
@@ -544,7 +563,8 @@ fun ProviderProfileSection(
     providerAddress: String,
     providerServiceType: ServiceType,
     onCancelEdit: () -> Unit,
-    onSave: (String, String, ServiceType, String) -> Unit
+    onSave: (String, String, ServiceType, String) -> Unit,
+    isLoading: Boolean = false
 ) {
     var editedCompanyName by remember(isEditingProvider, providerCompanyName) { mutableStateOf(providerCompanyName) }
     var editedAddress by remember(isEditingProvider, providerAddress) { mutableStateOf(providerAddress) }
@@ -681,7 +701,7 @@ fun ProviderProfileSection(
                     ProviderDetailRow(icon = Icons.Outlined.LocationOn, label = "Dirección", value = providerProfile.address)
                     ProviderDetailRow(icon = Icons.Outlined.Description, label = "Descripción", value = providerProfile.description)
 
-                } else {
+                } else if (!isLoading) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -734,6 +754,119 @@ fun ProviderDetailRow(icon: ImageVector, label: String, value: String) {
     HorizontalDivider(
         modifier = Modifier.padding(start = 36.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+    )
+}
+
+@Composable
+fun PasswordChangeDialog(
+    uiState: ProfileUiState,
+    onClose: () -> Unit,
+    onOldPasswordChange: (String) -> Unit,
+    onNewPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onUpdate: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Cambiar Contraseña") },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (uiState.passwordSuccess) {
+                    Surface(
+                        color = Color(0xFFE8F5E9),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            "Contraseña actualizada con éxito",
+                            color = Color(0xFF2E7D32),
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                if (uiState.passwordError != null) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            uiState.passwordError,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                AppTextField(
+                    value = uiState.oldPassword,
+                    onValueChange = onOldPasswordChange,
+                    placeholder = "Contraseña actual",
+                    leadingIcon = Icons.Default.Lock,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                AppTextField(
+                    value = uiState.newPassword,
+                    onValueChange = onNewPasswordChange,
+                    placeholder = "Nueva contraseña",
+                    leadingIcon = Icons.Default.LockOpen,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+
+                AppTextField(
+                    value = uiState.confirmPassword,
+                    onValueChange = onConfirmPasswordChange,
+                    placeholder = "Confirmar nueva contraseña",
+                    leadingIcon = Icons.Default.CheckCircle,
+                    keyboardType = KeyboardType.Password,
+                    visualTransformation = PasswordVisualTransformation()
+                )
+            }
+        },
+        confirmButton = {
+            if (!uiState.passwordSuccess) {
+                Button(
+                    onClick = onUpdate,
+                    enabled = !uiState.isUpdatingPassword && 
+                             uiState.oldPassword.isNotBlank() && 
+                             uiState.newPassword.isNotBlank() && 
+                             uiState.confirmPassword.isNotBlank(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (uiState.isUpdatingPassword) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Actualizar")
+                    }
+                }
+            } else {
+                Button(onClick = onClose, shape = RoundedCornerShape(12.dp)) {
+                    Text("Cerrar")
+                }
+            }
+        },
+        dismissButton = {
+            if (!uiState.passwordSuccess) {
+                TextButton(onClick = onClose) {
+                    Text("Cancelar")
+                }
+            }
+        }
     )
 }
 

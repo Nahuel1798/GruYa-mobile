@@ -1,7 +1,6 @@
 package com.example.gruya.ui.screens.provider_quotes
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,24 +14,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.TireRepair
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -40,6 +43,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,11 +52,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.Quote
 import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.ServiceType
+import kotlinx.coroutines.launch
+import java.util.Locale
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.CheckCircleOutline
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,11 +73,27 @@ fun ProviderQuotesScreen(
     onNavigateToTracking: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val filters = ProviderQuoteFilter.entries
+    val scope = rememberCoroutineScope()
 
-    // Apply initial filter on first composition (one-shot)
-    LaunchedEffect(initialFilter) {
-        if (initialFilter != null) {
-            viewModel.loadQuotes(initialFilter)
+    val pagerState = rememberPagerState(
+        initialPage = filters.indexOf(initialFilter ?: uiState.selectedFilter).coerceAtLeast(0),
+        pageCount = { filters.size }
+    )
+
+    // Sync pager with ViewModel when swiping
+    LaunchedEffect(pagerState.currentPage) {
+        val newFilter = filters[pagerState.currentPage]
+        if (newFilter != uiState.selectedFilter) {
+            viewModel.onFilterSelected(newFilter)
+        }
+    }
+
+    // Sync ViewModel with pager (for external changes or initial filter)
+    LaunchedEffect(uiState.selectedFilter) {
+        val targetPage = filters.indexOf(uiState.selectedFilter)
+        if (targetPage != pagerState.currentPage && targetPage != -1) {
+            pagerState.animateScrollToPage(targetPage)
         }
     }
 
@@ -76,7 +103,8 @@ fun ProviderQuotesScreen(
                 title = {
                     Text(
                         text = "Mis Cotizaciones",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -87,10 +115,14 @@ fun ProviderQuotesScreen(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            // Filter chips
-            FilterChipRow(
+            // Tabs Row
+            FilterTabs(
                 selectedFilter = uiState.selectedFilter,
-                onFilterSelected = viewModel::onFilterSelected
+                onFilterSelected = { filter ->
+                    scope.launch {
+                        pagerState.animateScrollToPage(filters.indexOf(filter))
+                    }
+                }
             )
 
             // Filter description
@@ -98,44 +130,64 @@ fun ProviderQuotesScreen(
                 text = uiState.selectedFilter.description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.Top
+            ) { pageIndex ->
+                val currentFilter = filters[pageIndex]
+                
+                // Show content only if it matches the current selection to avoid showing old data
+                // while the new data is loading for the specific filter.
+                // Note: The current ViewModel architecture only holds one list.
+                if (currentFilter == uiState.selectedFilter) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        when {
+                            uiState.isLoading && !uiState.isRefreshing -> {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
 
-            // Content
-            when {
-                uiState.isLoading && !uiState.isRefreshing -> {
+                            uiState.error != null && uiState.quotes.isEmpty() -> {
+                                ProviderQuotesErrorContent(
+                                    error = uiState.error!!,
+                                    onRetry = { viewModel.loadQuotes() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            else -> {
+                                ProviderQuotesListContent(
+                                    quotes = uiState.quotes,
+                                    isRefreshing = uiState.isRefreshing,
+                                    selectedFilter = currentFilter,
+                                    onRefresh = viewModel::onRefresh,
+                                    onCancelQuote = viewModel::onCancelQuote,
+                                    onQuoteClick = { quote ->
+                                        if (quote.status == QuoteStatus.ACEPTADA) {
+                                            onNavigateToTracking(quote.assistance.id)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Loading state for other pages during swipe
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
                     }
-                }
-
-                uiState.error != null && uiState.quotes.isEmpty() -> {
-                    ProviderQuotesErrorContent(
-                        error = uiState.error!!,
-                        onRetry = { viewModel.loadQuotes() },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                else -> {
-                    ProviderQuotesListContent(
-                        quotes = uiState.quotes,
-                        isRefreshing = uiState.isRefreshing,
-                        selectedFilter = uiState.selectedFilter,
-                        onRefresh = viewModel::onRefresh,
-                        onCancelQuote = viewModel::onCancelQuote,
-                        onQuoteClick = { quote ->
-                            if (quote.status == QuoteStatus.ACEPTADA) {
-                                onNavigateToTracking(quote.assistance.id)
-                            }
-                        },
-                        modifier = Modifier.fillMaxSize()
-                    )
                 }
             }
         }
@@ -143,28 +195,32 @@ fun ProviderQuotesScreen(
 }
 
 @Composable
-private fun FilterChipRow(
+private fun FilterTabs(
     selectedFilter: ProviderQuoteFilter,
     onFilterSelected: (ProviderQuoteFilter) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val filters = ProviderQuoteFilter.entries
+    val selectedIndex = filters.indexOf(selectedFilter)
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    SecondaryTabRow(
+        selectedTabIndex = selectedIndex,
+        modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.background,
+        divider = {}
     ) {
-        filters.forEach { filter ->
-            FilterChip(
-                selected = filter == selectedFilter,
+        filters.forEachIndexed { index, filter ->
+            Tab(
+                selected = index == selectedIndex,
                 onClick = { onFilterSelected(filter) },
-                label = { Text(filter.label) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
-                )
+                text = {
+                    Text(
+                        text = filter.label,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = if (index == selectedIndex) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
             )
         }
     }
@@ -181,38 +237,21 @@ private fun ProviderQuotesListContent(
     onQuoteClick: (Quote) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (quotes.isEmpty()) {
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            modifier = modifier
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = emptyMessageFor(selectedFilter),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                )
-            }
-        }
-    } else {
-        PullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            modifier = modifier
-        ) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        modifier = modifier
+    ) {
+        if (quotes.isEmpty()) {
+            EmptyState(filter = selectedFilter)
+        } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item { Spacer(modifier = Modifier.height(4.dp)) }
+                item { Spacer(modifier = Modifier.height(8.dp)) }
                 items(quotes, key = { it.id }) { quote ->
                     QuoteCard(
                         quote = quote,
@@ -220,9 +259,46 @@ private fun ProviderQuotesListContent(
                         onClick = { onQuoteClick(quote) }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(8.dp)) }
+                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
+    }
+}
+
+@Composable
+private fun EmptyState(filter: ProviderQuoteFilter) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = when (filter) {
+                ProviderQuoteFilter.PENDIENTES -> Icons.Default.HourglassEmpty
+                ProviderQuoteFilter.ACEPTADAS -> Icons.Default.CheckCircleOutline
+                ProviderQuoteFilter.FINALIZADAS -> Icons.Default.History
+            },
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = emptyMessageFor(filter),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Medium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Desliza hacia abajo para actualizar",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -239,74 +315,134 @@ private fun QuoteCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val assistance = quote.assistance
+    val vehicle = assistance.vehicle
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = quote.status == QuoteStatus.ACEPTADA) { onClick() },
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Top row: service type icon + client name + cancel button
+            // Header: Icon + Client + Cancel
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconForServiceType(
-                        serviceType = quote.assistance.serviceType,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = quote.assistance.clientName.ifEmpty { "Sin información de asistencia" },
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            IconForServiceType(
+                                serviceType = assistance.serviceType,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = assistance.clientName.ifEmpty { "Cliente" },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = assistance.issueType.toDisplayName(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+                
                 if (quote.status == QuoteStatus.PENDIENTE) {
-                    IconButton(onClick = onCancel) {
+                    IconButton(
+                        onClick = onCancel,
+                        modifier = Modifier.size(32.dp)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Cancelar cotización",
+                            contentDescription = "Cancelar",
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Details: Vehicle
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.DirectionsCar,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "${vehicle.brand} ${vehicle.model} • ${vehicle.color}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Price and status row
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 0.5.dp
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // Footer: Price and Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
-                Text(
-                    text = "$${String.format("%.0f", quote.price)}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Column {
+                    Text(
+                        text = "Presupuesto",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "$${String.format(Locale.getDefault(), "%.0f", quote.price)}",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
                 QuoteStatusBadge(status = quote.status)
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
+            
             // Date
             Text(
-                text = quote.createdAt,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Enviada el ${quote.createdAt}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.End
             )
         }
     }
 }
+
+private fun IssueType.toDisplayName(): String = name.lowercase()
+    .replace("_", " ")
+    .replaceFirstChar { it.uppercase() }
 
 @Composable
 private fun IconForServiceType(
@@ -321,7 +457,7 @@ private fun IconForServiceType(
     Icon(
         imageVector = icon,
         contentDescription = serviceType.displayName,
-        modifier = modifier.size(24.dp),
+        modifier = modifier,
         tint = MaterialTheme.colorScheme.primary
     )
 }
@@ -336,18 +472,18 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
         QuoteStatus.EXPIRADA -> "Expirada" to Color.Gray
     }
 
-    Card(
-        shape = RoundedCornerShape(6.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = badgeColor.copy(alpha = 0.15f)
-        )
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = badgeColor.copy(alpha = 0.12f),
+        modifier = Modifier.padding(bottom = 4.dp)
     ) {
         Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            text = label.uppercase(),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             color = badgeColor,
             style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
         )
     }
 }
@@ -362,14 +498,27 @@ private fun ProviderQuotesErrorContent(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Text(
+                text = "Ups! Algo salió mal",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error
+                color = MaterialTheme.colorScheme.error,
+                textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onRetry) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onRetry,
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Text("Reintentar")
             }
         }

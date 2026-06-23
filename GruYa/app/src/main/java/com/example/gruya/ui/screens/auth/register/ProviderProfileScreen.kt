@@ -3,6 +3,7 @@ package com.example.gruya.ui.screens.auth.register
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,15 +13,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TireRepair
@@ -47,12 +51,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.ServiceType
 import kotlinx.coroutines.delay
@@ -200,7 +204,9 @@ fun ProviderProfileScreen(
                 },
                 placeholder = {
                     Text("Ej: Grúas Express")
-                }
+                },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                shape = RoundedCornerShape(12.dp)
             )
 
             OutlinedTextField(
@@ -210,11 +216,17 @@ fun ProviderProfileScreen(
                 minLines = 4,
                 label = {
                     Text("Descripción")
-                }
+                },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                shape = RoundedCornerShape(12.dp)
             )
 
             Card(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
             ) {
 
                 Row(
@@ -229,12 +241,15 @@ fun ProviderProfileScreen(
                     ) {
 
                         Text(
-                            text = "Disponible",
+                            text = "Disponible para trabajar",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
 
                         Text(
-                            text = "Recibir solicitudes ahora"
+                            text = "Activa para recibir solicitudes en tiempo real",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -257,11 +272,15 @@ fun ProviderProfileScreen(
                 leadingIcon = {
                     Icon(
                         Icons.Default.LocationOn,
-                        contentDescription = null
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 },
                 trailingIcon = {
-                    Row {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
                         IconButton(onClick = onSearchAddress) {
                             Icon(Icons.Default.Search, contentDescription = "Buscar dirección")
                         }
@@ -269,15 +288,17 @@ fun ProviderProfileScreen(
                             Icon(
                                 Icons.Default.Check,
                                 contentDescription = "Ubicación seleccionada",
-                                tint = Color.Green,
-                                modifier = Modifier.padding(8.dp)
+                                tint = Color(0xFF4CAF50),
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
                 },
                 label = {
-                    Text("Dirección")
-                }
+                    Text("Dirección de base")
+                },
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                shape = RoundedCornerShape(12.dp)
             )
 
             Button(
@@ -381,29 +402,38 @@ fun ProviderProfileScreen(
 fun HeroSection() {
 
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
+        ),
+        shape = RoundedCornerShape(24.dp)
     ) {
 
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(24.dp)
         ) {
 
             Text(
                 text = "PASO FINAL",
-                color = MaterialTheme.colorScheme.primary
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             Text(
                 text = "Configure su perfil profesional",
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Indique qué servicios ofrece y dónde opera."
+                text = "Indique qué servicios ofrece y dónde opera para que los usuarios puedan encontrarlo fácilmente.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -416,35 +446,53 @@ fun ServiceCard(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+    }
+
+    val contentColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
     Card(
         onClick = onClick,
+        modifier = Modifier.width(110.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor =
-                if (selected)
-                    MaterialTheme.colorScheme.primaryContainer
-                else
-                    MaterialTheme.colorScheme.surfaceVariant
-        )
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
 
         Column(
             modifier = Modifier
                 .padding(16.dp)
-                .width(100.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
 
             Icon(
                 imageVector = icon,
-                contentDescription = null
+                contentDescription = null,
+                modifier = Modifier.size(32.dp),
+                tint = if (selected) MaterialTheme.colorScheme.primary else contentColor
             )
 
             Spacer(
-                modifier = Modifier.height(8.dp)
+                modifier = Modifier.height(12.dp)
             )
 
-            Text(title)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+            )
         }
     }
 }

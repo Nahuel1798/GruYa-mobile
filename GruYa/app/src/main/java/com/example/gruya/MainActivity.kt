@@ -11,19 +11,39 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalAtm
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalAtm
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +69,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -57,6 +79,8 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
+import com.example.gruya.connectivity.ConnectivityObserver
+import com.example.gruya.ui.screens.common.NoInternetScreen
 import com.example.gruya.domain.model.Role
 import com.example.gruya.ui.NotificationViewModel
 import com.example.gruya.ui.navigation.AppDest
@@ -91,6 +115,7 @@ import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.theme.GruYaTheme
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -98,6 +123,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var navEventBus: NavigationEventBus
+
+    @Inject
+    lateinit var connectivityObserver: ConnectivityObserver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -109,7 +137,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    GruYaApp(navEventBus = navEventBus)
+                    GruYaApp(
+                        navEventBus = navEventBus,
+                        connectivityObserver = connectivityObserver
+                    )
                 }
             }
         }
@@ -140,8 +171,17 @@ class MainActivity : ComponentActivity() {
 fun GruYaApp(
     authViewModel: AuthViewModel = hiltViewModel(),
     notificationViewModel: NotificationViewModel = hiltViewModel(),
-    navEventBus: NavigationEventBus
+    navEventBus: NavigationEventBus,
+    connectivityObserver: ConnectivityObserver
 ) {
+    val connectivityFlow = remember { connectivityObserver.observe() }
+    val status by connectivityFlow.collectAsState(initial = ConnectivityObserver.Status.Available)
+
+    if (status != ConnectivityObserver.Status.Available) {
+        NoInternetScreen()
+        return
+    }
+
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
     val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
 
@@ -149,6 +189,16 @@ fun GruYaApp(
 
     // State for pending notification navigation to tab destinations
     val pendingNavEvent = remember { mutableStateOf<NavEvent?>(null) }
+
+    // State for custom foreground notification overlay
+    val currentNotification = remember { mutableStateOf<ForegroundNotification?>(null) }
+
+    LaunchedEffect(currentNotification.value) {
+        if (currentNotification.value != null) {
+            delay(5000)
+            currentNotification.value = null
+        }
+    }
 
     // Launcher para el permiso de notificaciones (Android 13+)
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -177,11 +227,12 @@ fun GruYaApp(
             Log.d("FCM", "Token actual de FCM: $token")
         }
 
-        // Collect existing legacy notifications for snackbar
+        // Collect existing legacy notifications for custom overlay
         notificationViewModel.notifications.collect { (title, body) ->
-            snackbarHostState.showSnackbar(
-                message = "$title: $body",
-                duration = SnackbarDuration.Short
+            currentNotification.value = ForegroundNotification(
+                title = title,
+                description = body,
+                icon = Icons.Default.Notifications
             )
         }
     }
@@ -189,15 +240,14 @@ fun GruYaApp(
     // Observe NavigationEventBus for notification-driven navigation events
     LaunchedEffect(Unit) {
         navEventBus.events.collect { event ->
-            val message = snackbarMessageFor(event)
-            val result = snackbarHostState.showSnackbar(
-                message = message,
-                actionLabel = "Ver",
-                duration = SnackbarDuration.Indefinite
+            currentNotification.value = ForegroundNotification(
+                title = "GruYa",
+                description = snackbarMessageFor(event),
+                icon = iconFor(event),
+                onAction = {
+                    pendingNavEvent.value = event
+                }
             )
-            if (result == SnackbarResult.ActionPerformed) {
-                pendingNavEvent.value = event
-            }
         }
     }
 
@@ -244,102 +294,194 @@ fun GruYaApp(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { _ ->
-        NavDisplay(
-            backStack = backStack,
-            entryDecorators = listOf(
-                rememberSaveableStateHolderNavEntryDecorator(),
-                rememberViewModelStoreNavEntryDecorator()
-            ),
-            entryProvider = entryProvider {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            NavDisplay(
+                backStack = backStack,
+                entryDecorators = listOf(
+                    rememberSaveableStateHolderNavEntryDecorator(),
+                    rememberViewModelStoreNavEntryDecorator()
+                ),
+                entryProvider = entryProvider {
 
-            entry<AppDest.Login> {
-                LoginScreen(
-                    onLoginSuccess = {
-                        authViewModel.onLoginSuccess()
-                    },
-                    onNavigateToRegister = {
-                        backStack.add(AppDest.Register)
-                    }
-                )
-            }
-
-            entry<AppDest.Register> {
-                RegisterScreen(
-                    onRegisterSuccess = { role ->
-                        if (role == Role.PROVIDER) {
-                            backStack.add(AppDest.ProviderProfile)
-                        } else {
-                            backStack.clear()
-                            backStack.add(AppDest.Login)
+                entry<AppDest.Login> {
+                    LoginScreen(
+                        onLoginSuccess = {
+                            authViewModel.onLoginSuccess()
+                        },
+                        onNavigateToRegister = {
+                            backStack.add(AppDest.Register)
                         }
-                    }
-                )
-            }
-
-            entry<AppDest.ProviderProfile> {
-                val providerUiState by providerViewModel.uiState.collectAsState()
-
-                LaunchedEffect(providerUiState.success) {
-                    if (providerUiState.success) {
-                        authViewModel.onLoginSuccess()
-                        providerViewModel.resetSuccess()
-                        backStack.clear()
-                        backStack.add(AppDest.MainContent)
-                    }
+                    )
                 }
 
-                ProviderProfileScreen(
-                    uiState = providerUiState,
-                    onBack = {
-                        if (backStack.size > 1) {
+                entry<AppDest.Register> {
+                    RegisterScreen(
+                        onRegisterSuccess = { role ->
+                            if (role == Role.PROVIDER) {
+                                backStack.add(AppDest.ProviderProfile)
+                            } else {
+                                backStack.clear()
+                                backStack.add(AppDest.Login)
+                            }
+                        }
+                    )
+                }
+
+                entry<AppDest.ProviderProfile> {
+                    val providerUiState by providerViewModel.uiState.collectAsState()
+
+                    LaunchedEffect(providerUiState.success) {
+                        if (providerUiState.success) {
+                            authViewModel.onLoginSuccess()
+                            providerViewModel.resetSuccess()
+                            backStack.clear()
+                            backStack.add(AppDest.MainContent)
+                        }
+                    }
+
+                    ProviderProfileScreen(
+                        uiState = providerUiState,
+                        onBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                        },
+                        onCompanyNameChange = providerViewModel::onCompanyNameChange,
+                        onServiceTypeChange = providerViewModel::onServiceTypeChange,
+                        onDescriptionChange = providerViewModel::onDescriptionChange,
+                        onAvailableChange = providerViewModel::onAvailableChange,
+                        onAddressChange = providerViewModel::onAddressChange,
+                        onSearchAddress = providerViewModel::searchAddress,
+                        onLocationChange = providerViewModel::onLocationChange,
+                        onOpenMap = {
+                            backStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
+                        },
+                        onConfirm = {
+                            providerViewModel.createProfile()
+                        },
+                        onClearError = providerViewModel::clearError
+                    )
+                }
+
+                entry<AppDest.LocationPicker> {
+                    val currentEntry = backStack.findLast { it is AppDest.LocationPicker } as? AppDest.LocationPicker
+                    LocationPickerScreen(
+                        initialLat = currentEntry?.initialLat,
+                        initialLng = currentEntry?.initialLng,
+                        onLocationSelected = { lat, lng ->
+                            providerViewModel.onLocationChange(lat, lng)
+                            backStack.removeAt(backStack.size - 1)
+                        },
+                        onBack = {
                             backStack.removeAt(backStack.size - 1)
                         }
-                    },
-                    onCompanyNameChange = providerViewModel::onCompanyNameChange,
-                    onServiceTypeChange = providerViewModel::onServiceTypeChange,
-                    onDescriptionChange = providerViewModel::onDescriptionChange,
-                    onAvailableChange = providerViewModel::onAvailableChange,
-                    onAddressChange = providerViewModel::onAddressChange,
-                    onSearchAddress = providerViewModel::searchAddress,
-                    onLocationChange = providerViewModel::onLocationChange,
-                    onOpenMap = {
-                        backStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
-                    },
-                    onConfirm = {
-                        providerViewModel.createProfile()
-                    },
-                    onClearError = providerViewModel::clearError
-                )
-            }
+                    )
+                }
 
-            entry<AppDest.LocationPicker> {
-                val currentEntry = backStack.findLast { it is AppDest.LocationPicker } as? AppDest.LocationPicker
-                LocationPickerScreen(
-                    initialLat = currentEntry?.initialLat,
-                    initialLng = currentEntry?.initialLng,
-                    onLocationSelected = { lat, lng ->
-                        providerViewModel.onLocationChange(lat, lng)
-                        backStack.removeAt(backStack.size - 1)
+                entry<AppDest.MainContent> {
+                    MainNavigationSuite(
+                        authViewModel = authViewModel,
+                        providerViewModel = providerViewModel,
+                        onLogout = {
+                            authViewModel.logout()
+                        },
+                        pendingNavEvent = pendingNavEvent
+                    )
+                }
+            }
+        )
+
+            ForegroundNotificationOverlay(
+                notification = currentNotification.value,
+                onDismiss = { currentNotification.value = null }
+            )
+        }
+    }
+}
+
+data class ForegroundNotification(
+    val title: String,
+    val description: String,
+    val icon: ImageVector? = null,
+    val onAction: (() -> Unit)? = null
+)
+
+@Composable
+fun ForegroundNotificationOverlay(
+    notification: ForegroundNotification?,
+    onDismiss: () -> Unit
+) {
+    AnimatedVisibility(
+        visible = notification != null,
+        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        notification?.let {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        it.onAction?.invoke()
+                        onDismiss()
                     },
-                    onBack = {
-                        backStack.removeAt(backStack.size - 1)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = it.icon ?: Icons.Default.Notifications,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
-                )
-            }
-
-            entry<AppDest.MainContent> {
-                MainNavigationSuite(
-                    authViewModel = authViewModel,
-                    providerViewModel = providerViewModel,
-                    onLogout = {
-                        authViewModel.logout()
-                    },
-                    pendingNavEvent = pendingNavEvent
-                )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = it.title,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = it.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
-    )
     }
+}
+
+private fun iconFor(event: NavEvent): ImageVector = when (event) {
+    is NavEvent.NewAssistance, is NavEvent.DirectedAssistance -> Icons.Default.Assignment
+    is NavEvent.NewQuote -> Icons.Default.LocalAtm
+    is NavEvent.QuoteAcceptedProvider, is NavEvent.QuoteAcceptedClient -> Icons.Default.CheckCircle
+    is NavEvent.QuoteRejected -> Icons.Default.Cancel
 }
 
 private fun snackbarMessageFor(event: NavEvent): String = when (event) {

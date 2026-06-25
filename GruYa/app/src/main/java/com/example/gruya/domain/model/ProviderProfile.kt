@@ -8,5 +8,8 @@ data class ProviderProfile(
     val serviceType: ServiceType,
     val latitude: Double,
     val longitude: Double,
+    val currentLatitude: Double,
+    val currentLongitude: Double,
+    val lastLocationUpdate: String,
     val isAvailable: Boolean
 )

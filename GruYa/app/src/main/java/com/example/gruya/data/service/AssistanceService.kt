@@ -3,9 +3,11 @@ package com.example.gruya.data.service
 import com.example.gruya.data.remote.Constants
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.remote.dtos.response.AssistanceResponse
+import com.example.gruya.data.remote.dtos.response.AssistanceRouteResponse
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.remote.dtos.response.TripStartedResponse
+import com.example.gruya.domain.model.Location
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -48,4 +50,12 @@ interface AssistanceService {
 
     @PUT("${Constants.ASSISTANCE_PATH}/{id}/start-trip")
     suspend fun startTrip(@Path("id") id: Int): Response<TripStartedResponse>
+
+    @POST("${Constants.ASSISTANCE_PATH}/provider-location")
+    suspend fun getproviderlocation(@Body location: Location): Response<Unit>
+
+    @GET("${Constants.ASSISTANCE_PATH}/{id}/route")
+    suspend fun getRoute(
+        @Path("id") assistanceId: Int
+    ): AssistanceRouteResponse
 }

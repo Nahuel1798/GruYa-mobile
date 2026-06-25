@@ -1,6 +1,7 @@
 package com.example.gruya.ui.screens.auth.register
 
 import android.Manifest
+import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -21,7 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalShipping
@@ -55,10 +56,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.ServiceType
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.maplibre.compose.camera.CameraPosition
@@ -75,6 +79,7 @@ import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
 
 @OptIn(ExperimentalMaterial3Api::class)
+@SuppressLint("MissingPermission")
 @Composable
 fun ProviderProfileScreen(
     uiState: ProviderProfileUiState,
@@ -85,13 +90,15 @@ fun ProviderProfileScreen(
     onAvailableChange: (Boolean) -> Unit,
     onAddressChange: (String) -> Unit,
     onSearchAddress: () -> Unit,
-    onLocationChange: (Double, Double) -> Unit,
+    onCurrentLocationChange: (Double, Double) -> Unit,
     onOpenMap: () -> Unit,
     onConfirm: () -> Unit,
     onClearError: () -> Unit
 ) {
+    val context = LocalContext.current
     var hasLocationPermission by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -101,6 +108,17 @@ fun ProviderProfileScreen(
 
     LaunchedEffect(Unit) {
         locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    LaunchedEffect(hasLocationPermission) {
+        if (hasLocationPermission) {
+            fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    location?.let {
+                        onCurrentLocationChange(it.latitude, it.longitude)
+                    }
+                }
+        }
     }
 
     LaunchedEffect(uiState.error) {
@@ -132,7 +150,7 @@ fun ProviderProfileScreen(
                         onClick = onBack
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = null
                         )
                     }
@@ -261,7 +279,7 @@ fun ProviderProfileScreen(
             }
 
             Text(
-                text = "Ubicación",
+                text = "Ubicación de Base (Local)",
                 style = MaterialTheme.typography.labelLarge
             )
 
@@ -311,14 +329,14 @@ fun ProviderProfileScreen(
             ) {
                 Icon(Icons.Default.LocationOn, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Seleccionar en el Mapa")
+                Text("Seleccionar Base en el Mapa")
             }
 
             if (uiState.latitude != null && uiState.longitude != null) {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp)
+                        .height(180.dp)
                         .clip(RoundedCornerShape(12.dp))
                 ) {
                     val cameraState = rememberCameraState(
@@ -368,12 +386,50 @@ fun ProviderProfileScreen(
                         )
                     }
                 }
+            }
 
-                Text(
-                    text = "Coordenadas: ${uiState.latitude}, ${uiState.longitude}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            // Current Crane Location Section
+            Text(
+                text = "Ubicación Actual de la Grúa",
+                style = MaterialTheme.typography.labelLarge
+            )
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
                 )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.LocalShipping,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                        Text(
+                            text = if (uiState.currentLatitude != null)
+                                "Ubicación detectada correctamente"
+                            else
+                                "Buscando ubicación actual...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    if (uiState.currentLatitude != null && uiState.currentLongitude != null) {
+                        Text(
+                            text = "Lat: ${"%.5f".format(uiState.currentLatitude)}, Lng: ${"%.5f".format(uiState.currentLongitude)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(

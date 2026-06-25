@@ -100,11 +100,20 @@ class ProviderProfileViewModel @Inject constructor(
         }
     }
 
+    fun onCurrentLocationChange(lat: Double, lng: Double) {
+        _uiState.update { it.copy(
+            currentLatitude = lat,
+            currentLongitude = lng
+        ) }
+    }
+
     fun createProfile() {
         val currentState = _uiState.value
         val serviceType = currentState.serviceType
         val location = currentState.location
         val companyName = currentState.companyName
+        val currentLatitude = currentState.currentLatitude
+        val currentLongitude = currentState.currentLongitude
 
         if (serviceType == null) {
             _uiState.update { it.copy(error = "Por favor, seleccione un tipo de servicio") }
@@ -119,6 +128,12 @@ class ProviderProfileViewModel @Inject constructor(
             return
         }
 
+        val currentLocation = if (currentLatitude != null && currentLongitude != null) {
+            Location(currentLatitude, currentLongitude)
+        } else {
+            null
+        }
+
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(loading = true, error = null) }
@@ -127,6 +142,7 @@ class ProviderProfileViewModel @Inject constructor(
                     companyName = companyName,
                     description = currentState.description,
                     location = location,
+                    currentLocation = currentLocation,
                     address = currentState.address,
                     isAvailable = currentState.available
                 )

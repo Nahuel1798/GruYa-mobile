@@ -3,11 +3,13 @@ package com.example.gruya.data.repository
 import android.util.Log
 import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
+import com.example.gruya.data.remote.dtos.response.AssistanceRouteResponse
 import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.remote.dtos.response.TripStartedResponse
 import com.example.gruya.data.service.AssistanceService
+import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.Assistance
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -123,6 +125,29 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateProviderLocation(location: Location): Result<Unit> {
+        return try {
+            val response = assistanceService.getproviderlocation(location)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al actualizar ubicación: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRoute(id: Int): Result<AssistanceRouteResponse> {
+        return try {
+            val response = assistanceService.getRoute(id)
+            Log.d("AssistanceRepository", "Ruta obtenida: $response")
+            Result.success(response)
         } catch (e: Exception) {
             Result.failure(e)
         }

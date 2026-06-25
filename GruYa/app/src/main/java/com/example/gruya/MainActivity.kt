@@ -355,7 +355,7 @@ fun GruYaApp(
                         onAvailableChange = providerViewModel::onAvailableChange,
                         onAddressChange = providerViewModel::onAddressChange,
                         onSearchAddress = providerViewModel::searchAddress,
-                        onLocationChange = providerViewModel::onLocationChange,
+                        onCurrentLocationChange = providerViewModel::onCurrentLocationChange,
                         onOpenMap = {
                             backStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
                         },
@@ -879,7 +879,7 @@ fun MainNavigationSuite(
                             onAvailableChange = providerViewModel::onAvailableChange,
                             onAddressChange = providerViewModel::onAddressChange,
                             onSearchAddress = providerViewModel::searchAddress,
-                            onLocationChange = providerViewModel::onLocationChange,
+                            onCurrentLocationChange = providerViewModel::onCurrentLocationChange,
                             onOpenMap = {
                                 tabBackStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
                             },

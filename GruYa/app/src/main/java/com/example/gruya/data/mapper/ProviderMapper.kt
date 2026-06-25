@@ -12,6 +12,9 @@ fun ProviderProfileResponse.toDomain(): ProviderProfile = ProviderProfile(
     serviceType = serviceType,
     latitude = location.latitude,
     longitude = location.longitude,
+    currentLatitude = currentLocation?.latitude ?: location.latitude,
+    currentLongitude = currentLocation?.longitude ?: location.longitude,
+    lastLocationUpdate = lastLocationUpdate ?: "",
     isAvailable = isAvailable
 )
 
@@ -20,5 +23,6 @@ fun ProviderProfile.toUpdateRequest(): UpdateProviderProfileRequest =
         serviceType = serviceType,
         companyName = companyName,
         address = address,
-        description = description
+        description = description,
+        isAvailable = isAvailable
     )

@@ -8,6 +8,7 @@ data class CreateProviderProfileRequest (
     val companyName: String,
     val description: String,
     val location: Location,
+    val currentLocation: Location? = null,
     val address: String,
     val isAvailable: Boolean = true
 )

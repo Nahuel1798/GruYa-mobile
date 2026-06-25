@@ -8,5 +8,7 @@ data class UpdateProviderProfileRequest(
     val companyName: String,
     val address: String,
     val description: String,
-    val location: Location? = null
+    val location: Location? = null,
+    val currentLocation: Location? = null,
+    val isAvailable: Boolean? = null
 )

@@ -21,6 +21,10 @@ data class ProviderProfileUiState(
 
     val longitude: Double? = null,
 
+    val currentLatitude: Double? = null,
+
+    val currentLongitude: Double? = null,
+
     val loading: Boolean = false,
 
     val success: Boolean = false,

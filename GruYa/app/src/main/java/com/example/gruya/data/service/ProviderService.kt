@@ -26,7 +26,7 @@ interface ProviderService {
 
     // Traer mi propio perfil de provider
     @GET(Constants.PROVIDER_PROFILE_PATH + "me")
-    suspend fun getMyProfile(): ProviderProfileResponse
+    suspend fun getMyProfile(): Response<ProviderProfileResponse>
 
     // Actualizar perfil de provider
     @PUT(Constants.PROVIDER_PROFILE_PATH)

@@ -42,10 +42,21 @@ class ProviderRepository @Inject constructor(
         }
     }
 
-    suspend fun getMyProfile(): Result<ProviderProfile> {
+    suspend fun getMyProfile(): Result<ProviderProfile?> {
         return try {
             val response = providerService.getMyProfile()
-            Result.success(response.toDomain())
+            if (response.isSuccessful) {
+                val body = response.body()
+                if (body != null) {
+                    Result.success(body.toDomain())
+                } else {
+                    Result.success(null)
+                }
+            } else if (response.code() == 404) {
+                Result.success(null)
+            } else {
+                Result.failure(Exception("Error HTTP ${response.code()}: ${response.message()}"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

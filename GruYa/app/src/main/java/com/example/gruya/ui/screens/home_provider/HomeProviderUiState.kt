@@ -15,5 +15,6 @@ data class HomeProviderUiState(
     val hasLocationPermission: Boolean = false,
     val userLocation: Position? = null,
     val isProfileComplete: Boolean? = null,
-    val providerProfile: ProviderProfile? = null
+    val providerProfile: ProviderProfile? = null,
+    val profileCheckError: String? = null
 )

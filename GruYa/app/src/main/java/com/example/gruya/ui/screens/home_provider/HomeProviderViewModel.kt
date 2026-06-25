@@ -30,18 +30,38 @@ class HomeProviderViewModel @Inject constructor(
         viewModelScope.launch {
             providerRepository.getMyProfile()
                 .onSuccess { profile ->
-                    _uiState.update { 
-                        it.copy(
-                            isProfileComplete = true,
-                            providerProfile = profile,
-                            isOnline = profile.isAvailable
-                        ) 
+                    if (profile != null) {
+                        _uiState.update {
+                            it.copy(
+                                isProfileComplete = true,
+                                providerProfile = profile,
+                                isOnline = profile.isAvailable,
+                                profileCheckError = null
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                isProfileComplete = false,
+                                profileCheckError = null
+                            )
+                        }
                     }
                 }
                 .onFailure {
-                    _uiState.update { it.copy(isProfileComplete = false) }
+                    _uiState.update {
+                        it.copy(
+                            isProfileComplete = null,
+                            profileCheckError = "No pudimos verificar tu perfil. Intentá de nuevo en un rato."
+                        )
+                    }
                 }
         }
+    }
+
+    fun retryProfileCheck() {
+        _uiState.update { it.copy(profileCheckError = null) }
+        checkProfileCompletion()
     }
 
     fun onLocationPermissionChanged(granted: Boolean) {

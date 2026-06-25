@@ -107,6 +107,34 @@ fun HomeProviderScreen(
         }
     }
 
+    if (uiState.profileCheckError != null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(32.dp)
+            ) {
+                Text(
+                    text = "No pudimos verificar tu perfil",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = uiState.profileCheckError ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(onClick = { viewModel.retryProfileCheck() }) {
+                    Text("Reintentar")
+                }
+            }
+        }
+        return
+    }
+
     if (uiState.isProfileComplete == null) {
         Box(
             modifier = Modifier.fillMaxSize(),

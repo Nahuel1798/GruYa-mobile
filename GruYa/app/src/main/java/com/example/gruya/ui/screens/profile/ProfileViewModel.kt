@@ -96,12 +96,22 @@ class ProfileViewModel @Inject constructor(
         try {
             val result = providerRepository.getMyProfile()
             result.onSuccess { profile ->
-                Log.d("ProfileVM", "Provider profile loaded: ${profile.companyName}")
-                _uiState.update {
-                    it.copy(
-                        providerProfile = profile,
-                        isLoadingProvider = false
-                    )
+                if (profile != null) {
+                    Log.d("ProfileVM", "Provider profile loaded: ${profile.companyName}")
+                    _uiState.update {
+                        it.copy(
+                            providerProfile = profile,
+                            isLoadingProvider = false
+                        )
+                    }
+                } else {
+                    Log.d("ProfileVM", "No provider profile found")
+                    _uiState.update {
+                        it.copy(
+                            providerProfile = null,
+                            isLoadingProvider = false
+                        )
+                    }
                 }
             }.onFailure { error ->
                 Log.e("ProfileVM", "Error loading provider profile", error)

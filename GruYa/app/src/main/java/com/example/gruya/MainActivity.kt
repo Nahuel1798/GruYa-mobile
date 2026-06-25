@@ -482,6 +482,7 @@ private fun iconFor(event: NavEvent): ImageVector = when (event) {
     is NavEvent.NewQuote -> Icons.Default.LocalAtm
     is NavEvent.QuoteAcceptedProvider, is NavEvent.QuoteAcceptedClient -> Icons.Default.CheckCircle
     is NavEvent.QuoteRejected -> Icons.Default.Cancel
+    is NavEvent.TripStarted -> Icons.Default.DirectionsCar
 }
 
 private fun snackbarMessageFor(event: NavEvent): String = when (event) {

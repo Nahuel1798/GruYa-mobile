@@ -14,6 +14,7 @@ import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.NotificationRepository
 import com.example.gruya.ui.navigation.EXTRA_ASSISTANCE_ID
 import com.example.gruya.ui.navigation.EXTRA_NAV_TYPE
+import com.example.gruya.ui.navigation.EXTRA_TRACKING_SESSION_ID
 import com.example.gruya.ui.navigation.NavigationEventBus
 import com.example.gruya.ui.navigation.getRequiredRole
 import com.example.gruya.ui.navigation.navEventFromExtras
@@ -83,14 +84,15 @@ class GruYaFirebaseService : FirebaseMessagingService() {
         }
 
         // --- Build NavEvent from type + assistanceId ---
-        val navEvent = type?.let { navEventFromExtras(it, assistanceId) }
+        val trackingSessionId = data["trackingSessionId"]
+        val navEvent = type?.let { navEventFromExtras(it, assistanceId, trackingSessionId) }
 
         val title = message.notification?.title ?: data["title"] ?: ""
         val body = message.notification?.body ?: data["body"] ?: ""
 
         if (title.isNotEmpty() || body.isNotEmpty()) {
             // Always show notification with extras for PendingIntent (background/dead path)
-            showNotification(title, body, type, assistanceId)
+            showNotification(title, body, type, assistanceId, trackingSessionId)
 
             // Foreground path: emit NavEvent to bus for in-app snackbar
             if (navEvent != null && navigationEventBus.isForeground) {
@@ -104,7 +106,8 @@ class GruYaFirebaseService : FirebaseMessagingService() {
         title: String,
         body: String,
         navType: String? = null,
-        assistanceId: Int = -1
+        assistanceId: Int = -1,
+        trackingSessionId: String? = null
     ) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "gruya_notifications"
@@ -125,6 +128,9 @@ class GruYaFirebaseService : FirebaseMessagingService() {
             if (navType != null && assistanceId > 0) {
                 putExtra(EXTRA_NAV_TYPE, navType)
                 putExtra(EXTRA_ASSISTANCE_ID, assistanceId)
+                if (trackingSessionId != null) {
+                    putExtra(EXTRA_TRACKING_SESSION_ID, trackingSessionId)
+                }
             }
         }
 

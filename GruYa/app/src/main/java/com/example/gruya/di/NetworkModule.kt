@@ -5,6 +5,7 @@ import com.example.gruya.AuthEventBus
 import com.example.gruya.data.SessionManager
 import com.example.gruya.data.remote.AuthInterceptor
 import com.example.gruya.data.remote.AuthResponseInterceptor
+import com.example.gruya.data.repository.TrackingRepository
 import com.example.gruya.data.service.AssistanceService
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.data.service.FuelStationService
@@ -77,4 +78,8 @@ object NetworkModule {
     @Provides @Singleton
     fun fuelStationService(retrofit: Retrofit): FuelStationService =
         retrofit.create(FuelStationService::class.java)
+
+    @Provides @Singleton
+    fun provideTrackingRepository(sessionManager: SessionManager): TrackingRepository =
+        TrackingRepository(sessionManager)
 }

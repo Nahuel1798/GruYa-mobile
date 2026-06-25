@@ -62,6 +62,7 @@ import com.example.gruya.ui.NotificationViewModel
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.navigation.EXTRA_ASSISTANCE_ID
 import com.example.gruya.ui.navigation.EXTRA_NAV_TYPE
+import com.example.gruya.ui.navigation.EXTRA_TRACKING_SESSION_ID
 import com.example.gruya.ui.navigation.NavEvent
 import com.example.gruya.ui.navigation.NavigationEventBus
 import com.example.gruya.ui.navigation.navEventFromExtras
@@ -112,14 +113,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        handleNavigationIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
+        handleNavigationIntent(intent)
+    }
+
+    private fun handleNavigationIntent(intent: Intent?) {
+        if (intent == null) return
         val navType = intent.getStringExtra(EXTRA_NAV_TYPE)
         val assistanceId = intent.getIntExtra(EXTRA_ASSISTANCE_ID, -1)
+        val trackingSessionId = intent.getStringExtra(EXTRA_TRACKING_SESSION_ID)
         if (navType != null && assistanceId > 0) {
-            val event = navEventFromExtras(navType, assistanceId)
+            val event = navEventFromExtras(navType, assistanceId, trackingSessionId)
             if (event != null) {
                 navEventBus.emit(event)
             }
@@ -340,6 +349,7 @@ private fun snackbarMessageFor(event: NavEvent): String = when (event) {
     is NavEvent.QuoteAcceptedProvider -> "Cotización aceptada"
     is NavEvent.QuoteAcceptedClient -> "Cotización aceptada"
     is NavEvent.QuoteRejected -> "Cotización rechazada"
+    is NavEvent.TripStarted -> "El proveedor ha iniciado el viaje"
 }
 
 private data class NavItem(
@@ -380,6 +390,7 @@ fun MainNavigationSuite(
             is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(event.assistanceId)
             is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
             is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
+            is NavEvent.TripStarted -> AppDest.AssistanceTracking(event.assistanceId, event.trackingSessionId)
         }
         if (tabBackStack.lastOrNull() != dest) {
             tabBackStack.add(dest)
@@ -559,8 +570,10 @@ fun MainNavigationSuite(
                     entry<AppDest.AssistanceTracking> {
                         val currentEntry = tabBackStack.findLast { it is AppDest.AssistanceTracking } as? AppDest.AssistanceTracking
                         val assistanceId = currentEntry?.assistanceId ?: return@entry
+                        val trackingSessionId = currentEntry.trackingSessionId
                         AssistanceTrackingScreen(
                             assistanceId = assistanceId,
+                            trackingSessionId = trackingSessionId,
                             onNavigateBack = {
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)
@@ -753,5 +766,4 @@ fun MainNavigationSuite(
         }
     }
 }
-
 

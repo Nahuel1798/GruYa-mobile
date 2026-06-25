@@ -5,11 +5,13 @@ import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
+import com.example.gruya.data.remote.dtos.response.TripStartedResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -43,4 +45,7 @@ interface AssistanceService {
     @PATCH("${Constants.ASSISTANCE_PATH}/active/cancel")
     suspend fun cancelAssistances():
             Response<Unit>
+
+    @PUT("${Constants.ASSISTANCE_PATH}/{id}/start-trip")
+    suspend fun startTrip(@Path("id") id: Int): Response<TripStartedResponse>
 }

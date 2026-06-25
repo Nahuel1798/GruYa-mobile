@@ -9,4 +9,5 @@ sealed interface NavEvent {
     data class QuoteAcceptedProvider(override val assistanceId: Int) : NavEvent
     data class QuoteAcceptedClient(override val assistanceId: Int) : NavEvent
     data class QuoteRejected(override val assistanceId: Int) : NavEvent
+    data class TripStarted(override val assistanceId: Int, val trackingSessionId: String) : NavEvent
 }

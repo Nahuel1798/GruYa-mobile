@@ -6,6 +6,7 @@ import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
+import com.example.gruya.data.remote.dtos.response.TripStartedResponse
 import com.example.gruya.data.service.AssistanceService
 import com.example.gruya.domain.model.Assistance
 import javax.inject.Inject
@@ -107,6 +108,23 @@ class AssistanceRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Result.failure(Exception("Error al cancelar la solicitud", e))
+        }
+    }
+
+    suspend fun startTrip(id: Int): Result<TripStartedResponse?> {
+        return try {
+            val response = assistanceService.startTrip(id)
+            if (response.isSuccessful) {
+                val body = response.body()
+                Log.d("AssistanceRepository", "Viaje iniciado: $body")
+                Result.success(body)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

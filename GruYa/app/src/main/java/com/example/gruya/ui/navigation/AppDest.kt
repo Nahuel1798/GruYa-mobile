@@ -54,7 +54,7 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
-    data class AssistanceTracking(val assistanceId: Int) : AppDest {
+    data class AssistanceTracking(val assistanceId: Int, val trackingSessionId: String? = null) : AppDest {
         override val requieresAuth = true
     }
 

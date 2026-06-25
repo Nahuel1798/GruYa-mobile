@@ -18,5 +18,6 @@ data class AssistanceResponse(
     val routeGeometry: String?,
     val origin: Location,
     val destination: Location,
-    val isDirected: Boolean
+    val isDirected: Boolean,
+    val trackingSessionId: String? = null
 )

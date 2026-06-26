@@ -9,8 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,15 +19,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.res.painterResource
+import com.example.gruya.R
+import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.TrackingState
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
-import org.maplibre.compose.expressions.dsl.const
-import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.expressions.dsl.*
 import org.maplibre.compose.layers.LineLayer
+import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.expressions.value.LineCap
+import org.maplibre.compose.expressions.value.LineJoin
+import org.maplibre.compose.expressions.value.SymbolAnchor
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.style.BaseStyle
@@ -41,6 +45,7 @@ import org.maplibre.spatialk.geojson.Position
 import org.json.JSONArray
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Check
 
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
@@ -127,54 +132,52 @@ fun AssistanceTrackingScreen(
 
                     // Provider-specific controls
                     if (uiState.isProvider) {
-                        if (uiState.trackingState == TrackingState.Tracking || uiState.trackingState is TrackingState.Connected) {
-                            Button(
-                                onClick = { viewModel.stopTrip() },
+                        val trackingState = uiState.trackingState
+                        val isTracking = trackingState == TrackingState.Tracking || 
+                                         trackingState is TrackingState.Connected ||
+                                         assistance.status == AssistanceStatus.EN_PROCESO ||
+                                         !assistance.trackingSessionId.isNullOrBlank()
+
+                        if (trackingState is TrackingState.Error) {
+                            Text(
+                                text = "Error: ${trackingState.message}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.error
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        Button(
+                            onClick = {
+                                if (isTracking) viewModel.stopTrip() else viewModel.startTrip()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isTracking) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
+                                contentColor = if (isTracking) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                            ),
+                            enabled = trackingState !is TrackingState.Connecting && (isTracking || trackingState !is TrackingState.Error)
+                        ) {
+                            if (trackingState is TrackingState.Connecting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp,
+                                    color = if (isTracking) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
                                 )
-                            ) {
-                                Icon(Icons.Default.Stop, contentDescription = null)
+                            } else {
+                                Icon(
+                                    imageVector = if (isTracking) Icons.Default.Check else Icons.Default.PlayArrow,
+                                    contentDescription = null
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Detener")
-                            }
-                        } else {
-                            val trackingState = uiState.trackingState
-                            if (trackingState is TrackingState.Error) {
-                                Text(
-                                    text = "Error: ${trackingState.message}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                            Button(
-                                onClick = { viewModel.startTrip() },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary
-                                ),
-                                enabled = trackingState !is TrackingState.Connecting && trackingState !is TrackingState.Error
-                            ) {
-                                if (trackingState is TrackingState.Connecting) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
-                                } else {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = null)
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Iniciar viaje")
-                                }
+                                Text(if (isTracking) "Viaje iniciado" else "Iniciar viaje")
                             }
                         }
-                    } else {
+                    }
+                    else {
                         // Client view: show status
                         when (val trackingState = uiState.trackingState) {
                             is TrackingState.Connected, is TrackingState.Tracking -> {
@@ -320,41 +323,61 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
         )
     )
 
-    // Adapt zoom depending on the route
-    LaunchedEffect(assistance) {
-        val routePositions = assistance.routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
-        
-        val points = mutableListOf<Position>()
-        points.add(Position(assistance.origin.longitude, assistance.origin.latitude))
-        if (assistance.destination.latitude != 0.0) {
-            points.add(Position(assistance.destination.longitude, assistance.destination.latitude))
-        }
-        points.addAll(routePositions)
+    // Determinar si el seguimiento está activo (viaje iniciado)
+    val isTracking = uiState.trackingState == TrackingState.Tracking || 
+                     uiState.trackingState is TrackingState.Connected ||
+                     (assistance.status == AssistanceStatus.EN_PROCESO && !assistance.trackingSessionId.isNullOrBlank())
 
-        if (points.isNotEmpty()) {
-            val minLat = points.minOf { it.latitude }
-            val maxLat = points.maxOf { it.latitude }
-            val minLon = points.minOf { it.longitude }
-            val maxLon = points.maxOf { it.longitude }
-
-            val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
-            val deltaLat = maxLat - minLat
-            val deltaLon = maxLon - minLon
+    // Vista general inicial o cuando no hay seguimiento
+    LaunchedEffect(assistance, uiState.providerToOriginRoute) {
+        if (!isTracking) {
+            val routePositions = assistance.routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
+            val providerRoutePositions = uiState.providerToOriginRoute?.let { parseRouteGeometry(it) } ?: emptyList()
             
-            val zoom = when {
-                deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
-                deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
-                deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
-                deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
-                deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
-                deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
-                else -> 15.0
+            val points = mutableListOf<Position>()
+            points.add(Position(assistance.origin.longitude, assistance.origin.latitude))
+            if (assistance.destination.latitude != 0.0) {
+                points.add(Position(assistance.destination.longitude, assistance.destination.latitude))
             }
+            points.addAll(routePositions)
+            points.addAll(providerRoutePositions)
 
+            if (points.isNotEmpty()) {
+                val minLat = points.minOf { it.latitude }
+                val maxLat = points.maxOf { it.latitude }
+                val minLon = points.minOf { it.longitude }
+                val maxLon = points.maxOf { it.longitude }
+
+                val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
+                val deltaLat = maxLat - minLat
+                val deltaLon = maxLon - minLon
+                
+                val zoom = when {
+                    deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
+                    deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
+                    deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
+                    deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
+                    deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
+                    deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
+                    else -> 15.0
+                }
+
+                cameraState.animateTo(
+                    CameraPosition(target = target, zoom = zoom)
+                )
+            }
+        }
+    }
+
+    // Auto-zoom y seguimiento a nivel de calle cuando la grúa está en movimiento
+    LaunchedEffect(uiState.providerLocation, isTracking) {
+        if (isTracking && uiState.providerLocation != null) {
             cameraState.animateTo(
                 CameraPosition(
-                    target = target,
-                    zoom = zoom
+                    target = Position(uiState.providerLocation.longitude, uiState.providerLocation.latitude),
+                    // Si el zoom es lejano, acercamos a nivel de calle (16.5)
+                    // Si ya está cerca, mantenemos el zoom del usuario
+                    zoom = if (cameraState.position.zoom < 15.0) 16.5 else cameraState.position.zoom
                 )
             )
         }
@@ -365,6 +388,10 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
         cameraState = cameraState,
         baseStyle = if (isDarkTheme) BaseStyle.Uri(DARK_STYLE_URL) else BaseStyle.Uri(LIGHT_STYLE_URL)
     ) {
+        val auxilioIcon = image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
+        val origenIcon = image(painterResource(R.drawable.ic_origin), drawAsSdf = true)
+        val destinoIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
+
         // Trace the route if available
         assistance.routeGeometry?.let { geometry ->
             val routePositions = remember(geometry) {
@@ -372,8 +399,8 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
             }
 
             if (routePositions.isNotEmpty()) {
-                val routeSource = rememberGeoJsonSource(
-                    data = GeoJsonData.Features(
+                val routeData = remember(routePositions) {
+                    GeoJsonData.Features(
                         geoJson = FeatureCollection(
                             features = listOf(
                                 Feature(
@@ -383,18 +410,100 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
                             )
                         )
                     )
+                }
+                val routeSource = rememberGeoJsonSource(data = routeData)
+
+                // Route casing (border)
+                LineLayer(
+                    id = "assistance-route-casing",
+                    source = routeSource,
+                    color = const(Color.White),
+                    width = const(9.dp),
+                    join = const(LineJoin.Round),
+                    cap = const(LineCap.Round)
                 )
 
                 LineLayer(
                     id = "assistance-route",
                     source = routeSource,
                     color = const(MaterialTheme.colorScheme.primary),
-                    width = const(6.dp)
+                    width = const(6.dp),
+                    join = const(LineJoin.Round),
+                    cap = const(LineCap.Round)
                 )
             }
         }
 
-        // Provider marker (The one being tracked)
+        // Trace provider to origin route
+        uiState.providerToOriginRoute?.let { geometry ->
+            val providerRoutePositions = remember(geometry) {
+                parseRouteGeometry(geometry)
+            }
+
+            if (providerRoutePositions.isNotEmpty()) {
+                val providerRouteData = remember(providerRoutePositions) {
+                    GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = LineString(coordinates = providerRoutePositions),
+                                    properties = null
+                                )
+                            )
+                        )
+                    )
+                }
+                val providerRouteSource = rememberGeoJsonSource(data = providerRouteData)
+
+                LineLayer(
+                    id = "provider-to-origin-route",
+                    source = providerRouteSource,
+                    color = const(Color(0xFF3B82F6)),
+                    width = const(6.dp),
+                    join = const(LineJoin.Round),
+                    cap = const(LineCap.Round),
+                    dasharray = const(listOf(2f, 2f))
+                )
+            }
+        }
+
+        // Origin and Destination markers
+        val markersSource = rememberGeoJsonSource(
+            data = remember(assistance) {
+                GeoJsonData.Features(
+                    geoJson = FeatureCollection(
+                        features = listOf(
+                            Feature(
+                                geometry = Point(Position(assistance.origin.longitude, assistance.origin.latitude)),
+                                properties = buildJsonObject { put("type", "origin") }
+                            ),
+                            Feature(
+                                geometry = Point(Position(assistance.destination.longitude, assistance.destination.latitude)),
+                                properties = buildJsonObject { put("type", "destination") }
+                            )
+                        )
+                    )
+                )
+            }
+        )
+
+        SymbolLayer(
+            id = "markers",
+            source = markersSource,
+            iconImage = switch(
+                input = feature["type"].asString(),
+                case("origin", origenIcon),
+                case("destination", destinoIcon),
+                fallback = origenIcon
+            ),
+            iconColor = const(MaterialTheme.colorScheme.primary),
+            iconSize = const(1.3f),
+            iconAllowOverlap = const(true),
+            iconIgnorePlacement = const(true),
+            iconAnchor = const(SymbolAnchor.Bottom)
+        )
+
+        // Provider marker (The one being tracked) - Show on top
         uiState.providerLocation?.let { location ->
             val providerSource = rememberGeoJsonSource(
                 data = remember(location) {
@@ -411,46 +520,22 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
                 }
             )
 
-            CircleLayer(
+            SymbolLayer(
                 id = "provider-marker-layer",
                 source = providerSource,
-                color = const(
+                iconImage = auxilioIcon,
+                iconColor = const(
                     if (uiState.isProvider) 
                         MaterialTheme.colorScheme.error 
                     else 
                         MaterialTheme.colorScheme.tertiary
                 ),
-                radius = const(14.dp),
-                strokeColor = const(Color.White),
-                strokeWidth = const(3.dp)
+                iconSize = const(1.5f),
+                iconAllowOverlap = const(true),
+                iconIgnorePlacement = const(true),
+                iconAnchor = const(SymbolAnchor.Center)
             )
         }
-
-        val markersSource = rememberGeoJsonSource(
-            data = GeoJsonData.Features(
-                geoJson = FeatureCollection(
-                    features = listOf(
-                        Feature(
-                            geometry = Point(Position(assistance.origin.longitude, assistance.origin.latitude)),
-                            properties = buildJsonObject { put("type", "origin") }
-                        ),
-                        Feature(
-                            geometry = Point(Position(assistance.destination.longitude, assistance.destination.latitude)),
-                            properties = buildJsonObject { put("type", "destination") }
-                        )
-                    )
-                )
-            )
-        )
-
-        CircleLayer(
-            id = "markers",
-            source = markersSource,
-            color = const(MaterialTheme.colorScheme.primary),
-            radius = const(10.dp),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp)
-        )
     }
 }
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.location.Geocoder
 import android.os.Build
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
@@ -49,6 +50,11 @@ class AssistanceTrackingViewModel @Inject constructor(
         viewModelScope.launch {
             trackingRepository.locationUpdates.collect { location ->
                 _uiState.update { it.copy(providerLocation = location) }
+                
+                // If we don't have the provider route yet, try to fetch it now that we have a location
+                if (_uiState.value.providerToOriginRoute == null && !fetchingRoute) {
+                    _uiState.value.assistance?.id?.let { getRoute(it) }
+                }
             }
         }
 
@@ -87,14 +93,15 @@ class AssistanceTrackingViewModel @Inject constructor(
                         
                         // If already tracking or has a session ID, connect to SignalR
                         if (!sessionId.isNullOrBlank()) {
-                            android.util.Log.d("AssistanceTrackingVM", "Connecting to tracking session: $sessionId (isProvider: $isProvider)")
+                            Log.d("AssistanceTrackingVM", "Connecting to tracking session: $sessionId (isProvider: $isProvider)")
                             trackingRepository.connect(sessionId, isProvider = isProvider)
                             if (isProvider) {
                                 startLocationService()
                             }
                         } else {
-                            android.util.Log.d("AssistanceTrackingVM", "No tracking session ID available yet for assistance ${assistance.id}")
+                            Log.d("AssistanceTrackingVM", "No tracking session ID available yet for assistance ${assistance.id}")
                         }
+                        getRoute(assistanceId)
                     }
                 },
                 onFailure = { error ->
@@ -122,6 +129,7 @@ class AssistanceTrackingViewModel @Inject constructor(
                         // Connect to SignalR and start foreground service
                         trackingRepository.connect(sessionId, isProvider = true)
                         startLocationService()
+                        getRoute(assistanceId)
                     } else {
                         _uiState.update { it.copy(isLoading = false, error = "No se recibió session ID") }
                     }
@@ -140,6 +148,33 @@ class AssistanceTrackingViewModel @Inject constructor(
             it.copy(
                 trackingState = TrackingState.Disconnected,
                 providerLocation = null
+            )
+        }
+    }
+
+    private var fetchingRoute = false
+
+    fun getRoute(assistanceId: Int) {
+        if (fetchingRoute) return
+        fetchingRoute = true
+        viewModelScope.launch {
+            val result = assistanceRepository.getRoute(assistanceId)
+            result.fold(
+                onSuccess = { routeResponse ->
+                    _uiState.update { state ->
+                        state.copy(
+                            providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
+                            assistance = state.assistance?.copy(
+                                routeGeometry = state.assistance.routeGeometry ?: routeResponse.originToDestination?.geometryJson
+                            )
+                        )
+                    }
+                    fetchingRoute = false
+                },
+                onFailure = { error ->
+                    Log.e("AssistanceTrackingVM", "Error fetching route", error)
+                    fetchingRoute = false
+                }
             )
         }
     }

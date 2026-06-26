@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,6 +31,7 @@ class TrackingRepository @Inject constructor(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var hubConnection: HubConnection? = null
+    private var connectionJob: Job? = null
     private var currentSessionId: String? = null
     private var currentIsProvider: Boolean = false
 
@@ -45,6 +47,7 @@ class TrackingRepository @Inject constructor(
     fun connect(sessionId: String, isProvider: Boolean = false) {
         currentSessionId = sessionId
         currentIsProvider = isProvider
+        
         val existingConnection = hubConnection
         val currentState = existingConnection?.connectionState
         
@@ -71,64 +74,64 @@ class TrackingRepository @Inject constructor(
             return
         }
 
-        // Ensure any previous connection is stopped
-        if (existingConnection != null) {
-            scope.launch {
+        connectionJob?.cancel()
+        connectionJob = scope.launch {
+            _trackingState.value = TrackingState.Connecting
+
+            // Ensure any previous connection is stopped
+            existingConnection?.let { conn ->
                 try {
-                    existingConnection.stop().blockingAwait()
+                    Log.d("TrackingRepository", "Stopping existing connection...")
+                    conn.stop().timeout(5, TimeUnit.SECONDS).blockingAwait()
                 } catch (e: Exception) {
                     Log.e("TrackingRepository", "Error stopping previous connection", e)
                 }
             }
-        }
 
-        _trackingState.value = TrackingState.Connecting
+            try {
+                val baseUrl = Constants.BASE_URL.trimEnd('/')
+                val hubUrl = "$baseUrl/locationHub"
+                val jwt = sessionManager.getJwt()
 
-        try {
-            val baseUrl = Constants.BASE_URL.trimEnd('/')
-            val hubUrl = "$baseUrl/locationHub"
-            val jwt = sessionManager.getJwt()
+                Log.d("TrackingRepository", "Building connection to $hubUrl")
 
-            Log.d("TrackingRepository", "Building connection to $hubUrl")
+                val newConnection = HubConnectionBuilder.create(hubUrl)
+                    .withAccessTokenProvider(Single.just(jwt))
+                    .build()
+                
+                hubConnection = newConnection
 
-            val newConnection = HubConnectionBuilder.create(hubUrl)
-                .withAccessTokenProvider(Single.just(jwt))
-                .build()
-            
-            hubConnection = newConnection
-
-            // Listen for location updates from server. The hub sends one Location payload.
-            newConnection.on("LocationUpdated", { location: Location ->
-                Log.d("TrackingRepository", "Location received: ${location.latitude}, ${location.longitude}")
-                scope.launch {
-                    _locationUpdates.emit(location)
-                }
-            }, Location::class.java)
-
-            // Listen for session ended
-            newConnection.on("SessionEnded") {
-                Log.d("TrackingRepository", "Session ended")
-                scope.launch {
-                    _sessionEnded.emit(Unit)
-                    _trackingState.value = TrackingState.Disconnected
-                }
-            }
-
-            newConnection.onClosed { exception ->
-                Log.d("TrackingRepository", "Connection closed: ${exception?.message}")
-                val sessionIdToReconnect = currentSessionId
-                if (sessionIdToReconnect != null && _trackingState.value != TrackingState.Disconnected) {
-                    Log.d("TrackingRepository", "Unexpectedly disconnected. Attempting to reconnect...")
+                // Listen for location updates from server. The hub sends one Location payload.
+                newConnection.on("LocationUpdated", { location: Location ->
+                    Log.d("TrackingRepository", "Location received: ${location.latitude}, ${location.longitude}")
                     scope.launch {
-                        delay(5000)
-                        connect(sessionIdToReconnect, currentIsProvider)
+                        _locationUpdates.emit(location)
                     }
-                } else if (_trackingState.value != TrackingState.Disconnected) {
-                    _trackingState.value = TrackingState.Disconnected
-                }
-            }
+                }, Location::class.java)
 
-            scope.launch {
+                // Listen for session ended
+                newConnection.on("SessionEnded") {
+                    Log.d("TrackingRepository", "Session ended")
+                    scope.launch {
+                        _sessionEnded.emit(Unit)
+                        _trackingState.value = TrackingState.Disconnected
+                    }
+                }
+
+                newConnection.onClosed { exception ->
+                    Log.d("TrackingRepository", "Connection closed: ${exception?.message}")
+                    val sessionIdToReconnect = currentSessionId
+                    if (sessionIdToReconnect != null && _trackingState.value != TrackingState.Disconnected) {
+                        Log.d("TrackingRepository", "Unexpectedly disconnected. Attempting to reconnect...")
+                        scope.launch {
+                            delay(5000)
+                            connect(sessionIdToReconnect, currentIsProvider)
+                        }
+                    } else if (_trackingState.value != TrackingState.Disconnected) {
+                        _trackingState.value = TrackingState.Disconnected
+                    }
+                }
+
                 var retryCount = 0
                 val maxRetries = 5
                 var connectedSuccessfully = false
@@ -137,7 +140,7 @@ class TrackingRepository @Inject constructor(
                     try {
                         Log.d("TrackingRepository", "Connecting to hub (attempt ${retryCount + 1})...")
                         newConnection.start()
-                            .timeout(15, TimeUnit.SECONDS)
+                            .timeout(30, TimeUnit.SECONDS)
                             .blockingAwait()
                         
                         connectedSuccessfully = true
@@ -165,10 +168,10 @@ class TrackingRepository @Inject constructor(
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("TrackingRepository", "Failed to build hub connection", e)
+                _trackingState.value = TrackingState.Error("Error: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e("TrackingRepository", "Failed to build hub connection", e)
-            _trackingState.value = TrackingState.Error("Error: ${e.message}")
         }
     }
 
@@ -194,9 +197,10 @@ class TrackingRepository @Inject constructor(
         currentSessionId = null
         val connection = hubConnection
         hubConnection = null
+        connectionJob?.cancel()
         scope.launch {
             try {
-                connection?.stop()?.blockingAwait()
+                connection?.stop()?.timeout(5, TimeUnit.SECONDS)?.blockingAwait()
                 Log.d("TrackingRepository", "Disconnected from hub")
             } catch (e: Exception) {
                 Log.e("TrackingRepository", "Error disconnecting", e)

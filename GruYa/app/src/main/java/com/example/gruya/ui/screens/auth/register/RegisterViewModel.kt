@@ -6,11 +6,13 @@ import com.example.gruya.data.SessionManager
 import com.example.gruya.data.repository.AuthRepository
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.ServiceType
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 @HiltViewModel
@@ -52,25 +54,31 @@ class RegisterViewModel @Inject constructor(
 
     fun onRegisterClick() {
         viewModelScope.launch {
-            val result = authRepository.register(
-                firstname = _uiState.value.firstname,
-                lastname = _uiState.value.lastname,
-                email = _uiState.value.email,
-                phone = _uiState.value.phone,
-                password = _uiState.value.password,
-                role = _uiState.value.role)
+            try {
+                val fcmToken = FirebaseMessaging.getInstance().getToken().await()
 
-            _uiState.update { currentValue ->
-                currentValue.copy(success = result.isSuccessful)
-            }
+                val result = authRepository.register(
+                    firstname = _uiState.value.firstname,
+                    lastname = _uiState.value.lastname,
+                    email = _uiState.value.email,
+                    phone = _uiState.value.phone,
+                    password = _uiState.value.password,
+                    role = _uiState.value.role,
+                    fcmToken = fcmToken)
 
-            if (result.isSuccessful) {
-                val authResponse = result.body()!!
-                sessionManager.saveJwt(authResponse.token)
-                authResponse.user.role?.let { sessionManager.saveRole(it) }
+                _uiState.update { currentValue ->
+                    currentValue.copy(success = result.isSuccessful)
+                }
+
+                if (result.isSuccessful) {
+                    val authResponse = result.body()!!
+                    sessionManager.saveJwt(authResponse.token)
+                    authResponse.user.role?.let { sessionManager.saveRole(it) }
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Error de conexión. Verificá tu conexión a internet") }
             }
         }
-
     }
 
     fun onContinueClick(){

@@ -323,8 +323,9 @@ fun GruYaApp(
                             if (role == Role.PROVIDER) {
                                 backStack.add(AppDest.ProviderProfile)
                             } else {
+                                authViewModel.onLoginSuccess()
                                 backStack.clear()
-                                backStack.add(AppDest.Login)
+                                backStack.add(AppDest.MainContent)
                             }
                         }
                     )

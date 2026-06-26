@@ -8,5 +8,6 @@ data class RegisterRequest(
     val email : String,
     val password : String,
     val phone : String,
-    val role : Role
+    val role : Role,
+    val fcmToken: String? = null
 )

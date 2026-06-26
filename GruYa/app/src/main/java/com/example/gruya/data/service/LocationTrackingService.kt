@@ -12,9 +12,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.gruya.R
-import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.TrackingRepository
-import com.example.gruya.domain.model.Location
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -22,20 +20,14 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class LocationTrackingService : Service() {
 
     @Inject
-    lateinit var assistanceRepository: AssistanceRepository
+    lateinit var trackingRepository: TrackingRepository
 
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var isTracking = false
     private val updateInterval = 5000L // 5 seconds
@@ -162,6 +154,5 @@ class LocationTrackingService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         stopTracking()
-        serviceScope.cancel()
     }
 }

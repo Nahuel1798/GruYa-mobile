@@ -63,6 +63,19 @@ class ProviderRepository @Inject constructor(
         }
     }
 
+    suspend fun updateProviderLocation(location: Location): Result<Unit> {
+        return try {
+            val response = providerService.updateProviderLocation(location)
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error al actualizar ubicación: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun updateProfile(request: UpdateProviderProfileRequest): Result<ProviderProfile> {
         return try {
             val response = providerService.updateProfile(request)

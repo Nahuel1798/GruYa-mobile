@@ -9,7 +9,6 @@ import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.remote.dtos.response.TripStartedResponse
 import com.example.gruya.data.service.AssistanceService
-import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.Assistance
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -124,19 +123,6 @@ class AssistanceRepository @Inject constructor(
                 Result.failure(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    suspend fun updateProviderLocation(location: Location): Result<Unit> {
-        return try {
-            val response = assistanceService.getproviderlocation(location)
-            if (response.isSuccessful) {
-                Result.success(Unit)
-            } else {
-                Result.failure(Exception("Error al actualizar ubicación: ${response.code()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

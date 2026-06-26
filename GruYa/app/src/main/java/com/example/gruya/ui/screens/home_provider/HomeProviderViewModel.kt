@@ -1,9 +1,13 @@
 package com.example.gruya.ui.screens.home_provider
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Intent
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gruya.data.remote.dtos.request.UpdateProviderProfileRequest
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.ProviderRepository
+import com.example.gruya.data.service.ProviderLocationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,8 +19,9 @@ import org.maplibre.spatialk.geojson.Position
 @HiltViewModel
 class HomeProviderViewModel @Inject constructor(
     private val assistanceRepository: AssistanceRepository,
-    private val providerRepository: ProviderRepository
-) : ViewModel() {
+    private val providerRepository: ProviderRepository,
+    private val application: Application
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(HomeProviderUiState())
     val uiState = _uiState.asStateFlow()
@@ -35,7 +40,7 @@ class HomeProviderViewModel @Inject constructor(
                             it.copy(
                                 isProfileComplete = true,
                                 providerProfile = profile,
-                                isOnline = profile.isAvailable,
+                                isOnline = false,
                                 profileCheckError = null
                             )
                         }
@@ -66,6 +71,10 @@ class HomeProviderViewModel @Inject constructor(
 
     fun onLocationPermissionChanged(granted: Boolean) {
         _uiState.update { it.copy(hasLocationPermission = granted) }
+        if (!granted && _uiState.value.isOnline) {
+            goOffline()
+            _uiState.update { it.copy(isOnline = false) }
+        }
     }
 
     fun updateUserLocation(latitude: Double, longitude: Double) {
@@ -101,8 +110,40 @@ class HomeProviderViewModel @Inject constructor(
     }
 
     fun toggleAvailability() {
-        _uiState.update {
-            it.copy(isOnline = !it.isOnline)
+        val goingOnline = !_uiState.value.isOnline
+        _uiState.update { it.copy(isOnline = goingOnline) }
+
+        if (goingOnline) {
+            goOnline()
+        } else {
+            goOffline()
+        }
+    }
+
+    private fun goOnline() {
+        val intent = Intent(application, ProviderLocationService::class.java)
+        application.startForegroundService(intent)
+        updateBackendAvailability(true)
+    }
+
+    private fun goOffline() {
+        val intent = Intent(application, ProviderLocationService::class.java)
+        application.stopService(intent)
+        updateBackendAvailability(false)
+    }
+
+    private fun updateBackendAvailability(available: Boolean) {
+        val profile = _uiState.value.providerProfile ?: return
+        viewModelScope.launch {
+            providerRepository.updateProfile(
+                UpdateProviderProfileRequest(
+                    serviceType = profile.serviceType,
+                    companyName = profile.companyName,
+                    address = profile.address,
+                    description = profile.description,
+                    isAvailable = available
+                )
+            )
         }
     }
 }

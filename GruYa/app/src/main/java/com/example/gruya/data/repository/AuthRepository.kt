@@ -35,19 +35,44 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun register(firstname: String, lastname: String, email: String, password: String, phone: String, role: Role, fcmToken: String? = null): Response<AuthResponse>{
-        val request = RegisterRequest(
-            firstName = firstname,
-            lastName = lastname,
-            email = email,
-            password = password,
-            phone = phone,
-            role = role,
-            fcmToken = fcmToken
-        )
-        val response = authService.register(request)
-        Log.d("API",response.toString())
-        return response
+    suspend fun register(firstname: String, lastname: String, email: String, password: String, phone: String, role: Role, fcmToken: String? = null): Result<AuthResponse> {
+        return try {
+            val request = RegisterRequest(
+                firstName = firstname,
+                lastName = lastname,
+                email = email,
+                password = password,
+                phone = phone,
+                role = role,
+                fcmToken = fcmToken
+            )
+            val response = authService.register(request)
+            Log.d("API", response.toString())
+
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    Result.success(it)
+                } ?: Result.failure(Exception("Respuesta vacía del servidor"))
+            } else {
+                val errorBody = response.errorBody()?.string()
+                val errorMessage = if (errorBody != null) {
+                    try {
+                        val gson = com.google.gson.Gson()
+                        val errorJson = gson.fromJson(errorBody, Map::class.java)
+                        errorJson["message"] as? String
+                            ?: errorJson["error"] as? String
+                            ?: "Error del servidor (${response.code()})"
+                    } catch (_: Exception) {
+                        "Error del servidor (${response.code()})"
+                    }
+                } else {
+                    "Error del servidor (${response.code()})"
+                }
+                Result.failure(Exception(errorMessage))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión. Verificá tu conexión a internet"))
+        }
     }
 
     suspend fun getProfile(): Result<UserResponse> {

@@ -48,21 +48,21 @@ fun RegisterScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             when (uiState.step) {
+                RegisterStep.RoleSelector -> RoleSelector(
+                    uiState = uiState,
+                    onConfirm = viewModel::onContinueClick,
+                    onRoleSelected = viewModel::onRoleChanged
+                )
+
                 RegisterStep.Form -> RegisterForm(
                     uiState = uiState,
-                    onContinue = viewModel::onContinueClick,
+                    onContinue = viewModel::onRegisterClick,
                     onFirstNameChanged = viewModel::onFirstNameChanged,
                     onLastNameChanged = viewModel::onLastNameChanged,
                     onPhoneChanged = viewModel::onPhoneChanged,
                     onEmailChanged = viewModel::onEmailChanged,
                     onPasswordChanged = viewModel::onPasswordChanged,
                     onPasswordVisibilityChanged = viewModel::onPasswordVisibilityChanged
-                )
-
-                RegisterStep.RoleSelector -> RoleSelector(
-                    uiState = uiState,
-                    onConfirm = viewModel::onRegisterClick,
-                    onRoleSelected = viewModel::onRoleChanged
                 )
             }
         }

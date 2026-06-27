@@ -5,7 +5,7 @@ import com.example.gruya.domain.model.ServiceType
 
 data class RegisterUiState(
 
-    val step: RegisterStep = RegisterStep.Form,
+    val step: RegisterStep = RegisterStep.RoleSelector,
 
     val firstname: String = "",
     val lastname: String = "",

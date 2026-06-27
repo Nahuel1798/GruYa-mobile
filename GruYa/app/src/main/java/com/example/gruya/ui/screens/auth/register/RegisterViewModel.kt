@@ -53,35 +53,6 @@ class RegisterViewModel @Inject constructor(
     }
 
     fun onRegisterClick() {
-        viewModelScope.launch {
-            try {
-                val fcmToken = FirebaseMessaging.getInstance().getToken().await()
-
-                val result = authRepository.register(
-                    firstname = _uiState.value.firstname,
-                    lastname = _uiState.value.lastname,
-                    email = _uiState.value.email,
-                    phone = _uiState.value.phone,
-                    password = _uiState.value.password,
-                    role = _uiState.value.role,
-                    fcmToken = fcmToken)
-
-                _uiState.update { currentValue ->
-                    currentValue.copy(success = result.isSuccessful)
-                }
-
-                if (result.isSuccessful) {
-                    val authResponse = result.body()!!
-                    sessionManager.saveJwt(authResponse.token)
-                    authResponse.user.role?.let { sessionManager.saveRole(it) }
-                }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(error = "Error de conexión. Verificá tu conexión a internet") }
-            }
-        }
-    }
-
-    fun onContinueClick(){
         val s = _uiState.value
         val error = when {
             s.firstname.isEmpty() -> "Ingrese su nombre"
@@ -93,8 +64,46 @@ class RegisterViewModel @Inject constructor(
         }
         if (error != null) {
             _uiState.update { it.copy(error = error) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(loading = true, error = "") }
+            try {
+                val fcmToken = FirebaseMessaging.getInstance().getToken().await()
+
+                val result = authRepository.register(
+                    firstname = _uiState.value.firstname,
+                    lastname = _uiState.value.lastname,
+                    email = _uiState.value.email,
+                    phone = _uiState.value.phone,
+                    password = _uiState.value.password,
+                    role = _uiState.value.role,
+                    fcmToken = fcmToken
+                )
+
+                result.fold(
+                    onSuccess = { authResponse ->
+                        sessionManager.saveJwt(authResponse.token)
+                        authResponse.user.role?.let { sessionManager.saveRole(it) }
+                        _uiState.update { it.copy(success = true, loading = false) }
+                    },
+                    onFailure = { error ->
+                        _uiState.update { it.copy(error = error.message ?: "Error al registrarse", loading = false) }
+                    }
+                )
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = "Error de conexión. Verificá tu conexión a internet", loading = false) }
+            }
+        }
+    }
+
+    fun onContinueClick(){
+        val s = _uiState.value
+        if (s.role == Role.USER || s.role == Role.PROVIDER) {
+            _uiState.update { it.copy(step = RegisterStep.Form, error = "") }
         } else {
-            _uiState.update { it.copy(step = RegisterStep.RoleSelector, error = "") }
+            _uiState.update { it.copy(error = "Seleccioná un rol para continuar") }
         }
     }
 

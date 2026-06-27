@@ -51,9 +51,10 @@ class AssistanceTrackingViewModel @Inject constructor(
             trackingRepository.locationUpdates.collect { location ->
                 _uiState.update { it.copy(providerLocation = location) }
                 
-                // If we don't have the provider route yet, try to fetch it now that we have a location
-                if (_uiState.value.providerToOriginRoute == null && !fetchingRoute) {
-                    _uiState.value.assistance?.id?.let { getRoute(it) }
+                // Fetch updated route when provider moves
+                val assistanceId = _uiState.value.assistance?.id
+                if (assistanceId != null && !fetchingRoute) {
+                    getRoute(assistanceId)
                 }
             }
         }
@@ -165,7 +166,9 @@ class AssistanceTrackingViewModel @Inject constructor(
                         state.copy(
                             providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
                             assistance = state.assistance?.copy(
-                                routeGeometry = state.assistance.routeGeometry ?: routeResponse.originToDestination?.geometryJson
+                                routeGeometry = state.assistance.routeGeometry ?: routeResponse.originToDestination?.geometryJson,
+                                distanceKm = routeResponse.providerToOrigin?.distanceKm ?: state.assistance.distanceKm,
+                                etaMinutes = routeResponse.providerToOrigin?.etaMinutes ?: state.assistance.etaMinutes
                             )
                         )
                     }

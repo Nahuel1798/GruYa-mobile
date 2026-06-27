@@ -35,14 +35,6 @@ class ProviderRepository @Inject constructor(
         return response.isSuccessful
     }
 
-    suspend fun getprofile(id: Int): Result<ProviderProfileResponse>{
-        return try {
-            Result.success(providerService.getprofile(id))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
     suspend fun getMyProfile(): Result<ProviderProfile?> {
         return try {
             val response = providerService.getMyProfile()

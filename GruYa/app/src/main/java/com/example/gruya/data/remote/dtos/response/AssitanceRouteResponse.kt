@@ -1,7 +1,7 @@
 package com.example.gruya.data.remote.dtos.response
 
 data class RouteLegResponse (
-    val distance: Double?,
+    val distanceKm: Double?,
     val etaMinutes: Double?,
     val geometryJson: String?
 )

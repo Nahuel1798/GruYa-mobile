@@ -483,7 +483,9 @@ private fun iconFor(event: NavEvent): ImageVector = when (event) {
     is NavEvent.NewQuote -> Icons.Default.LocalAtm
     is NavEvent.QuoteAcceptedProvider, is NavEvent.QuoteAcceptedClient -> Icons.Default.CheckCircle
     is NavEvent.QuoteRejected -> Icons.Default.Cancel
-    is NavEvent.TripStarted -> Icons.Default.DirectionsCar
+    is NavEvent.TripStarted, is NavEvent.ProviderArrived -> Icons.Default.DirectionsCar
+    is NavEvent.ProviderHeadingToDestination -> Icons.Default.DirectionsCar
+    is NavEvent.ServiceCompleted -> Icons.Default.CheckCircle
 }
 
 private fun snackbarMessageFor(event: NavEvent): String = when (event) {
@@ -494,6 +496,9 @@ private fun snackbarMessageFor(event: NavEvent): String = when (event) {
     is NavEvent.QuoteAcceptedClient -> "Cotización aceptada"
     is NavEvent.QuoteRejected -> "Cotización rechazada"
     is NavEvent.TripStarted -> "El proveedor ha iniciado el viaje"
+    is NavEvent.ProviderArrived -> "El proveedor ha llegado al origen"
+    is NavEvent.ProviderHeadingToDestination -> "El proveedor se dirige al destino"
+    is NavEvent.ServiceCompleted -> "Servicio completado"
 }
 
 private data class NavItem(
@@ -535,6 +540,9 @@ fun MainNavigationSuite(
             is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
             is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
             is NavEvent.TripStarted -> AppDest.AssistanceTracking(event.assistanceId, event.trackingSessionId)
+            is NavEvent.ProviderArrived -> AppDest.AssistanceTracking(event.assistanceId)
+            is NavEvent.ProviderHeadingToDestination -> AppDest.AssistanceTracking(event.assistanceId)
+            is NavEvent.ServiceCompleted -> AppDest.AssistanceTracking(event.assistanceId)
         }
         if (tabBackStack.lastOrNull() != dest) {
             tabBackStack.add(dest)

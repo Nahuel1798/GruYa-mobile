@@ -54,4 +54,13 @@ interface AssistanceService {
     suspend fun getRoute(
         @Path("id") assistanceId: Int
     ): AssistanceRouteResponse
+
+    @PUT("${Constants.ASSISTANCE_PATH}/{id}/arrive-at-origin")
+    suspend fun arriveAtOrigin(@Path("id") id: Int): Response<Unit>
+
+    @PUT("${Constants.ASSISTANCE_PATH}/{id}/head-to-destination")
+    suspend fun headToDestination(@Path("id") id: Int): Response<Unit>
+
+    @PUT("${Constants.ASSISTANCE_PATH}/{id}/complete")
+    suspend fun complete(@Path("id") id: Int): Response<Unit>
 }

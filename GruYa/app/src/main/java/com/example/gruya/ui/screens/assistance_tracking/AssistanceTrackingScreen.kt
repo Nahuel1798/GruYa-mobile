@@ -133,10 +133,7 @@ fun AssistanceTrackingScreen(
                     // Provider-specific controls
                     if (uiState.isProvider) {
                         val trackingState = uiState.trackingState
-                        val isTracking = trackingState == TrackingState.Tracking || 
-                                         trackingState is TrackingState.Connected ||
-                                         assistance.status == AssistanceStatus.EN_PROCESO ||
-                                         !assistance.trackingSessionId.isNullOrBlank()
+                        val status = assistance.status
 
                         if (trackingState is TrackingState.Error) {
                             Text(
@@ -149,31 +146,70 @@ fun AssistanceTrackingScreen(
                             Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        Button(
-                            onClick = {
-                                if (isTracking) viewModel.stopTrip() else viewModel.startTrip()
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isTracking) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.primary,
-                                contentColor = if (isTracking) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
-                            ),
-                            enabled = trackingState !is TrackingState.Connecting && (isTracking || trackingState !is TrackingState.Error)
-                        ) {
-                            if (trackingState is TrackingState.Connecting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = if (isTracking) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onPrimary
+                        when (status) {
+                            AssistanceStatus.ACEPTADA -> {
+                                ProviderActionButton(
+                                    label = "Iniciar viaje",
+                                    icon = Icons.Default.PlayArrow,
+                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isError = trackingState is TrackingState.Error,
+                                    onClick = { viewModel.startTrip() }
                                 )
-                            } else {
-                                Icon(
-                                    imageVector = if (isTracking) Icons.Default.Check else Icons.Default.PlayArrow,
-                                    contentDescription = null
+                            }
+                            AssistanceStatus.EN_CAMINO_AL_CLIENTE -> {
+                                ProviderActionButton(
+                                    label = "Llegué al cliente",
+                                    icon = Icons.Default.LocationOn,
+                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isError = trackingState is TrackingState.Error,
+                                    onClick = { viewModel.arriveAtOrigin() }
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(if (isTracking) "Viaje iniciado" else "Iniciar viaje")
+                            }
+                            AssistanceStatus.EN_ORIGEN -> {
+                                ProviderActionButton(
+                                    label = "Ir al destino",
+                                    icon = Icons.Default.Flag,
+                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isError = trackingState is TrackingState.Error,
+                                    onClick = { viewModel.headToDestination() }
+                                )
+                            }
+                            AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
+                                ProviderActionButton(
+                                    label = "Finalizar servicio",
+                                    icon = Icons.Default.Check,
+                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isError = trackingState is TrackingState.Error,
+                                    onClick = { viewModel.completeService() }
+                                )
+                            }
+                            AssistanceStatus.COMPLETADO -> {
+                                Text(
+                                    text = "Servicio completado",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            AssistanceStatus.CANCELADO -> {
+                                Text(
+                                    text = "Servicio cancelado",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            AssistanceStatus.PENDIENTE -> {
+                                Text(
+                                    text = "Esperando asignación...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
                         }
                     }
@@ -312,6 +348,41 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label
 }
 
 @Composable
+private fun ProviderActionButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isLoading: Boolean,
+    isError: Boolean,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            contentColor = MaterialTheme.colorScheme.onPrimary
+        ),
+        enabled = !isLoading && !isError
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(20.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
+        } else {
+            Icon(
+                imageVector = icon,
+                contentDescription = null
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(label)
+        }
+    }
+}
+
+@Composable
 private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
     val isDarkTheme = isSystemInDarkTheme()
     val assistance = uiState.assistance ?: return
@@ -326,7 +397,10 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
     // Determinar si el seguimiento está activo (viaje iniciado)
     val isTracking = uiState.trackingState == TrackingState.Tracking || 
                      uiState.trackingState is TrackingState.Connected ||
-                     (assistance.status == AssistanceStatus.EN_PROCESO && !assistance.trackingSessionId.isNullOrBlank())
+                     (!assistance.trackingSessionId.isNullOrBlank() &&
+                      assistance.status != AssistanceStatus.PENDIENTE &&
+                      assistance.status != AssistanceStatus.COMPLETADO &&
+                      assistance.status != AssistanceStatus.CANCELADO)
 
     // Vista general inicial o cuando no hay seguimiento
     LaunchedEffect(assistance, uiState.providerToOriginRoute) {

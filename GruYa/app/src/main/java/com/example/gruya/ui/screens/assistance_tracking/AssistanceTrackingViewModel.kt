@@ -153,6 +153,66 @@ class AssistanceTrackingViewModel @Inject constructor(
         }
     }
 
+    fun arriveAtOrigin() {
+        val assistanceId = _uiState.value.assistance?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val result = assistanceRepository.arriveAtOrigin(assistanceId)
+            result.fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isLoading = false) }
+                    loadAssistance(assistanceId)
+                },
+                onFailure = { error ->
+                    _uiState.update { it.copy(isLoading = false, error = error.message) }
+                }
+            )
+        }
+    }
+
+    fun headToDestination() {
+        val assistanceId = _uiState.value.assistance?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val result = assistanceRepository.headToDestination(assistanceId)
+            result.fold(
+                onSuccess = {
+                    _uiState.update { it.copy(isLoading = false) }
+                    loadAssistance(assistanceId)
+                },
+                onFailure = { error ->
+                    _uiState.update { it.copy(isLoading = false, error = error.message) }
+                }
+            )
+        }
+    }
+
+    fun completeService() {
+        val assistanceId = _uiState.value.assistance?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            val result = assistanceRepository.completeService(assistanceId)
+            result.fold(
+                onSuccess = {
+                    // Stop tracking on service completion
+                    trackingRepository.disconnect()
+                    stopLocationService()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            trackingState = TrackingState.Disconnected,
+                            providerLocation = null
+                        )
+                    }
+                    loadAssistance(assistanceId)
+                },
+                onFailure = { error ->
+                    _uiState.update { it.copy(isLoading = false, error = error.message) }
+                }
+            )
+        }
+    }
+
     private var fetchingRoute = false
 
     fun getRoute(assistanceId: Int) {

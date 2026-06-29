@@ -395,7 +395,10 @@ private fun IconForServiceType(
 private fun StatusBadge(status: AssistanceStatus) {
     val (label, badgeColor) = when (status) {
         AssistanceStatus.PENDIENTE -> "Pendiente" to Color(0xFFF59E0B) // Warning
-        AssistanceStatus.EN_PROCESO -> "En Proceso" to Color(0xFFFFB95F) // Primary
+        AssistanceStatus.ACEPTADA -> "Aceptada" to Color(0xFF8B5CF6)   // Purple
+        AssistanceStatus.EN_CAMINO_AL_CLIENTE -> "En camino al cliente" to Color(0xFF3B82F6) // Blue
+        AssistanceStatus.EN_ORIGEN -> "En origen" to Color(0xFFF97316) // Orange
+        AssistanceStatus.EN_CAMINO_AL_DESTINO -> "En camino al destino" to Color(0xFF14B8A6) // Teal
         AssistanceStatus.COMPLETADO -> "Completado" to Color(0xFF22C55E) // Success
         AssistanceStatus.CANCELADO -> "Cancelado" to Color(0xFFEF4444)   // Error
     }

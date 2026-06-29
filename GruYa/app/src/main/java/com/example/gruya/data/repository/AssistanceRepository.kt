@@ -138,4 +138,52 @@ class AssistanceRepository @Inject constructor(
             Result.failure(e)
         }
     }
+
+    suspend fun arriveAtOrigin(id: Int): Result<Unit> {
+        return try {
+            val response = assistanceService.arriveAtOrigin(id)
+            if (response.isSuccessful) {
+                Log.d("AssistanceRepository", "Llegada al origen registrada para asistencia $id")
+                Result.success(Unit)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun headToDestination(id: Int): Result<Unit> {
+        return try {
+            val response = assistanceService.headToDestination(id)
+            if (response.isSuccessful) {
+                Log.d("AssistanceRepository", "Dirección al destino registrada para asistencia $id")
+                Result.success(Unit)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun completeService(id: Int): Result<Unit> {
+        return try {
+            val response = assistanceService.complete(id)
+            if (response.isSuccessful) {
+                Log.d("AssistanceRepository", "Servicio completado para asistencia $id")
+                Result.success(Unit)
+            } else {
+                Result.failure(
+                    Exception("Error ${response.code()}: ${response.message()}")
+                )
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

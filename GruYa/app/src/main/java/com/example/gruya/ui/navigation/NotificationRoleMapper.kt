@@ -8,7 +8,7 @@ import com.example.gruya.domain.model.Role
  */
 fun getRequiredRole(eventType: String): Role? = when (eventType) {
     "new_assistance", "directed_assistance", "quote_accepted_provider", "quote_rejected" -> Role.PROVIDER
-    "new_quote", "quote_accepted_client", "trip_started" -> Role.USER
+    "new_quote", "quote_accepted_client", "trip_started", "provider.arrived", "provider.heading_to_destination", "provider.service_completed" -> Role.USER
     else -> null
 }
 
@@ -27,6 +27,9 @@ fun navEventFromExtras(type: String, assistanceId: Int, trackingSessionId: Strin
         val sessionId = trackingSessionId ?: return null
         NavEvent.TripStarted(assistanceId, sessionId)
     }
+    "provider.arrived" -> NavEvent.ProviderArrived(assistanceId)
+    "provider.heading_to_destination" -> NavEvent.ProviderHeadingToDestination(assistanceId)
+    "provider.service_completed" -> NavEvent.ServiceCompleted(assistanceId)
     else -> null
 }
 

@@ -19,33 +19,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.res.painterResource
-import android.util.Log
-import com.example.gruya.R
+import com.example.gruya.ui.components.TrackingMap
 import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.TrackingState
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
-import org.maplibre.compose.camera.CameraPosition
-import org.maplibre.compose.camera.rememberCameraState
-import org.maplibre.compose.expressions.dsl.*
-import org.maplibre.compose.layers.LineLayer
-import org.maplibre.compose.layers.SymbolLayer
-import org.maplibre.compose.map.MaplibreMap
-import org.maplibre.compose.expressions.value.LineCap
-import org.maplibre.compose.expressions.value.LineJoin
-import org.maplibre.compose.expressions.value.SymbolAnchor
-import org.maplibre.compose.sources.rememberGeoJsonSource
-import org.maplibre.compose.sources.GeoJsonData
-import org.maplibre.compose.style.BaseStyle
-import org.maplibre.spatialk.geojson.Feature
-import org.maplibre.spatialk.geojson.FeatureCollection
-import org.maplibre.spatialk.geojson.LineString
-import org.maplibre.spatialk.geojson.Point
-import org.maplibre.spatialk.geojson.Position
-import org.json.JSONArray
 import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Check
 
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
@@ -325,7 +302,17 @@ fun AssistanceTrackingScreen(
                     }
                 }
             } else {
-                TrackingMapContent(uiState, isTracking)
+                uiState.assistance?.let { assistance ->
+                    TrackingMap(
+                        origin = assistance.origin,
+                        destination = assistance.destination,
+                        routeGeometry = assistance.routeGeometry,
+                        providerLocation = uiState.providerLocation,
+                        providerToOriginRoute = uiState.providerToOriginRoute,
+                        isTracking = isTracking,
+                        isProvider = uiState.isProvider
+                    )
+                }
             }
         }
     }
@@ -381,248 +368,5 @@ private fun ProviderActionButton(
             Spacer(modifier = Modifier.width(8.dp))
             Text(label)
         }
-    }
-}
-
-@Composable
-private fun TrackingMapContent(uiState: AssistanceTrackingUiState, isTracking: Boolean) {
-    val isDarkTheme = isSystemInDarkTheme()
-    val assistance = uiState.assistance ?: return
-    
-    val cameraState = rememberCameraState(
-        firstPosition = CameraPosition(
-            target = Position(assistance.origin.longitude, assistance.origin.latitude),
-            zoom = 13.0
-        )
-    )
-
-    // Vista general inicial o cuando no hay seguimiento
-    LaunchedEffect(assistance, uiState.providerToOriginRoute) {
-        if (!isTracking) {
-            val routePositions = assistance.routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
-            val providerRoutePositions = uiState.providerToOriginRoute?.let { parseRouteGeometry(it) } ?: emptyList()
-            
-            val points = mutableListOf<Position>()
-            points.add(Position(assistance.origin.longitude, assistance.origin.latitude))
-            if (assistance.destination.latitude != 0.0) {
-                points.add(Position(assistance.destination.longitude, assistance.destination.latitude))
-            }
-            points.addAll(routePositions)
-            points.addAll(providerRoutePositions)
-
-            if (points.isNotEmpty()) {
-                val minLat = points.minOf { it.latitude }
-                val maxLat = points.maxOf { it.latitude }
-                val minLon = points.minOf { it.longitude }
-                val maxLon = points.maxOf { it.longitude }
-
-                val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
-                val deltaLat = maxLat - minLat
-                val deltaLon = maxLon - minLon
-                
-                val zoom = when {
-                    deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
-                    deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
-                    deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
-                    deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
-                    deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
-                    deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
-                    else -> 15.0
-                }
-
-                cameraState.animateTo(
-                    CameraPosition(target = target, zoom = zoom)
-                )
-            }
-        }
-    }
-
-    // Auto-zoom y seguimiento a nivel de calle cuando la grúa está en movimiento
-    LaunchedEffect(uiState.providerLocation, isTracking) {
-        if (isTracking && uiState.providerLocation != null) {
-            cameraState.animateTo(
-                CameraPosition(
-                    target = Position(uiState.providerLocation.longitude, uiState.providerLocation.latitude),
-                    // Si el zoom es lejano, acercamos a nivel de calle (16.5)
-                    // Si ya está cerca, mantenemos el zoom del usuario
-                    zoom = if (cameraState.position.zoom < 15.0) 16.5 else cameraState.position.zoom
-                )
-            )
-        }
-    }
-
-    MaplibreMap(
-        modifier = Modifier.fillMaxSize(),
-        cameraState = cameraState,
-        baseStyle = if (isDarkTheme) BaseStyle.Uri(DARK_STYLE_URL) else BaseStyle.Uri(LIGHT_STYLE_URL)
-    ) {
-        val auxilioIcon = image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
-        val origenIcon = image(painterResource(R.drawable.ic_origin), drawAsSdf = true)
-        val destinoIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
-
-        // Trace the route if available
-        assistance.routeGeometry?.let { geometry ->
-            val routePositions = remember(geometry) {
-                parseRouteGeometry(geometry)
-            }
-
-            if (routePositions.isNotEmpty()) {
-                val routeData = remember(routePositions) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = LineString(coordinates = routePositions),
-                                    properties = null
-                                )
-                            )
-                        )
-                    )
-                }
-                val routeSource = rememberGeoJsonSource(data = routeData)
-
-                // Route casing (border)
-                LineLayer(
-                    id = "assistance-route-casing",
-                    source = routeSource,
-                    color = const(Color.White),
-                    width = const(9.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round)
-                )
-
-                LineLayer(
-                    id = "assistance-route",
-                    source = routeSource,
-                    color = const(MaterialTheme.colorScheme.primary),
-                    width = const(6.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round)
-                )
-            }
-        }
-
-        // Trace provider to origin route
-        uiState.providerToOriginRoute?.let { geometry ->
-            val providerRoutePositions = remember(geometry) {
-                parseRouteGeometry(geometry)
-            }
-
-            if (providerRoutePositions.isNotEmpty()) {
-                val providerRouteData = remember(providerRoutePositions) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = LineString(coordinates = providerRoutePositions),
-                                    properties = null
-                                )
-                            )
-                        )
-                    )
-                }
-                val providerRouteSource = rememberGeoJsonSource(data = providerRouteData)
-
-                LineLayer(
-                    id = "provider-to-origin-route",
-                    source = providerRouteSource,
-                    color = const(Color(0xFF3B82F6)),
-                    width = const(6.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round),
-                    dasharray = const(listOf(2f, 2f))
-                )
-            }
-        }
-
-        // Origin and Destination markers
-        val markersSource = rememberGeoJsonSource(
-            data = remember(assistance) {
-                GeoJsonData.Features(
-                    geoJson = FeatureCollection(
-                        features = listOf(
-                            Feature(
-                                geometry = Point(Position(assistance.origin.longitude, assistance.origin.latitude)),
-                                properties = buildJsonObject { put("type", "origin") }
-                            ),
-                            Feature(
-                                geometry = Point(Position(assistance.destination.longitude, assistance.destination.latitude)),
-                                properties = buildJsonObject { put("type", "destination") }
-                            )
-                        )
-                    )
-                )
-            }
-        )
-
-        SymbolLayer(
-            id = "markers",
-            source = markersSource,
-            iconImage = switch(
-                input = feature["type"].asString(),
-                case("origin", origenIcon),
-                case("destination", destinoIcon),
-                fallback = origenIcon
-            ),
-            iconColor = const(MaterialTheme.colorScheme.primary),
-            iconSize = const(1.3f),
-            iconAllowOverlap = const(true),
-            iconIgnorePlacement = const(true),
-            iconAnchor = const(SymbolAnchor.Bottom)
-        )
-
-        // Provider marker (The one being tracked) - Show on top
-        uiState.providerLocation?.let { location ->
-            val providerSource = rememberGeoJsonSource(
-                data = remember(location) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = Point(Position(location.longitude, location.latitude)),
-                                    properties = buildJsonObject { put("type", "provider") }
-                                )
-                            )
-                        )
-                    )
-                }
-            )
-
-            SymbolLayer(
-                id = "provider-marker-layer",
-                source = providerSource,
-                iconImage = auxilioIcon,
-                iconColor = const(
-                    if (uiState.isProvider) 
-                        MaterialTheme.colorScheme.error 
-                    else 
-                        MaterialTheme.colorScheme.tertiary
-                ),
-                iconSize = const(1.5f),
-                iconAllowOverlap = const(true),
-                iconIgnorePlacement = const(true),
-                iconAnchor = const(SymbolAnchor.Center)
-            )
-        }
-    }
-}
-
-private fun parseRouteGeometry(routeGeometry: String): List<Position> {
-    return try {
-        val json = JSONArray(routeGeometry)
-        buildList {
-            for (i in 0 until json.length()) {
-                val coord = json.getJSONArray(i)
-                add(
-                    Position(
-                        longitude = coord.getDouble(0),
-                        latitude = coord.getDouble(1)
-                    )
-                )
-            }
-        }
-    } catch (e: org.json.JSONException) {
-        Log.w("AssistanceTrackingScreen", "Failed to parse route geometry", e)
-        emptyList()
     }
 }

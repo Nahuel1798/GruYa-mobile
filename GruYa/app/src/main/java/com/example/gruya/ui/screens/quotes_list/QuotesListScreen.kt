@@ -1,6 +1,5 @@
 package com.example.gruya.ui.screens.quotes_list
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,7 +32,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -42,24 +41,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.gruya.domain.model.Assistance
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material3.HorizontalDivider
+import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.Quote
 import com.example.gruya.domain.model.QuoteStatus
-import org.maplibre.compose.camera.CameraPosition
-import org.maplibre.compose.camera.rememberCameraState
-import org.maplibre.compose.expressions.dsl.const
-import org.maplibre.compose.layers.CircleLayer
-import org.maplibre.compose.layers.LineLayer
-import org.maplibre.compose.map.MaplibreMap
-import org.maplibre.compose.sources.GeoJsonData
-import org.maplibre.compose.sources.rememberGeoJsonSource
-import org.maplibre.compose.style.BaseStyle
-import org.maplibre.spatialk.geojson.Feature
-import org.maplibre.spatialk.geojson.FeatureCollection
-import org.maplibre.spatialk.geojson.LineString
-import org.maplibre.spatialk.geojson.Point
-import org.maplibre.spatialk.geojson.Position
-import org.json.JSONArray
+import com.example.gruya.domain.model.TrackingState
+import com.example.gruya.domain.model.displayName
+import com.example.gruya.ui.components.TrackingMap
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,8 +117,16 @@ fun QuotesListScreen(
                     // Background Map
                     val firstAssistance = uiState.quotes.firstOrNull()?.assistance
                     if (firstAssistance != null) {
-                        QuotesListMap(
-                            assistance = acceptedQuote?.assistance ?: firstAssistance,
+                        val assistance = acceptedQuote?.assistance ?: firstAssistance
+                        TrackingMap(
+                            origin = assistance.origin,
+                            destination = assistance.destination,
+                            routeGeometry = assistance.routeGeometry,
+                            providerLocation = uiState.providerLocation,
+                            providerToOriginRoute = uiState.providerToOriginRoute,
+                            isTracking = uiState.trackingState is TrackingState.Tracking || 
+                                         uiState.trackingState is TrackingState.Connected,
+                            isProvider = false,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -148,20 +145,18 @@ fun QuotesListScreen(
                             )
                         }
                     } else {
-                        // Active Quote Card at the bottom
-                        Box(
+                        // Active Service View at the bottom
+                        ActiveServiceCard(
+                            quote = acceptedQuote,
+                            originAddress = uiState.originAddress,
+                            destinationAddress = uiState.destinationAddress,
+                            distanceKm = uiState.distanceKm,
+                            etaMinutes = uiState.etaMinutes,
+                            trackingState = uiState.trackingState,
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.BottomCenter
-                        ) {
-                            QuoteCard(
-                                quote = acceptedQuote,
-                                actionLoading = uiState.actionLoading,
-                                onAccept = {},
-                                onReject = {}
-                            )
-                        }
+                                .align(Alignment.BottomCenter)
+                                .padding(16.dp)
+                        )
                     }
                 }
             }
@@ -170,135 +165,109 @@ fun QuotesListScreen(
 }
 
 @Composable
-private fun QuotesListMap(
-    assistance: Assistance,
+private fun ActiveServiceCard(
+    quote: Quote,
+    originAddress: String?,
+    destinationAddress: String?,
+    distanceKm: Double?,
+    etaMinutes: Double?,
+    trackingState: TrackingState,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    val cameraState = rememberCameraState(
-        firstPosition = CameraPosition(
-            target = Position(assistance.origin.longitude, assistance.origin.latitude),
-            zoom = 13.0
+    val assistance = quote.assistance
+    val isTracking = trackingState is TrackingState.Tracking || trackingState is TrackingState.Connected
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
         )
-    )
-
-    LaunchedEffect(assistance) {
-        val routePositions = assistance.routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
-        val points = buildList {
-            add(Position(assistance.origin.longitude, assistance.origin.latitude))
-            if (assistance.destination.latitude != 0.0) {
-                add(Position(assistance.destination.longitude, assistance.destination.latitude))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Status and Provider
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = assistance.status.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = quote.providerName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                if (isTracking && distanceKm != null) {
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "%.1f km".format(distanceKm),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "~%.0f min".format(etaMinutes ?: 0.0),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
-            addAll(routePositions)
-        }
 
-        if (points.isNotEmpty()) {
-            val minLat = points.minOf { it.latitude }
-            val maxLat = points.maxOf { it.latitude }
-            val minLon = points.minOf { it.longitude }
-            val maxLon = points.maxOf { it.longitude }
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(16.dp))
 
-            val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
-            val deltaLat = maxLat - minLat
-            val deltaLon = maxLon - minLon
-
-            val zoom = when {
-                deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
-                deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
-                deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
-                deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
-                deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
-                deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
-                else -> 15.0
-            }
-
-            cameraState.animateTo(
-                CameraPosition(
-                    target = target,
-                    zoom = zoom
-                )
+            // Addresses
+            AddressRow(
+                icon = Icons.Default.LocationOn,
+                label = "Origen",
+                address = originAddress ?: "Cargando..."
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            AddressRow(
+                icon = Icons.Default.LocationOn,
+                label = "Destino",
+                address = if (assistance.destination.latitude == 0.0) "No especificado" else destinationAddress ?: "Cargando..."
             )
         }
     }
+}
 
-    MaplibreMap(
-        modifier = modifier,
-        cameraState = cameraState,
-        baseStyle = BaseStyle.Uri(
-            if (isDark) "https://tiles.openfreemap.org/styles/dark" else "https://tiles.openfreemap.org/styles/liberty"
+@Composable
+private fun AddressRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    address: String
+) {
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp).padding(top = 2.dp),
+            tint = MaterialTheme.colorScheme.primary
         )
-    ) {
-        // Route
-        assistance.routeGeometry?.let { geometry ->
-            val routePositions = remember(geometry) {
-                parseRouteGeometry(geometry)
-            }
-
-            if (routePositions.isNotEmpty()) {
-                val routeSource = rememberGeoJsonSource(
-                    data = GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = LineString(
-                                        coordinates = routePositions
-                                    ),
-                                    properties = null
-                                )
-                            )
-                        )
-                    )
-                )
-
-                LineLayer(
-                    id = "assistance-route",
-                    source = routeSource,
-                    color = const(MaterialTheme.colorScheme.primary),
-                    width = const(5.dp)
-                )
-            }
-        }
-
-        val features = remember(assistance) {
-            buildList {
-                add(
-                    Feature(
-                        geometry = Point(
-                            longitude = assistance.origin.longitude,
-                            latitude = assistance.origin.latitude
-                        ),
-                        properties = null
-                    )
-                )
-
-                if (assistance.destination.latitude != 0.0) {
-                    add(
-                        Feature(
-                            geometry = Point(
-                                longitude = assistance.destination.longitude,
-                                latitude = assistance.destination.latitude
-                            ),
-                            properties = null
-                        )
-                    )
-                }
-            }
-        }
-
-        val markersSource = rememberGeoJsonSource(
-            data = GeoJsonData.Features(
-                geoJson = FeatureCollection(features = features)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-        )
-
-        CircleLayer(
-            id = "assistance-points",
-            source = markersSource,
-            color = const(MaterialTheme.colorScheme.primary),
-            radius = const(10.dp),
-            strokeColor = const(Color.White),
-            strokeWidth = const(2.dp)
-        )
+            Text(
+                text = address,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 
@@ -465,24 +434,5 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-private fun parseRouteGeometry(routeGeometry: String): List<Position> {
-    return try {
-        val json = JSONArray(routeGeometry)
-        buildList {
-            for (i in 0 until json.length()) {
-                val coord = json.getJSONArray(i)
-                add(
-                    Position(
-                        longitude = coord.getDouble(0),
-                        latitude = coord.getDouble(1)
-                    )
-                )
-            }
-        }
-    } catch (e: Exception) {
-        emptyList()
     }
 }

@@ -46,11 +46,16 @@ class QuoteRepository @Inject constructor(
         }
     }
 
-    suspend fun acceptQuote(quoteId: Int): Result<Unit> {
+    suspend fun acceptQuote(quoteId: Int): Result<Quote> {
         return try {
             val response = quoteService.accept(quoteId)
             if (response.isSuccessful) {
-                Result.success(Unit)
+                val quote = response.body()?.toDomainOrNull()
+                if (quote != null) {
+                    Result.success(quote)
+                } else {
+                    Result.failure(Exception("Error al procesar la respuesta"))
+                }
             } else {
                 Result.failure(Exception("Error al aceptar el presupuesto"))
             }

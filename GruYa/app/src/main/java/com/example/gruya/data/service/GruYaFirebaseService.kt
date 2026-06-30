@@ -64,20 +64,7 @@ class GruYaFirebaseService : FirebaseMessagingService() {
 
         // --- Role guard: check the required role for this event type ---
         val requiredRole = type?.let { getRequiredRole(it) }
-        if (requiredRole == null) {
-            // Unknown event type: show notification but no NavEvent emission
-            val title = message.notification?.title ?: data["title"] ?: ""
-            val body = message.notification?.body ?: data["body"] ?: ""
-            if (title.isNotEmpty() || body.isNotEmpty()) {
-                showNotification(title, body)
-                scope.launch {
-                    notificationRepository.emitNotification(title, body)
-                }
-            }
-            return
-        }
-
-        if (sessionManager.getRole() != requiredRole) {
+        if (requiredRole != null && sessionManager.getRole() != requiredRole) {
             // Role mismatch: silent drop
             Log.d("FMC", "Role guard: role mismatch, dropping notification")
             return
@@ -91,13 +78,20 @@ class GruYaFirebaseService : FirebaseMessagingService() {
         val body = message.notification?.body ?: data["body"] ?: ""
 
         if (title.isNotEmpty() || body.isNotEmpty()) {
-            // Always show notification with extras for PendingIntent (background/dead path)
-            showNotification(title, body, type, assistanceId, trackingSessionId)
-
-            // Foreground path: emit NavEvent to bus for in-app snackbar
-            if (navEvent != null && navigationEventBus.isForeground) {
-                navigationEventBus.emit(navEvent)
-                Log.d("FMC", "Emitted NavEvent: $navEvent (foreground)")
+            if (navigationEventBus.isForeground) {
+                // Foreground path: emit NavEvent or generic notification to bus for in-app snackbar
+                if (navEvent != null) {
+                    navigationEventBus.emitNotification(navEvent)
+                    Log.d("FMC", "Emitted NavEvent (notification): $navEvent (foreground)")
+                } else {
+                    // Fallback for generic notifications or unknown types
+                    scope.launch {
+                        notificationRepository.emitNotification(title, body)
+                    }
+                }
+            } else {
+                // Background path: show system notification
+                showNotification(title, body, type, assistanceId, trackingSessionId)
             }
         }
     }

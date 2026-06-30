@@ -153,6 +153,16 @@ class MainActivity : ComponentActivity() {
         handleNavigationIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        navEventBus.isForeground = true
+    }
+
+    override fun onPause() {
+        super.onPause()
+        navEventBus.isForeground = false
+    }
+
     private fun handleNavigationIntent(intent: Intent?) {
         if (intent == null) return
         val navType = intent.getStringExtra(EXTRA_NAV_TYPE)
@@ -161,7 +171,7 @@ class MainActivity : ComponentActivity() {
         if (navType != null && assistanceId > 0) {
             val event = navEventFromExtras(navType, assistanceId, trackingSessionId)
             if (event != null) {
-                navEventBus.emit(event)
+                navEventBus.emitNavigation(event)
             }
         }
     }
@@ -239,7 +249,7 @@ fun GruYaApp(
 
     // Observe NavigationEventBus for notification-driven navigation events
     LaunchedEffect(Unit) {
-        navEventBus.events.collect { event ->
+        navEventBus.notificationEvents.collect { event ->
             currentNotification.value = ForegroundNotification(
                 title = "GruYa",
                 description = snackbarMessageFor(event),
@@ -251,10 +261,13 @@ fun GruYaApp(
         }
     }
 
-    // Track foreground state for the NavigationEventBus
+    // Observe NavigationEventBus for direct navigation events
     LaunchedEffect(Unit) {
-        navEventBus.isForeground = true
+        navEventBus.navigationEvents.collect { event ->
+            pendingNavEvent.value = event
+        }
     }
+
 
     LaunchedEffect(Unit) {
         authViewModel.authEvents.collect { event ->

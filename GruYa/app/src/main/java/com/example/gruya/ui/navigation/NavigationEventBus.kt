@@ -9,16 +9,25 @@ import javax.inject.Singleton
 @Singleton
 class NavigationEventBus @Inject constructor() {
 
-    private val _events = MutableSharedFlow<NavEvent>(
+    private val _notificationEvents = MutableSharedFlow<NavEvent>(
+        extraBufferCapacity = 1
+    )
+    val notificationEvents: SharedFlow<NavEvent> = _notificationEvents.asSharedFlow()
+
+    private val _navigationEvents = MutableSharedFlow<NavEvent>(
         replay = 1,
         extraBufferCapacity = 1
     )
-    val events: SharedFlow<NavEvent> = _events.asSharedFlow()
+    val navigationEvents: SharedFlow<NavEvent> = _navigationEvents.asSharedFlow()
 
     @Volatile
     var isForeground: Boolean = false
 
-    fun emit(event: NavEvent) {
-        _events.tryEmit(event)
+    fun emitNotification(event: NavEvent) {
+        _notificationEvents.tryEmit(event)
+    }
+
+    fun emitNavigation(event: NavEvent) {
+        _navigationEvents.tryEmit(event)
     }
 }

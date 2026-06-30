@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.res.painterResource
+import android.util.Log
 import com.example.gruya.R
 import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.TrackingState
@@ -59,9 +60,10 @@ fun AssistanceTrackingScreen(
     viewModel: AssistanceTrackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
     val scaffoldState = rememberBottomSheetScaffoldState()
 
-    LaunchedEffect(assistanceId) {
+    LaunchedEffect(assistanceId, trackingSessionId) {
         viewModel.loadAssistance(assistanceId, trackingSessionId)
     }
 
@@ -151,7 +153,7 @@ fun AssistanceTrackingScreen(
                                 ProviderActionButton(
                                     label = "Iniciar viaje",
                                     icon = Icons.Default.PlayArrow,
-                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isLoading = uiState.isLoading,
                                     isError = trackingState is TrackingState.Error,
                                     onClick = { viewModel.startTrip() }
                                 )
@@ -160,7 +162,7 @@ fun AssistanceTrackingScreen(
                                 ProviderActionButton(
                                     label = "Llegué al cliente",
                                     icon = Icons.Default.LocationOn,
-                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isLoading = uiState.isLoading,
                                     isError = trackingState is TrackingState.Error,
                                     onClick = { viewModel.arriveAtOrigin() }
                                 )
@@ -169,7 +171,7 @@ fun AssistanceTrackingScreen(
                                 ProviderActionButton(
                                     label = "Ir al destino",
                                     icon = Icons.Default.Flag,
-                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isLoading = uiState.isLoading,
                                     isError = trackingState is TrackingState.Error,
                                     onClick = { viewModel.headToDestination() }
                                 )
@@ -178,7 +180,7 @@ fun AssistanceTrackingScreen(
                                 ProviderActionButton(
                                     label = "Finalizar servicio",
                                     icon = Icons.Default.Check,
-                                    isLoading = trackingState is TrackingState.Connecting,
+                                    isLoading = uiState.isLoading,
                                     isError = trackingState is TrackingState.Error,
                                     onClick = { viewModel.completeService() }
                                 )
@@ -234,12 +236,12 @@ fun AssistanceTrackingScreen(
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
-                                if (uiState.assistance != null && uiState.assistance!!.distanceKm != null) {
+                                if (assistance.distanceKm != null) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "%.1f km · ~%.0f min".format(
-                                            uiState.assistance!!.distanceKm,
-                                            uiState.assistance!!.etaMinutes ?: 0.0
+                                            assistance.distanceKm,
+                                            assistance.etaMinutes ?: 0.0
                                         ),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -276,8 +278,8 @@ fun AssistanceTrackingScreen(
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Button(
                                         onClick = {
-                                            uiState.assistance?.trackingSessionId?.let {
-                                                viewModel.loadAssistance(assistanceId)
+                                            uiState.assistance?.trackingSessionId?.let { sessionId ->
+                                                viewModel.loadAssistance(assistanceId, sessionId)
                                             }
                                         },
                                         colors = ButtonDefaults.buttonColors(
@@ -318,12 +320,12 @@ fun AssistanceTrackingScreen(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    Button(onClick = { viewModel.loadAssistance(assistanceId) }) {
+                    Button(onClick = { viewModel.loadAssistance(assistanceId, trackingSessionId) }) {
                         Text("Reintentar")
                     }
                 }
             } else {
-                TrackingMapContent(uiState)
+                TrackingMapContent(uiState, isTracking)
             }
         }
     }
@@ -383,7 +385,7 @@ private fun ProviderActionButton(
 }
 
 @Composable
-private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
+private fun TrackingMapContent(uiState: AssistanceTrackingUiState, isTracking: Boolean) {
     val isDarkTheme = isSystemInDarkTheme()
     val assistance = uiState.assistance ?: return
     
@@ -393,14 +395,6 @@ private fun TrackingMapContent(uiState: AssistanceTrackingUiState) {
             zoom = 13.0
         )
     )
-
-    // Determinar si el seguimiento está activo (viaje iniciado)
-    val isTracking = uiState.trackingState == TrackingState.Tracking || 
-                     uiState.trackingState is TrackingState.Connected ||
-                     (!assistance.trackingSessionId.isNullOrBlank() &&
-                      assistance.status != AssistanceStatus.PENDIENTE &&
-                      assistance.status != AssistanceStatus.COMPLETADO &&
-                      assistance.status != AssistanceStatus.CANCELADO)
 
     // Vista general inicial o cuando no hay seguimiento
     LaunchedEffect(assistance, uiState.providerToOriginRoute) {
@@ -627,7 +621,8 @@ private fun parseRouteGeometry(routeGeometry: String): List<Position> {
                 )
             }
         }
-    } catch (e: Exception) {
+    } catch (e: org.json.JSONException) {
+        Log.w("AssistanceTrackingScreen", "Failed to parse route geometry", e)
         emptyList()
     }
 }

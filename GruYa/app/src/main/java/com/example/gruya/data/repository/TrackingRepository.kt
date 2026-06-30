@@ -96,7 +96,7 @@ class TrackingRepository @Inject constructor(
                 Log.d("TrackingRepository", "Building connection to $hubUrl")
 
                 val newConnection = HubConnectionBuilder.create(hubUrl)
-                    .withAccessTokenProvider(Single.just(jwt))
+                    .withAccessTokenProvider(Single.defer { Single.just(sessionManager.getJwt()) })
                     .build()
                 
                 hubConnection = newConnection
@@ -158,6 +158,8 @@ class TrackingRepository @Inject constructor(
                         } else {
                             _trackingState.value = TrackingState.Connected(sessionId)
                         }
+                    } catch (e: java.util.concurrent.CancellationException) {
+                        throw e  // Don't swallow structured concurrency cancellation
                     } catch (e: Exception) {
                         retryCount++
                         Log.e("TrackingRepository", "Connection attempt $retryCount failed", e)
@@ -175,7 +177,12 @@ class TrackingRepository @Inject constructor(
         }
     }
 
-    fun sendLocation(latitude: Double, longitude: Double) {
+    fun sendLocation(sessionId: String, latitude: Double, longitude: Double) {
+        // Validate we're sending to the correct session
+        if (sessionId != currentSessionId) {
+            Log.w("TrackingRepository", "sendLocation: sessionId mismatch (got $sessionId, current $currentSessionId). Dropping.")
+            return
+        }
         val location = Location(latitude, longitude)
         _locationUpdates.tryEmit(location)
 

@@ -30,6 +30,7 @@ class LocationTrackingService : Service() {
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var isTracking = false
+    private var sessionId: String? = null
     private val updateInterval = 5000L // 5 seconds
     private var locationCallback: LocationCallback? = null
 
@@ -52,7 +53,16 @@ class LocationTrackingService : Service() {
             return START_NOT_STICKY
         }
 
-        Log.d("LocationTrackingService", "Starting location tracking")
+        // If restarted by system without session context, stop immediately
+        if (intent == null || !intent.hasExtra("session_id")) {
+            Log.w("LocationTrackingService", "Restarted without session context. Stopping.")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        // Extract sessionId from the Intent
+        sessionId = intent.getStringExtra("session_id")
+        Log.d("LocationTrackingService", "Starting location tracking for session: $sessionId")
         startForegroundWithNotification()
         startLocationUpdates()
         return START_STICKY
@@ -74,17 +84,19 @@ class LocationTrackingService : Service() {
         try {
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(result: LocationResult) {
+                    val currentSessionId = sessionId ?: return  // No session, skip
                     result.locations.forEach { location ->
                         Log.d("LocationTrackingService", "GPS: ${location.latitude}, ${location.longitude}")
-                        trackingRepository.sendLocation(location.latitude, location.longitude)
+                        trackingRepository.sendLocation(currentSessionId, location.latitude, location.longitude)
                     }
                 }
             }
 
             fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                val currentSessionId = sessionId ?: return@addOnSuccessListener
                 if (location != null && isTracking) {
                     Log.d("LocationTrackingService", "Last GPS: ${location.latitude}, ${location.longitude}")
-                    trackingRepository.sendLocation(location.latitude, location.longitude)
+                    trackingRepository.sendLocation(currentSessionId, location.latitude, location.longitude)
                 }
             }
 
@@ -144,6 +156,7 @@ class LocationTrackingService : Service() {
     private fun stopTracking() {
         if (!isTracking) return
         isTracking = false
+        sessionId = null
         locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
         locationCallback = null
         stopForeground(STOP_FOREGROUND_REMOVE)

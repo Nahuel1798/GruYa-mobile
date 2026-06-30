@@ -20,8 +20,15 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
+import com.example.gruya.domain.model.AssistanceStatus
 import java.util.Locale
 import javax.inject.Inject
 
@@ -35,6 +42,17 @@ class AssistanceTrackingViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AssistanceTrackingUiState())
     val uiState: StateFlow<AssistanceTrackingUiState> = _uiState.asStateFlow()
+
+    val isTracking: StateFlow<Boolean> = _uiState.map { state ->
+        state.trackingState == TrackingState.Tracking ||
+        state.trackingState is TrackingState.Connected ||
+        (state.assistance?.let { a ->
+            !a.trackingSessionId.isNullOrBlank() &&
+            a.status != AssistanceStatus.PENDIENTE &&
+            a.status != AssistanceStatus.COMPLETADO &&
+            a.status != AssistanceStatus.CANCELADO
+        } ?: false)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val geocoder = Geocoder(context, Locale.getDefault())
 
@@ -51,9 +69,11 @@ class AssistanceTrackingViewModel @Inject constructor(
             trackingRepository.locationUpdates.collect { location ->
                 _uiState.update { it.copy(providerLocation = location) }
                 
-                // Fetch updated route when provider moves
+                // Throttle route fetch to once every 20 seconds
                 val assistanceId = _uiState.value.assistance?.id
-                if (assistanceId != null && !fetchingRoute) {
+                val now = System.currentTimeMillis()
+                if (assistanceId != null && (now - lastRouteFetchTime) > 20_000L) {
+                    lastRouteFetchTime = now
                     getRoute(assistanceId)
                 }
             }
@@ -93,7 +113,10 @@ class AssistanceTrackingViewModel @Inject constructor(
                         val sessionId = assistance.trackingSessionId ?: providedTrackingSessionId
                         
                         // If already tracking or has a session ID, connect to SignalR
-                        if (!sessionId.isNullOrBlank()) {
+                        // Only connect SignalR for active assistance (not completed/cancelled)
+                        val isActiveStatus = assistance.status != AssistanceStatus.COMPLETADO &&
+                                             assistance.status != AssistanceStatus.CANCELADO
+                        if (!sessionId.isNullOrBlank() && isActiveStatus) {
                             Log.d("AssistanceTrackingVM", "Connecting to tracking session: $sessionId (isProvider: $isProvider)")
                             trackingRepository.connect(sessionId, isProvider = isProvider)
                             if (isProvider) {
@@ -131,6 +154,8 @@ class AssistanceTrackingViewModel @Inject constructor(
                         trackingRepository.connect(sessionId, isProvider = true)
                         startLocationService()
                         getRoute(assistanceId)
+                        // Reload assistance to get updated status from server
+                        loadAssistance(assistanceId)
                     } else {
                         _uiState.update { it.copy(isLoading = false, error = "No se recibió session ID") }
                     }
@@ -213,37 +238,42 @@ class AssistanceTrackingViewModel @Inject constructor(
         }
     }
 
-    private var fetchingRoute = false
+    private val routeMutex = Mutex()
+    private var lastRouteFetchTime: Long = 0L
 
     fun getRoute(assistanceId: Int) {
-        if (fetchingRoute) return
-        fetchingRoute = true
+        if (!routeMutex.tryLock()) return
         viewModelScope.launch {
-            val result = assistanceRepository.getRoute(assistanceId)
-            result.fold(
-                onSuccess = { routeResponse ->
-                    _uiState.update { state ->
-                        state.copy(
-                            providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
-                            assistance = state.assistance?.copy(
-                                routeGeometry = state.assistance.routeGeometry ?: routeResponse.originToDestination?.geometryJson,
-                                distanceKm = routeResponse.providerToOrigin?.distanceKm ?: state.assistance.distanceKm,
-                                etaMinutes = routeResponse.providerToOrigin?.etaMinutes ?: state.assistance.etaMinutes
+            try {
+                val result = assistanceRepository.getRoute(assistanceId)
+                result.fold(
+                    onSuccess = { routeResponse ->
+                        _uiState.update { state ->
+                            state.copy(
+                                providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
+                                assistance = state.assistance?.copy(
+                                    routeGeometry = state.assistance.routeGeometry ?: routeResponse.originToDestination?.geometryJson,
+                                    distanceKm = routeResponse.providerToOrigin?.distanceKm ?: state.assistance.distanceKm,
+                                    etaMinutes = routeResponse.providerToOrigin?.etaMinutes ?: state.assistance.etaMinutes
+                                )
                             )
-                        )
+                        }
+                    },
+                    onFailure = { error ->
+                        Log.e("AssistanceTrackingVM", "Error fetching route", error)
                     }
-                    fetchingRoute = false
-                },
-                onFailure = { error ->
-                    Log.e("AssistanceTrackingVM", "Error fetching route", error)
-                    fetchingRoute = false
-                }
-            )
+                )
+            } finally {
+                routeMutex.unlock()
+            }
         }
     }
 
     private fun startLocationService() {
-        val intent = Intent(context, LocationTrackingService::class.java)
+        val currentSessionId = _uiState.value.assistance?.trackingSessionId
+        val intent = Intent(context, LocationTrackingService::class.java).apply {
+            putExtra("session_id", currentSessionId)
+        }
         context.startForegroundService(intent)
     }
 
@@ -261,16 +291,31 @@ class AssistanceTrackingViewModel @Inject constructor(
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 geocoder.getFromLocation(origin.latitude, origin.longitude, 1) { addresses ->
-                    _uiState.update { it.copy(originAddress = addresses.firstOrNull()?.getAddressLine(0)) }
+                    val addr = addresses?.firstOrNull()?.getAddressLine(0)
+                    if (addr != null) {
+                        _uiState.update { it.copy(originAddress = addr) }
+                    }
                 }
                 geocoder.getFromLocation(destination.latitude, destination.longitude, 1) { addresses ->
-                    _uiState.update { it.copy(destinationAddress = addresses.firstOrNull()?.getAddressLine(0)) }
+                    val addr = addresses?.firstOrNull()?.getAddressLine(0)
+                    if (addr != null) {
+                        _uiState.update { it.copy(destinationAddress = addr) }
+                    }
                 }
             } else {
-                @Suppress("DEPRECATION")
-                val originAddr = geocoder.getFromLocation(origin.latitude, origin.longitude, 1)?.firstOrNull()?.getAddressLine(0)
-                @Suppress("DEPRECATION")
-                val destAddr = geocoder.getFromLocation(destination.latitude, destination.longitude, 1)?.firstOrNull()?.getAddressLine(0)
+                // API < 33: Geocoder.getFromLocation is blocking and can throw IOException
+                val (originAddr, destAddr) = withContext(Dispatchers.IO) {
+                    try {
+                        @Suppress("DEPRECATION")
+                        val oa = geocoder.getFromLocation(origin.latitude, origin.longitude, 1)?.firstOrNull()?.getAddressLine(0)
+                        @Suppress("DEPRECATION")
+                        val da = geocoder.getFromLocation(destination.latitude, destination.longitude, 1)?.firstOrNull()?.getAddressLine(0)
+                        Pair(oa, da)
+                    } catch (e: java.io.IOException) {
+                        Log.e("AssistanceTrackingVM", "Geocoder failed on API < 33", e)
+                        Pair(null, null)
+                    }
+                }
                 _uiState.update { it.copy(originAddress = originAddr, destinationAddress = destAddr) }
             }
         }
@@ -279,5 +324,6 @@ class AssistanceTrackingViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         trackingRepository.disconnect()
+        stopLocationService()
     }
 }

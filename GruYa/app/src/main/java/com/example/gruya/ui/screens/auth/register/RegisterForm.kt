@@ -1,5 +1,6 @@
 package com.example.gruya.ui.screens.auth.register
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,13 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gruya.ui.components.AppTextField
 import com.example.gruya.ui.theme.GruYaTheme
+import com.example.gruya.domain.model.Role
 
 @Composable
 fun RegisterForm(
@@ -87,6 +84,12 @@ fun RegisterForm(
             ) {
 
                 // ICONO
+                val roleIcon = when (uiState.role) {
+                    Role.USER -> Icons.Default.Person
+                    Role.PROVIDER -> Icons.Default.Engineering
+                    Role.ADMIN -> Icons.Default.AdminPanelSettings
+                }
+
                 Box(
                     modifier = Modifier
                         .size(90.dp)
@@ -99,7 +102,7 @@ fun RegisterForm(
                 ) {
 
                     Icon(
-                        imageVector = Icons.Default.Warning,
+                        imageVector = roleIcon,
                         contentDescription = null,
 
                         tint = MaterialTheme.colorScheme.primary,
@@ -124,7 +127,41 @@ fun RegisterForm(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
 
-                Spacer(modifier = Modifier.height(30.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Banner de Error Visual
+                AnimatedVisibility(
+                    visible = uiState.error.isNotEmpty(),
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ErrorOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = uiState.error,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
 
                 // NOMBRE
                 AppTextField(
@@ -133,7 +170,9 @@ fun RegisterForm(
                     placeholder = "Nombre",
                     leadingIcon = Icons.Default.Person,
                     imeAction = ImeAction.Next,
-                    capitalization = KeyboardCapitalization.Words
+                    capitalization = KeyboardCapitalization.Words,
+                    isError = uiState.firstnameError != null,
+                    errorMessage = uiState.firstnameError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -145,7 +184,9 @@ fun RegisterForm(
                     placeholder = "Apellido",
                     leadingIcon = Icons.Default.Person,
                     imeAction = ImeAction.Next,
-                    capitalization = KeyboardCapitalization.Words
+                    capitalization = KeyboardCapitalization.Words,
+                    isError = uiState.lastnameError != null,
+                    errorMessage = uiState.lastnameError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -157,7 +198,9 @@ fun RegisterForm(
                     placeholder = "Teléfono",
                     leadingIcon = Icons.Default.Phone,
                     imeAction = ImeAction.Next,
-                    keyboardType = KeyboardType.Phone
+                    keyboardType = KeyboardType.Phone,
+                    isError = uiState.phoneError != null,
+                    errorMessage = uiState.phoneError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -169,7 +212,9 @@ fun RegisterForm(
                     placeholder = "Correo electrónico",
                     leadingIcon = Icons.Default.Email,
                     imeAction = ImeAction.Next,
-                    keyboardType = KeyboardType.Email
+                    keyboardType = KeyboardType.Email,
+                    isError = uiState.emailError != null,
+                    errorMessage = uiState.emailError
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -182,6 +227,8 @@ fun RegisterForm(
                     leadingIcon = Icons.Default.Lock,
                     imeAction = ImeAction.Done,
                     keyboardType = KeyboardType.Password,
+                    isError = uiState.passwordError != null,
+                    errorMessage = uiState.passwordError,
                     visualTransformation = if (uiState.passwordVisible)
                         VisualTransformation.None
                     else
@@ -197,7 +244,8 @@ fun RegisterForm(
                                     Icons.Default.Visibility
                                 else
                                     Icons.Default.VisibilityOff,
-                                contentDescription = null
+                                contentDescription = null,
+                                tint = if (uiState.passwordError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

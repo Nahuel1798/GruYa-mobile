@@ -806,6 +806,9 @@ fun MainNavigationSuite(
                                     state.location
                                 }
                                 tabBackStack.add(AppDest.MapPicker(isDestination, location?.first, location?.second))
+                            },
+                            onNavigateToAddVehicle = {
+                                tabBackStack.add(AppDest.AddVehicle())
                             }
                         )
                     }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowBackIosNew
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -47,6 +48,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -79,6 +81,7 @@ import com.example.gruya.ui.theme.GruYaTheme
 fun RequestAssistanceScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMapPicker: (isDestination: Boolean) -> Unit,
+    onNavigateToAddVehicle: () -> Unit,
     viewModel: RequestAssistanceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -123,6 +126,7 @@ fun RequestAssistanceScreen(
         onDestinationAddressQueryChanged = viewModel::onDestinationAddressQueryChanged,
         onSearchAddress = { viewModel.searchAddress(it) },
         onNavigateToMapPicker = onNavigateToMapPicker,
+        onNavigateToAddVehicle = onNavigateToAddVehicle,
         onSubmit = { viewModel.onSubmit(onSuccess = {}) },
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState
@@ -139,6 +143,7 @@ fun RequestAssistanceContent(
     onDestinationAddressQueryChanged: (String) -> Unit,
     onSearchAddress: (Boolean) -> Unit,
     onNavigateToMapPicker: (Boolean) -> Unit,
+    onNavigateToAddVehicle: () -> Unit,
     onSubmit: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -182,13 +187,29 @@ fun RequestAssistanceContent(
         ) {
             // --- Vehicle Carousel ---
             item {
-                Text(
-                    text = "Seleccioná tu vehículo",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Seleccioná tu vehículo",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    TextButton(onClick = onNavigateToAddVehicle) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Agregar")
+                    }
+                }
             }
 
             item {
@@ -439,6 +460,7 @@ private fun RequestAssistanceContentPreviewDark() {
             onDestinationAddressQueryChanged = {},
             onSearchAddress = {},
             onNavigateToMapPicker = {},
+            onNavigateToAddVehicle = {},
             onSubmit = {},
             onNavigateBack = {}
         )
@@ -462,6 +484,7 @@ private fun RequestAssistanceContentPreviewLight() {
             onDestinationAddressQueryChanged = {},
             onSearchAddress = {},
             onNavigateToMapPicker = {},
+            onNavigateToAddVehicle = {},
             onSubmit = {},
             onNavigateBack = {}
         )

@@ -17,7 +17,13 @@ data class RegisterUiState(
     val role: Role = Role.USER,
     val loading: Boolean = false,
     val success: Boolean = false,
-    val error: String = ""
+    val error: String = "",
+
+    val firstnameError: String? = null,
+    val lastnameError: String? = null,
+    val phoneError: String? = null,
+    val emailError: String? = null,
+    val passwordError: String? = null
 )
 
 enum class RegisterStep {

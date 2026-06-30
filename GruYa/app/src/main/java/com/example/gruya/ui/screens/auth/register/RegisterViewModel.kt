@@ -1,5 +1,6 @@
 package com.example.gruya.ui.screens.auth.register
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
@@ -25,23 +26,23 @@ class RegisterViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     fun onFirstNameChanged(value: String) {
-        _uiState.update { it.copy(firstname = value) }
+        _uiState.update { it.copy(firstname = value, firstnameError = null, error = "") }
     }
 
     fun onLastNameChanged(value: String) {
-        _uiState.update { it.copy(lastname = value) }
+        _uiState.update { it.copy(lastname = value, lastnameError = null, error = "") }
     }
 
     fun onPhoneChanged(value: String) {
-        _uiState.update { it.copy(phone = value) }
+        _uiState.update { it.copy(phone = value, phoneError = null, error = "") }
     }
 
     fun onEmailChanged(value: String) {
-        _uiState.update { it.copy(email = value) }
+        _uiState.update { it.copy(email = value, emailError = null, error = "") }
     }
 
     fun onPasswordChanged(value: String) {
-        _uiState.update { it.copy(password = value) }
+        _uiState.update { it.copy(password = value, passwordError = null, error = "") }
     }
 
     fun onPasswordVisibilityChanged(value: Boolean) {
@@ -54,21 +55,47 @@ class RegisterViewModel @Inject constructor(
 
     fun onRegisterClick() {
         val s = _uiState.value
-        val error = when {
-            s.firstname.isEmpty() -> "Ingrese su nombre"
-            s.lastname.isEmpty() -> "Ingrese su apellido"
-            s.phone.isEmpty() -> "Ingrese su teléfono"
-            s.email.isEmpty() -> "Ingrese su email"
-            s.password.length < 6 -> "La contraseña debe tener al menos 6 caracteres"
+
+        val firstnameError = if (s.firstname.isBlank()) "Ingrese su nombre" else null
+        val lastnameError = if (s.lastname.isBlank()) "Ingrese su apellido" else null
+        val phoneError = if (s.phone.isBlank()) "Ingrese su teléfono" else null
+        val emailError = when {
+            s.email.isBlank() -> "Ingrese su email"
+            !Patterns.EMAIL_ADDRESS.matcher(s.email).matches() -> "Email inválido"
             else -> null
         }
-        if (error != null) {
-            _uiState.update { it.copy(error = error) }
+        val passwordError = when {
+            s.password.isBlank() -> "Ingrese una contraseña"
+            s.password.length < 6 -> "La contraseña debe tener al menos 8 caracteres"
+            else -> null
+        }
+
+        if (firstnameError != null || lastnameError != null || phoneError != null || emailError != null || passwordError != null) {
+            _uiState.update {
+                it.copy(
+                    firstnameError = firstnameError,
+                    lastnameError = lastnameError,
+                    phoneError = phoneError,
+                    emailError = emailError,
+                    passwordError = passwordError,
+                    error = "Por favor, complete los campos correctamente"
+                )
+            }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(loading = true, error = "") }
+            _uiState.update {
+                it.copy(
+                    loading = true,
+                    error = "",
+                    firstnameError = null,
+                    lastnameError = null,
+                    phoneError = null,
+                    emailError = null,
+                    passwordError = null
+                )
+            }
             try {
                 val fcmToken = FirebaseMessaging.getInstance().getToken().await()
 

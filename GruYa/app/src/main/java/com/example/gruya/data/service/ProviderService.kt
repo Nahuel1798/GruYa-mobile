@@ -2,6 +2,7 @@ package com.example.gruya.data.service
 
 import com.example.gruya.data.remote.Constants
 import com.example.gruya.data.remote.dtos.request.CreateProviderProfileRequest
+import com.example.gruya.data.remote.dtos.request.UpdateProviderAvailabilityRequest
 import com.example.gruya.data.remote.dtos.request.UpdateProviderProfileRequest
 import com.example.gruya.data.remote.dtos.response.ProviderProfileResponse
 import com.example.gruya.domain.model.Location
@@ -38,4 +39,9 @@ interface ProviderService {
 
     @PATCH("${Constants.PROVIDER_PROFILE_PATH}location")
     suspend fun updateProviderLocation(@Body location: Location): Response<Unit>
+
+    @PATCH("${Constants.PROVIDER_PROFILE_PATH}available")
+    suspend fun updateAvailability(
+        @Body request: UpdateProviderAvailabilityRequest
+    ): Response<Unit>
 }

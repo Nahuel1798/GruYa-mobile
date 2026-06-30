@@ -2,9 +2,9 @@ package com.example.gruya.ui.screens.home_provider
 
 import android.app.Application
 import android.content.Intent
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gruya.data.remote.dtos.request.UpdateProviderProfileRequest
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.data.service.ProviderLocationService
@@ -36,13 +36,22 @@ class HomeProviderViewModel @Inject constructor(
             providerRepository.getMyProfile()
                 .onSuccess { profile ->
                     if (profile != null) {
+                        val isFirstCheck = _uiState.value.isProfileComplete == null
+                        
                         _uiState.update {
                             it.copy(
                                 isProfileComplete = true,
                                 providerProfile = profile,
-                                isOnline = false,
+                                isOnline = profile.isAvailable,
                                 profileCheckError = null
                             )
+                        }
+
+                        // Si el perfil ya está disponible en el backend al iniciar,
+                        // nos aseguramos de que el servicio de ubicación esté corriendo.
+                        if (isFirstCheck && profile.isAvailable) {
+                            val intent = Intent(application, ProviderLocationService::class.java)
+                            application.startForegroundService(intent)
                         }
                     } else {
                         _uiState.update {
@@ -123,27 +132,35 @@ class HomeProviderViewModel @Inject constructor(
     private fun goOnline() {
         val intent = Intent(application, ProviderLocationService::class.java)
         application.startForegroundService(intent)
-        updateBackendAvailability(true)
+        syncAvailabilityStatus(true)
     }
 
     private fun goOffline() {
         val intent = Intent(application, ProviderLocationService::class.java)
         application.stopService(intent)
-        updateBackendAvailability(false)
+        syncAvailabilityStatus(false)
     }
 
-    private fun updateBackendAvailability(available: Boolean) {
-        val profile = _uiState.value.providerProfile ?: return
+    private fun syncAvailabilityStatus(available: Boolean) {
         viewModelScope.launch {
-            providerRepository.updateProfile(
-                UpdateProviderProfileRequest(
-                    serviceType = profile.serviceType,
-                    companyName = profile.companyName,
-                    address = profile.address,
-                    description = profile.description,
-                    isAvailable = available
-                )
-            )
+            providerRepository.updateAvailability(available)
+                .onSuccess {
+                    Log.d("HomeProviderViewModel", "Disponibilidad sincronizada: $available")
+                }
+                .onFailure { e ->
+                    Log.e("HomeProviderViewModel", "Error al sincronizar disponibilidad: ${e.message}", e)
+                    // Revertimos el estado en la UI si falla la sincronización
+                    _uiState.update { 
+                        it.copy(
+                            isOnline = !available,
+                            error = "Error al sincronizar disponibilidad: ${e.message}"
+                        )
+                    }
+                }
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 }

@@ -3,6 +3,7 @@ package com.example.gruya.data.repository
 import android.util.Log
 import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateProviderProfileRequest
+import com.example.gruya.data.remote.dtos.request.UpdateProviderAvailabilityRequest
 import com.example.gruya.data.remote.dtos.request.UpdateProviderProfileRequest
 import com.example.gruya.data.remote.dtos.response.ProviderProfileResponse
 import com.example.gruya.data.service.ProviderService
@@ -62,6 +63,19 @@ class ProviderRepository @Inject constructor(
                 Result.success(Unit)
             } else {
                 Result.failure(Exception("Error al actualizar ubicación: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateAvailability(available: Boolean): Result<Unit> {
+        return try {
+            val response = providerService.updateAvailability(UpdateProviderAvailabilityRequest(available))
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

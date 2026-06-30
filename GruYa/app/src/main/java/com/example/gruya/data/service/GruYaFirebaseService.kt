@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -42,6 +43,9 @@ class GruYaFirebaseService : FirebaseMessagingService() {
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
 
+    // Atomic counter for unique notification IDs (avoids currentTimeMillis collisions)
+    private val notificationIdCounter = java.util.concurrent.atomic.AtomicInteger(1)
+
     override fun onNewToken(token: String) {
         Log.d("FMC", "Token: $token")
     }
@@ -54,28 +58,27 @@ class GruYaFirebaseService : FirebaseMessagingService() {
         // --- Extract type and assistanceId from data payload ---
         val type = data["type"]
         val assistanceIdStr = data["assistanceId"]
-        val assistanceId = assistanceIdStr?.toIntOrNull() ?: -1
-
-        // --- Session guard: if no JWT, silent drop ---
-        if (sessionManager.getJwt().isBlank()) {
-            Log.d("FMC", "Session guard: no JWT, dropping notification")
-            return
-        }
-
-        // --- Role guard: check the required role for this event type ---
-        val requiredRole = type?.let { getRequiredRole(it) }
-        if (requiredRole != null && sessionManager.getRole() != requiredRole) {
-            // Role mismatch: silent drop
-            Log.d("FMC", "Role guard: role mismatch, dropping notification")
-            return
-        }
-
-        // --- Build NavEvent from type + assistanceId ---
         val trackingSessionId = data["trackingSessionId"]
-        val navEvent = type?.let { navEventFromExtras(it, assistanceId, trackingSessionId) }
 
-        val title = message.notification?.title ?: data["title"] ?: ""
-        val body = message.notification?.body ?: data["body"] ?: ""
+        // --- Evaluate via pure guard function (session, role, type) ---
+        val guardResult = evaluateNotification(
+            jwt = sessionManager.getJwt(),
+            userRole = sessionManager.getRole(),
+            type = type,
+            assistanceIdStr = assistanceIdStr,
+            trackingSessionId = trackingSessionId
+        )
+
+        if (guardResult.shouldDrop) {
+            Log.d("FMC", "Guard dropped notification: type=$type")
+            return
+        }
+
+        val navEvent = guardResult.navEvent
+
+        // Title/body come from data payload (data-only FCM)
+        val title = data["title"] ?: ""
+        val body = data["body"] ?: ""
 
         if (title.isNotEmpty() || body.isNotEmpty()) {
             if (navigationEventBus.isForeground) {
@@ -83,7 +86,7 @@ class GruYaFirebaseService : FirebaseMessagingService() {
                 if (navEvent != null) {
                     navigationEventBus.emitNotification(navEvent)
                     Log.d("FMC", "Emitted NavEvent (notification): $navEvent (foreground)")
-                } else {
+                } else if (guardResult.showNotification) {
                     // Fallback for generic notifications or unknown types
                     scope.launch {
                         notificationRepository.emitNotification(title, body)
@@ -91,8 +94,11 @@ class GruYaFirebaseService : FirebaseMessagingService() {
                 }
             } else {
                 // Background path: show system notification
+                val assistanceId = assistanceIdStr?.toIntOrNull() ?: -1
                 showNotification(title, body, type, assistanceId, trackingSessionId)
             }
+        } else {
+            Log.w("FMC", "Dropping notification with empty title/body: type=$type")
         }
     }
 
@@ -128,8 +134,10 @@ class GruYaFirebaseService : FirebaseMessagingService() {
             }
         }
 
+        // Use unique requestCode per notification (assistanceId or hash of trackingSessionId)
+        val requestCode = if (assistanceId > 0) assistanceId else trackingSessionId?.hashCode() ?: 0
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
+            this, requestCode, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
@@ -143,7 +151,9 @@ class GruYaFirebaseService : FirebaseMessagingService() {
             .setContentIntent(pendingIntent)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
+        // Use atomic counter for notification ID to avoid collisions
+        val notificationId = notificationIdCounter.getAndIncrement()
+        notificationManager.notify(notificationId, builder.build())
     }
 
     override fun onDestroy() {

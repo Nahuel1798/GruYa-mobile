@@ -1,5 +1,6 @@
 package com.example.gruya.ui.navigation
 
+import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -24,10 +25,14 @@ class NavigationEventBus @Inject constructor() {
     var isForeground: Boolean = false
 
     fun emitNotification(event: NavEvent) {
-        _notificationEvents.tryEmit(event)
+        if (!_notificationEvents.tryEmit(event)) {
+            Log.w("NavEventBus", "Dropped notification event (buffer full): $event")
+        }
     }
 
     fun emitNavigation(event: NavEvent) {
-        _navigationEvents.tryEmit(event)
+        if (!_navigationEvents.tryEmit(event)) {
+            Log.w("NavEventBus", "Dropped navigation event (buffer full): $event")
+        }
     }
 }

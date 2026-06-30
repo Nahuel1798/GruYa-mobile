@@ -27,13 +27,15 @@ data class GuardResult(
  * @param userRole the user's current role.
  * @param type the notification event type from the FCM data payload.
  * @param assistanceIdStr the assistance ID as a string from the FCM data payload.
+ * @param trackingSessionId the tracking session ID for trip_started events (optional).
  * @return [GuardResult] indicating whether to drop, show notification, and/or emit a NavEvent.
  */
 fun evaluateNotification(
     jwt: String,
     userRole: Role?,
     type: String?,
-    assistanceIdStr: String?
+    assistanceIdStr: String?,
+    trackingSessionId: String? = null
 ): GuardResult {
     // Session guard
     if (jwt.isBlank()) return GuardResult(shouldDrop = true, navEvent = null, showNotification = false)
@@ -51,6 +53,6 @@ fun evaluateNotification(
 
     // Build NavEvent
     val assistanceId = assistanceIdStr?.toIntOrNull() ?: -1
-    val navEvent = type?.let { navEventFromExtras(it, assistanceId) }
+    val navEvent = type?.let { navEventFromExtras(it, assistanceId, trackingSessionId) }
     return GuardResult(shouldDrop = false, navEvent = navEvent, showNotification = true)
 }

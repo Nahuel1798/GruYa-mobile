@@ -70,6 +70,7 @@ class ProviderQuotesViewModel @Inject constructor(
             ProviderQuoteFilter.ACEPTADAS -> listOf(QuoteStatus.ACEPTADA)
             ProviderQuoteFilter.PENDIENTES -> listOf(QuoteStatus.PENDIENTE)
             ProviderQuoteFilter.FINALIZADAS -> listOf(
+                QuoteStatus.COMPLETADO,
                 QuoteStatus.RECHAZADA,
                 QuoteStatus.CANCELADA,
                 QuoteStatus.EXPIRADA

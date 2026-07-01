@@ -196,8 +196,19 @@ fun AssistanceTrackingScreen(
                                     icon = Icons.Default.Check,
                                     isLoading = uiState.isLoading,
                                     isError = trackingState is TrackingState.Error,
+                                    enabled = uiState.isNearDestination,
                                     onClick = { viewModel.completeService() }
                                 )
+                                if (!uiState.isNearDestination && !uiState.isLoading) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Debes estar a menos de 300m del destino",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
                             }
                             AssistanceStatus.COMPLETADO -> {
                                 Text(
@@ -341,15 +352,16 @@ fun AssistanceTrackingScreen(
             } else {
                 uiState.assistance?.let { assistance ->
                     val status = assistance.status
-                    val showProviderToOrigin = status == AssistanceStatus.ACEPTADA ||
-                            status == AssistanceStatus.EN_CAMINO_AL_CLIENTE
+                    val showProviderToOrigin = status == AssistanceStatus.EN_CAMINO_AL_CLIENTE
+                    val showProviderToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
 
                     TrackingMap(
                         origin = assistance.origin,
                         destination = assistance.destination,
-                        routeGeometry = assistance.routeGeometry,
+                        routeGeometry = if (showProviderToDestination) null else assistance.routeGeometry,
                         providerLocation = uiState.providerLocation,
                         providerToOriginRoute = if (showProviderToOrigin) uiState.providerToOriginRoute else null,
+                        providerToDestinationRoute = if (showProviderToDestination) uiState.providerToDestinationRoute else null,
                         isTracking = isTracking,
                         isProvider = uiState.isProvider
                     )

@@ -17,6 +17,6 @@ enum class ProviderQuoteFilter(
     ),
     FINALIZADAS(
         label = "Finalizadas",
-        description = "Cotizaciones rechazadas, canceladas o expiradas"
+        description = "Cotizaciones completadas, rechazadas, canceladas o expiradas"
     )
 }

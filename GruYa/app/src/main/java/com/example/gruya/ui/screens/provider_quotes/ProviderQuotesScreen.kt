@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -63,7 +64,10 @@ import kotlinx.coroutines.launch
 import java.util.Locale
 import androidx.compose.material.icons.filled.HourglassEmpty
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.TimerOff
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -317,18 +321,36 @@ private fun QuoteCard(
 ) {
     val assistance = quote.assistance
     val vehicle = assistance.vehicle
+    val isAccepted = quote.status == QuoteStatus.ACEPTADA
+    val isInactive = quote.status in listOf(QuoteStatus.COMPLETADO, QuoteStatus.RECHAZADA, QuoteStatus.CANCELADA, QuoteStatus.EXPIRADA)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = quote.status == QuoteStatus.ACEPTADA) { onClick() },
+            .clickable(enabled = isAccepted) { onClick() },
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isAccepted) 4.dp else 2.dp
+        ),
+        border = if (isAccepted) {
+            androidx.compose.foundation.BorderStroke(
+                width = 2.dp,
+                color = Color(0xFF10B981).copy(alpha = 0.5f)
+            )
+        } else null,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isInactive) {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .alpha(if (isInactive) 0.7f else 1f)
+        ) {
             // Header: Icon + Client + Cancel
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -408,7 +430,7 @@ private fun QuoteCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
                     Text(
@@ -420,10 +442,21 @@ private fun QuoteCard(
                         text = "$${String.format(Locale.getDefault(), "%.0f", quote.price)}",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
+                        color = if (isAccepted) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
                     )
                 }
-                QuoteStatusBadge(status = quote.status)
+                
+                Column(horizontalAlignment = Alignment.End) {
+                    QuoteStatusBadge(status = quote.status)
+                    if (isAccepted) {
+                        Text(
+                            text = "Toca para ver seguimiento",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF10B981),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -464,12 +497,13 @@ private fun IconForServiceType(
 
 @Composable
 private fun QuoteStatusBadge(status: QuoteStatus) {
-    val (label, badgeColor) = when (status) {
-        QuoteStatus.PENDIENTE -> "Pendiente" to MaterialTheme.colorScheme.primary
-        QuoteStatus.ACEPTADA -> "Aceptada" to Color(0xFF22C55E)
-        QuoteStatus.RECHAZADA -> "Rechazada" to Color(0xFFEF4444)
-        QuoteStatus.CANCELADA -> "Cancelada" to Color.Gray
-        QuoteStatus.EXPIRADA -> "Expirada" to Color.Gray
+    val (label, badgeColor, icon) = when (status) {
+        QuoteStatus.PENDIENTE -> Triple("Pendiente", Color(0xFFF59E0B), Icons.Default.HourglassEmpty)
+        QuoteStatus.ACEPTADA -> Triple("Aceptada", Color(0xFF10B981), Icons.Default.CheckCircleOutline)
+        QuoteStatus.COMPLETADO -> Triple("Completada", Color(0xFF3B82F6), Icons.Default.CheckCircle)
+        QuoteStatus.RECHAZADA -> Triple("Rechazada", Color(0xFFEF4444), Icons.Default.Close)
+        QuoteStatus.CANCELADA -> Triple("Cancelada", Color(0xFF6B7280), Icons.Default.Cancel)
+        QuoteStatus.EXPIRADA -> Triple("Expirada", Color(0xFF9CA3AF), Icons.Default.TimerOff)
     }
 
     Surface(
@@ -477,14 +511,25 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
         color = badgeColor.copy(alpha = 0.12f),
         modifier = Modifier.padding(bottom = 4.dp)
     ) {
-        Text(
-            text = label.uppercase(),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            color = badgeColor,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = badgeColor
+            )
+            Text(
+                text = label.uppercase(),
+                color = badgeColor,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+        }
     }
 }
 

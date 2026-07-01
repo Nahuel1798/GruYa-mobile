@@ -45,27 +45,10 @@ import com.example.gruya.data.remote.dtos.response.*
 import android.location.Geocoder
 import android.os.Build
 import androidx.compose.ui.platform.LocalContext
+import com.example.gruya.utils.LocationUtils
 import java.util.Locale
 
-import org.json.JSONArray
 import org.maplibre.spatialk.geojson.Position
-
-fun parseRouteGeometry(routeGeometry: String): List<Position> {
-    val json = JSONArray(routeGeometry)
-
-    return buildList {
-        for (i in 0 until json.length()) {
-            val coord = json.getJSONArray(i)
-
-            add(
-                Position(
-                    longitude = coord.getDouble(0),
-                    latitude = coord.getDouble(1)
-                )
-            )
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -163,7 +146,7 @@ fun QuoteContent(
             LaunchedEffect(uiState.assistanceRequest) {
                 uiState.assistanceRequest?.let { assistance ->
                     val routePositions = assistance.routeGeometry?.let {
-                        try { parseRouteGeometry(it) } catch (e: Exception) { emptyList() }
+                        try { LocationUtils.parseRouteGeometry(it) } catch (e: Exception) { emptyList() }
                     } ?: emptyList()
 
                     val points = mutableListOf<Position>()
@@ -179,18 +162,23 @@ fun QuoteContent(
                         val minLon = points.minOf { it.longitude }
                         val maxLon = points.maxOf { it.longitude }
 
-                        val target = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
                         val deltaLat = maxLat - minLat
                         val deltaLon = maxLon - minLon
 
+                        // Calculate target shifting it slightly south to account for the bottom card
+                        val targetLat = (minLat + maxLat) / 2.0 - (deltaLat * 0.15)
+                        val targetLon = (minLon + maxLon) / 2.0
+                        val target = Position(targetLon, targetLat)
+
+                        val maxDelta = maxOf(deltaLat, deltaLon)
                         val zoom = when {
-                            deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
-                            deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
-                            deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
-                            deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
-                            deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
-                            deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
-                            else -> 15.0
+                            maxDelta > 1.0 -> 7.5
+                            maxDelta > 0.5 -> 8.5
+                            maxDelta > 0.2 -> 10.0
+                            maxDelta > 0.1 -> 11.2
+                            maxDelta > 0.05 -> 12.2
+                            maxDelta > 0.02 -> 13.2
+                            else -> 14.2
                         }
 
                         cameraState.animateTo(
@@ -238,7 +226,7 @@ fun QuoteContent(
                     assistance.routeGeometry?.let { geometry ->
 
                         val routePositions = remember(geometry) {
-                            parseRouteGeometry(geometry)
+                            LocationUtils.parseRouteGeometry(geometry)
                         }
 
                         if (routePositions.isNotEmpty()) {

@@ -8,5 +8,6 @@ data class RouteLegResponse (
 
 data class AssistanceRouteResponse(
     val providerToOrigin: RouteLegResponse?,
-    val originToDestination: RouteLegResponse?
+    val originToDestination: RouteLegResponse?,
+    val providerToDestination: RouteLegResponse?
 )

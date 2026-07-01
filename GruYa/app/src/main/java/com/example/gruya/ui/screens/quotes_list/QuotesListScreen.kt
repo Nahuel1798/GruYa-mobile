@@ -416,6 +416,7 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
     val (label, badgeColor) = when (status) {
         QuoteStatus.PENDIENTE -> "Pendiente" to MaterialTheme.colorScheme.primary
         QuoteStatus.ACEPTADA -> "Aceptada" to Color(0xFF22C55E)
+        QuoteStatus.COMPLETADO -> "Completada" to Color(0xFF3B82F6)
         QuoteStatus.RECHAZADA -> "Rechazada" to MaterialTheme.colorScheme.error
         QuoteStatus.CANCELADA -> "Cancelada" to MaterialTheme.colorScheme.onSurfaceVariant
         QuoteStatus.EXPIRADA -> "Expirada" to MaterialTheme.colorScheme.onSurfaceVariant

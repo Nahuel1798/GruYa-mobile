@@ -48,6 +48,7 @@ fun TrackingMap(
     routeGeometry: String? = null,
     providerLocation: Location? = null,
     providerToOriginRoute: String? = null,
+    providerToDestinationRoute: String? = null,
     isTracking: Boolean = false,
     isProvider: Boolean = false,
     modifier: Modifier = Modifier
@@ -72,11 +73,16 @@ fun TrackingMap(
         providerToOriginRoute?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
     }
 
+    val providerToDestPositions = remember(providerToDestinationRoute) {
+        providerToDestinationRoute?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+    }
+
     var remainingRoute by remember(routePositions) { mutableStateOf(routePositions) }
     var remainingProviderRoute by remember(providerRoutePositions) { mutableStateOf(providerRoutePositions) }
+    var remainingProviderToDestRoute by remember(providerToDestPositions) { mutableStateOf(providerToDestPositions) }
 
     // Initial overview or when not tracking
-    LaunchedEffect(origin, destination, routePositions, providerRoutePositions) {
+    LaunchedEffect(origin, destination, routePositions, providerRoutePositions, providerToDestPositions) {
         if (!isTracking) {
             val points = mutableListOf<Position>()
             points.add(Position(origin.longitude, origin.latitude))
@@ -85,6 +91,7 @@ fun TrackingMap(
             }
             points.addAll(routePositions)
             points.addAll(providerRoutePositions)
+            points.addAll(providerToDestPositions)
 
             if (points.isNotEmpty()) {
                 val minLat = points.minOf { it.latitude }
@@ -96,14 +103,15 @@ fun TrackingMap(
                 val deltaLat = maxLat - minLat
                 val deltaLon = maxLon - minLon
                 
+                val maxDelta = maxOf(deltaLat, deltaLon)
                 val zoom = when {
-                    deltaLat > 1.0 || deltaLon > 1.0 -> 8.0
-                    deltaLat > 0.5 || deltaLon > 0.5 -> 9.0
-                    deltaLat > 0.2 || deltaLon > 0.2 -> 10.5
-                    deltaLat > 0.1 || deltaLon > 0.1 -> 12.0
-                    deltaLat > 0.05 || deltaLon > 0.05 -> 13.0
-                    deltaLat > 0.02 || deltaLon > 0.02 -> 14.0
-                    else -> 15.0
+                    maxDelta > 1.0 -> 7.5
+                    maxDelta > 0.5 -> 8.5
+                    maxDelta > 0.2 -> 10.0
+                    maxDelta > 0.1 -> 11.2
+                    maxDelta > 0.05 -> 12.2
+                    maxDelta > 0.02 -> 13.2
+                    else -> 14.2
                 }
 
                 cameraState.animateTo(
@@ -119,6 +127,7 @@ fun TrackingMap(
             // Trim routes as the provider moves
             remainingRoute = trimPolyline(providerLocation, remainingRoute)
             remainingProviderRoute = trimPolyline(providerLocation, remainingProviderRoute)
+            remainingProviderToDestRoute = trimPolyline(providerLocation, remainingProviderToDestRoute)
 
             val dist = previousLocation?.let { LocationUtils.calculateDistance(it, providerLocation) } ?: 0.0
 
@@ -144,6 +153,7 @@ fun TrackingMap(
             currentBearing = 0.0
             remainingRoute = routePositions
             remainingProviderRoute = providerRoutePositions
+            remainingProviderToDestRoute = providerToDestPositions
         }
     }
 
@@ -220,6 +230,44 @@ fun TrackingMap(
                     join = const(LineJoin.Round),
                     cap = const(LineCap.Round),
                     dasharray = const(listOf(2f, 2f))
+                )
+            }
+        }
+
+        // Trace provider to destination route
+        if (remainingProviderToDestRoute.isNotEmpty()) {
+            key(remainingProviderToDestRoute) {
+                val providerToDestData = remember(remainingProviderToDestRoute) {
+                    GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = LineString(coordinates = remainingProviderToDestRoute),
+                                    properties = null
+                                )
+                            )
+                        )
+                    )
+                }
+                val providerToDestSource = rememberGeoJsonSource(data = providerToDestData)
+
+                // Route casing (border)
+                LineLayer(
+                    id = "provider-to-destination-route-casing",
+                    source = providerToDestSource,
+                    color = const(Color.White),
+                    width = const(9.dp),
+                    join = const(LineJoin.Round),
+                    cap = const(LineCap.Round)
+                )
+
+                LineLayer(
+                    id = "provider-to-destination-route",
+                    source = providerToDestSource,
+                    color = const(MaterialTheme.colorScheme.secondary),
+                    width = const(6.dp),
+                    join = const(LineJoin.Round),
+                    cap = const(LineCap.Round)
                 )
             }
         }

@@ -7,6 +7,8 @@ enum class QuoteStatus {
     PENDIENTE,
     @SerializedName("Aceptada")
     ACEPTADA,
+    @SerializedName("Completado")
+    COMPLETADO,
     @SerializedName("Rechazada")
     RECHAZADA,
     @SerializedName("Cancelada")

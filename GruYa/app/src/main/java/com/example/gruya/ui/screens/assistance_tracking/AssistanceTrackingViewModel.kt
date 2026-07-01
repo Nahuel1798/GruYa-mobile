@@ -78,10 +78,10 @@ class AssistanceTrackingViewModel @Inject constructor(
                 val now = System.currentTimeMillis()
                 
                 // Check for deviation to force an immediate redraw
-                val currentRouteGeo = if (state.assistance.status == AssistanceStatus.EN_CAMINO_AL_DESTINO) {
-                    state.assistance.routeGeometry
-                } else {
-                    state.providerToOriginRoute
+                val currentRouteGeo = when (state.assistance.status) {
+                    AssistanceStatus.EN_CAMINO_AL_DESTINO -> state.providerToDestinationRoute
+                    AssistanceStatus.EN_CAMINO_AL_CLIENTE, AssistanceStatus.ACEPTADA -> state.providerToOriginRoute
+                    else -> null
                 }
                 
                 val isDeviated = currentRouteGeo?.let { geo ->
@@ -268,6 +268,7 @@ class AssistanceTrackingViewModel @Inject constructor(
                     onSuccess = { routeResponse ->
                         _uiState.update { state ->
                             val providerToOriginDistance = routeResponse.providerToOrigin?.distanceKm
+                            val providerToDestinationDistance = routeResponse.providerToDestination?.distanceKm
                             val originToDestinationDistance = routeResponse.originToDestination?.distanceKm
                             
                             val status = state.assistance?.status
@@ -275,26 +276,30 @@ class AssistanceTrackingViewModel @Inject constructor(
                                                 status == AssistanceStatus.EN_CAMINO_AL_DESTINO ||
                                                 status == AssistanceStatus.COMPLETADO
                             
-                            val currentDistance = if (isBeyondOrigin) {
-                                originToDestinationDistance
-                            } else {
-                                providerToOriginDistance
+                            val currentDistance = when {
+                                status == AssistanceStatus.EN_CAMINO_AL_DESTINO && providerToDestinationDistance != null -> 
+                                    providerToDestinationDistance
+                                isBeyondOrigin -> originToDestinationDistance
+                                else -> providerToOriginDistance
                             }
                             
-                            val currentEta = if (isBeyondOrigin) {
-                                routeResponse.originToDestination?.etaMinutes
-                            } else {
-                                routeResponse.providerToOrigin?.etaMinutes
+                            val currentEta = when {
+                                status == AssistanceStatus.EN_CAMINO_AL_DESTINO && routeResponse.providerToDestination?.etaMinutes != null -> 
+                                    routeResponse.providerToDestination.etaMinutes
+                                isBeyondOrigin -> routeResponse.originToDestination?.etaMinutes
+                                else -> routeResponse.providerToOrigin?.etaMinutes
                             }
 
                             state.copy(
-                                providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson ?: state.providerToOriginRoute,
+                                providerToOriginRoute = if (isBeyondOrigin) null else (routeResponse.providerToOrigin?.geometryJson ?: state.providerToOriginRoute),
+                                providerToDestinationRoute = routeResponse.providerToDestination?.geometryJson ?: state.providerToDestinationRoute,
                                 assistance = state.assistance?.copy(
                                     routeGeometry = routeResponse.originToDestination?.geometryJson ?: state.assistance.routeGeometry,
                                     distanceKm = currentDistance ?: state.assistance.distanceKm,
                                     etaMinutes = currentEta ?: state.assistance.etaMinutes
                                 ),
-                                isNearOrigin = providerToOriginDistance != null && providerToOriginDistance <= 0.3
+                                isNearOrigin = providerToOriginDistance != null && providerToOriginDistance <= 0.3,
+                                isNearDestination = providerToDestinationDistance != null && providerToDestinationDistance <= 0.3
                             )
                         }
                     },

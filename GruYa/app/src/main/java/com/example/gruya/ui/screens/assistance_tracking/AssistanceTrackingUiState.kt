@@ -13,5 +13,6 @@ data class AssistanceTrackingUiState(
     val trackingState: TrackingState = TrackingState.Idle,
     val providerLocation: Location? = null,
     val isProvider: Boolean = false,
-    val providerToOriginRoute: String? = null
+    val providerToOriginRoute: String? = null,
+    val isNearOrigin: Boolean = false
 )

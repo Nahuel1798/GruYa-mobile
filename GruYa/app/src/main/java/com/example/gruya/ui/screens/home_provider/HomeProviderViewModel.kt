@@ -1,8 +1,11 @@
 package com.example.gruya.ui.screens.home_provider
 
+import android.Manifest
 import android.app.Application
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.AssistanceRepository
@@ -50,8 +53,14 @@ class HomeProviderViewModel @Inject constructor(
                         // Si el perfil ya está disponible en el backend al iniciar,
                         // nos aseguramos de que el servicio de ubicación esté corriendo.
                         if (isFirstCheck && profile.isAvailable) {
-                            val intent = Intent(application, ProviderLocationService::class.java)
-                            application.startForegroundService(intent)
+                            if (hasLocationPermissions()) {
+                                val intent = Intent(application, ProviderLocationService::class.java)
+                                application.startForegroundService(intent)
+                            } else {
+                                Log.w("HomeProviderViewModel", "No se puede iniciar el servicio de ubicación: falta permiso")
+                                // Si no hay permiso, forzamos el estado offline localmente para ser consistentes
+                                // _uiState.update { it.copy(isOnline = false) }
+                            }
                         }
                     } else {
                         _uiState.update {
@@ -80,7 +89,11 @@ class HomeProviderViewModel @Inject constructor(
 
     fun onLocationPermissionChanged(granted: Boolean) {
         _uiState.update { it.copy(hasLocationPermission = granted) }
-        if (!granted && _uiState.value.isOnline) {
+        if (granted && _uiState.value.isOnline) {
+            // Si nos dieron el permiso y deberíamos estar online, iniciamos el servicio
+            val intent = Intent(application, ProviderLocationService::class.java)
+            application.startForegroundService(intent)
+        } else if (!granted && _uiState.value.isOnline) {
             goOffline()
             _uiState.update { it.copy(isOnline = false) }
         }
@@ -120,6 +133,12 @@ class HomeProviderViewModel @Inject constructor(
 
     fun toggleAvailability() {
         val goingOnline = !_uiState.value.isOnline
+        
+        if (goingOnline && !hasLocationPermissions()) {
+            _uiState.update { it.copy(error = "Se requieren permisos de ubicación para estar en línea") }
+            return
+        }
+
         _uiState.update { it.copy(isOnline = goingOnline) }
 
         if (goingOnline) {
@@ -129,7 +148,20 @@ class HomeProviderViewModel @Inject constructor(
         }
     }
 
+    private fun hasLocationPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            application,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            application,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun goOnline() {
+        if (!hasLocationPermissions()) return
+
         val intent = Intent(application, ProviderLocationService::class.java)
         application.startForegroundService(intent)
         syncAvailabilityStatus(true)

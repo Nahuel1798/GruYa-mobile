@@ -1,10 +1,13 @@
 package com.example.gruya.ui.screens.assistance_tracking
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.location.Geocoder
 import android.os.Build
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
@@ -28,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import com.example.gruya.utils.LocationUtils
 import com.example.gruya.domain.model.AssistanceStatus
 import java.util.Locale
 import javax.inject.Inject
@@ -69,10 +73,24 @@ class AssistanceTrackingViewModel @Inject constructor(
             trackingRepository.locationUpdates.collect { location ->
                 _uiState.update { it.copy(providerLocation = location) }
                 
-                // Throttle route fetch to once every 20 seconds
-                val assistanceId = _uiState.value.assistance?.id
+                val state = _uiState.value
+                val assistanceId = state.assistance?.id ?: return@collect
                 val now = System.currentTimeMillis()
-                if (assistanceId != null && (now - lastRouteFetchTime) > 20_000L) {
+                
+                // Check for deviation to force an immediate redraw
+                val currentRouteGeo = if (state.assistance.status == AssistanceStatus.EN_CAMINO_AL_DESTINO) {
+                    state.assistance.routeGeometry
+                } else {
+                    state.providerToOriginRoute
+                }
+                
+                val isDeviated = currentRouteGeo?.let { geo ->
+                    val polyline = LocationUtils.parseRouteGeometry(geo)
+                    LocationUtils.isDeviated(location, polyline)
+                } ?: false
+
+                // Trigger redraw if deviated OR if 10 seconds have passed
+                if (isDeviated || (now - lastRouteFetchTime) > 10_000L) {
                     lastRouteFetchTime = now
                     getRoute(assistanceId)
                 }
@@ -185,7 +203,7 @@ class AssistanceTrackingViewModel @Inject constructor(
             val result = assistanceRepository.arriveAtOrigin(assistanceId)
             result.fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isLoading = false) }
+                    _uiState.update { it.copy(isLoading = false, isNearOrigin = false) }
                     loadAssistance(assistanceId)
                 },
                 onFailure = { error ->
@@ -202,7 +220,7 @@ class AssistanceTrackingViewModel @Inject constructor(
             val result = assistanceRepository.headToDestination(assistanceId)
             result.fold(
                 onSuccess = {
-                    _uiState.update { it.copy(isLoading = false) }
+                    _uiState.update { it.copy(isLoading = false, isNearOrigin = false) }
                     loadAssistance(assistanceId)
                 },
                 onFailure = { error ->
@@ -249,13 +267,34 @@ class AssistanceTrackingViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { routeResponse ->
                         _uiState.update { state ->
+                            val providerToOriginDistance = routeResponse.providerToOrigin?.distanceKm
+                            val originToDestinationDistance = routeResponse.originToDestination?.distanceKm
+                            
+                            val status = state.assistance?.status
+                            val isBeyondOrigin = status == AssistanceStatus.EN_ORIGEN || 
+                                                status == AssistanceStatus.EN_CAMINO_AL_DESTINO ||
+                                                status == AssistanceStatus.COMPLETADO
+                            
+                            val currentDistance = if (isBeyondOrigin) {
+                                originToDestinationDistance
+                            } else {
+                                providerToOriginDistance
+                            }
+                            
+                            val currentEta = if (isBeyondOrigin) {
+                                routeResponse.originToDestination?.etaMinutes
+                            } else {
+                                routeResponse.providerToOrigin?.etaMinutes
+                            }
+
                             state.copy(
-                                providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
+                                providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson ?: state.providerToOriginRoute,
                                 assistance = state.assistance?.copy(
-                                    routeGeometry = state.assistance.routeGeometry ?: routeResponse.originToDestination?.geometryJson,
-                                    distanceKm = routeResponse.providerToOrigin?.distanceKm ?: state.assistance.distanceKm,
-                                    etaMinutes = routeResponse.providerToOrigin?.etaMinutes ?: state.assistance.etaMinutes
-                                )
+                                    routeGeometry = routeResponse.originToDestination?.geometryJson ?: state.assistance.routeGeometry,
+                                    distanceKm = currentDistance ?: state.assistance.distanceKm,
+                                    etaMinutes = currentEta ?: state.assistance.etaMinutes
+                                ),
+                                isNearOrigin = providerToOriginDistance != null && providerToOriginDistance <= 0.3
                             )
                         }
                     },
@@ -270,11 +309,26 @@ class AssistanceTrackingViewModel @Inject constructor(
     }
 
     private fun startLocationService() {
+        if (!hasLocationPermissions()) {
+            Log.e("AssistanceTrackingVM", "Cannot start location service: missing permissions")
+            return
+        }
         val currentSessionId = _uiState.value.assistance?.trackingSessionId
         val intent = Intent(context, LocationTrackingService::class.java).apply {
             putExtra("session_id", currentSessionId)
         }
         context.startForegroundService(intent)
+    }
+
+    private fun hasLocationPermissions(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun stopLocationService() {

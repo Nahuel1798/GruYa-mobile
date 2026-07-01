@@ -82,8 +82,8 @@ fun ProviderProfileScreen(
         locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    LaunchedEffect(hasLocationPermission) {
-        if (hasLocationPermission) {
+    LaunchedEffect(hasLocationPermission, uiState.serviceType) {
+        if (hasLocationPermission && uiState.serviceType == ServiceType.AUXILIO) {
             fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { location ->
                     location?.let {
@@ -405,45 +405,47 @@ fun ProviderProfileScreen(
             }
 
             // Current Crane Location Section
-            Text(
-                text = "Ubicación Actual de la Grúa",
-                style = MaterialTheme.typography.labelLarge
-            )
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+            if (uiState.serviceType == ServiceType.AUXILIO) {
+                Text(
+                    text = "Ubicación Actual de la Grúa",
+                    style = MaterialTheme.typography.labelLarge
                 )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.LocalShipping,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                        Text(
-                            text = if (uiState.currentLatitude != null)
-                                "Ubicación detectada correctamente"
-                            else
-                                "Buscando ubicación actual...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
 
-                    if (uiState.currentLatitude != null && uiState.currentLongitude != null) {
-                        Text(
-                            text = "Lat: ${"%.5f".format(uiState.currentLatitude)}, Lng: ${"%.5f".format(uiState.currentLongitude)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.LocalShipping,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                            Text(
+                                text = if (uiState.currentLatitude != null)
+                                    "Ubicación detectada correctamente"
+                                else
+                                    "Buscando ubicación actual...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        if (uiState.currentLatitude != null && uiState.currentLongitude != null) {
+                            Text(
+                                text = "Lat: ${"%.5f".format(uiState.currentLatitude)}, Lng: ${"%.5f".format(uiState.currentLongitude)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
             }

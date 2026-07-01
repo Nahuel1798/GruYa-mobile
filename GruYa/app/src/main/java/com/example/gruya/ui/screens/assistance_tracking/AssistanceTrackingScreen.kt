@@ -1,5 +1,9 @@
 package com.example.gruya.ui.screens.assistance_tracking
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -39,6 +43,28 @@ fun AssistanceTrackingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
     val scaffoldState = rememberBottomSheetScaffoldState()
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions.values.all { it }
+        if (!granted) {
+            // Optional: Show some message that tracking won't work without permissions
+        }
+    }
+
+    LaunchedEffect(uiState.isProvider) {
+        if (uiState.isProvider) {
+            val permissions = mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            locationPermissionLauncher.launch(permissions.toTypedArray())
+        }
+    }
 
     LaunchedEffect(assistanceId, trackingSessionId) {
         viewModel.loadAssistance(assistanceId, trackingSessionId)
@@ -141,8 +167,19 @@ fun AssistanceTrackingScreen(
                                     icon = Icons.Default.LocationOn,
                                     isLoading = uiState.isLoading,
                                     isError = trackingState is TrackingState.Error,
+                                    enabled = uiState.isNearOrigin,
                                     onClick = { viewModel.arriveAtOrigin() }
                                 )
+                                if (!uiState.isNearOrigin && !uiState.isLoading) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        text = "Debes estar a menos de 300m del origen",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                }
                             }
                             AssistanceStatus.EN_ORIGEN -> {
                                 ProviderActionButton(
@@ -303,12 +340,16 @@ fun AssistanceTrackingScreen(
                 }
             } else {
                 uiState.assistance?.let { assistance ->
+                    val status = assistance.status
+                    val showProviderToOrigin = status == AssistanceStatus.ACEPTADA ||
+                            status == AssistanceStatus.EN_CAMINO_AL_CLIENTE
+
                     TrackingMap(
                         origin = assistance.origin,
                         destination = assistance.destination,
                         routeGeometry = assistance.routeGeometry,
                         providerLocation = uiState.providerLocation,
-                        providerToOriginRoute = uiState.providerToOriginRoute,
+                        providerToOriginRoute = if (showProviderToOrigin) uiState.providerToOriginRoute else null,
                         isTracking = isTracking,
                         isProvider = uiState.isProvider
                     )
@@ -342,6 +383,7 @@ private fun ProviderActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isLoading: Boolean,
     isError: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Button(
@@ -352,7 +394,7 @@ private fun ProviderActionButton(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
         ),
-        enabled = !isLoading && !isError
+        enabled = !isLoading && !isError && enabled
     ) {
         if (isLoading) {
             CircularProgressIndicator(

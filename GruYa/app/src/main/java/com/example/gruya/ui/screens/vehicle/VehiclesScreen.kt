@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,7 +29,6 @@ fun VehiclesScreen(
     onEditVehicle: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     // Refresca la lista al reanudar la pantalla (vuelta de add/edit)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -50,31 +48,29 @@ fun VehiclesScreen(
     }
 
     Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            MediumTopAppBar(
+            TopAppBar(
                 title = {
                     Text(
                         text = "Mis Vehículos",
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleLarge
                     )
                 },
-                actions = {
-                    IconButton(onClick = viewModel::onAddVehicle) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Agregar Vehículo",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                },
-                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = viewModel::onAddVehicle,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Agregar Vehículo")
+            }
         }
     ) { padding ->
         Box(
@@ -91,28 +87,14 @@ fun VehiclesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 24.dp, top = 8.dp)
+                    contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp)
                 ) {
-                    item {
-                        Text(
-                            text = "Gestiona tu flota registrada para recibir asistencia rápida en el camino.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                        )
-                    }
-
                     items(uiState.vehicles) { vehicle ->
                         VehicleCard(
                             vehicle = vehicle,
                             onDelete = viewModel::onDeleteClick,
                             onEdit = viewModel::onEditClick,
                         )
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        AddVehicleCard(onAddClick = viewModel::onAddVehicle)
                     }
                 }
             }
@@ -146,39 +128,37 @@ fun EmptyVehiclesState(onAddClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(40.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = Icons.Outlined.DirectionsCar,
             contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+            modifier = Modifier.size(80.dp),
+            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "No tienes vehículos",
-            style = MaterialTheme.typography.headlineSmall,
+            text = "Sin vehículos",
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Registra tus vehículos para que podamos ayudarte mejor en caso de emergencia.",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Registra tus vehículos para solicitar asistencia rápidamente.",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(32.dp))
         Button(
             onClick = onAddClick,
-            shape = RoundedCornerShape(12.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+            shape = RoundedCornerShape(16.dp),
+            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Registrar mi primer vehículo")
+            Text("Agregar mi primer vehículo")
         }
     }
 }

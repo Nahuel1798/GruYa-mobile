@@ -56,8 +56,16 @@ class RegisterViewModel @Inject constructor(
     fun onRegisterClick() {
         val s = _uiState.value
 
-        val firstnameError = if (s.firstname.isBlank()) "Ingrese su nombre" else null
-        val lastnameError = if (s.lastname.isBlank()) "Ingrese su apellido" else null
+        val firstnameError = when {
+            s.firstname.isBlank() -> "Ingrese su nombre"
+            !s.firstname.all { it.isLetter() || it.isWhitespace() } -> "El nombre solo debe contener letras"
+            else -> null
+        }
+        val lastnameError = when {
+            s.lastname.isBlank() -> "Ingrese su apellido"
+            !s.lastname.all { it.isLetter() || it.isWhitespace() } -> "El apellido solo debe contener letras"
+            else -> null
+        }
         val phoneError = if (s.phone.isBlank()) "Ingrese su teléfono" else null
         val emailError = when {
             s.email.isBlank() -> "Ingrese su email"
@@ -66,7 +74,7 @@ class RegisterViewModel @Inject constructor(
         }
         val passwordError = when {
             s.password.isBlank() -> "Ingrese una contraseña"
-            s.password.length < 6 -> "La contraseña debe tener al menos 8 caracteres"
+            s.password.length < 8 -> "La contraseña no puede tener menos de 8 caracteres"
             else -> null
         }
 

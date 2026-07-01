@@ -32,7 +32,13 @@ class ProviderProfileViewModel @Inject constructor(
     }
 
     fun onServiceTypeChange(value: ServiceType) {
-        _uiState.update { it.copy(serviceType = value) }
+        _uiState.update {
+            it.copy(
+                serviceType = value,
+                currentLatitude = if (value == ServiceType.AUXILIO) it.currentLatitude else null,
+                currentLongitude = if (value == ServiceType.AUXILIO) it.currentLongitude else null
+            )
+        }
     }
 
     fun onDescriptionChange(value: String) {
@@ -159,7 +165,7 @@ class ProviderProfileViewModel @Inject constructor(
     }
 
     fun resetSuccess() {
-        _uiState.update { it.copy(success = false) }
+        _uiState.value = ProviderProfileUiState()
     }
 
     fun clearError() {

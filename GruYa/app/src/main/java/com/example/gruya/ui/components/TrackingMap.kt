@@ -5,13 +5,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.gruya.R
 import com.example.gruya.domain.model.Location
+import com.example.gruya.utils.LocationUtils
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.maplibre.compose.camera.CameraPosition
@@ -31,7 +37,6 @@ import org.maplibre.spatialk.geojson.FeatureCollection
 import org.maplibre.spatialk.geojson.LineString
 import org.maplibre.spatialk.geojson.Point
 import org.maplibre.spatialk.geojson.Position
-import org.json.JSONArray
 
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
@@ -55,12 +60,24 @@ fun TrackingMap(
         )
     )
 
+    var previousLocation by remember { mutableStateOf<Location?>(null) }
+    var currentBearing by remember { mutableDoubleStateOf(0.0) }
+
+    // Trace the route if available
+    val routePositions = remember(routeGeometry) {
+        routeGeometry?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+    }
+
+    val providerRoutePositions = remember(providerToOriginRoute) {
+        providerToOriginRoute?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+    }
+
+    var remainingRoute by remember(routePositions) { mutableStateOf(routePositions) }
+    var remainingProviderRoute by remember(providerRoutePositions) { mutableStateOf(providerRoutePositions) }
+
     // Initial overview or when not tracking
-    LaunchedEffect(origin, destination, routeGeometry, providerToOriginRoute) {
+    LaunchedEffect(origin, destination, routePositions, providerRoutePositions) {
         if (!isTracking) {
-            val routePositions = routeGeometry?.let { parseRouteGeometry(it) } ?: emptyList()
-            val providerRoutePositions = providerToOriginRoute?.let { parseRouteGeometry(it) } ?: emptyList()
-            
             val points = mutableListOf<Position>()
             points.add(Position(origin.longitude, origin.latitude))
             if (destination.latitude != 0.0) {
@@ -99,14 +116,37 @@ fun TrackingMap(
     // Auto-zoom and street level tracking when the crane is moving
     LaunchedEffect(providerLocation, isTracking) {
         if (isTracking && providerLocation != null) {
+            // Trim routes as the provider moves
+            remainingRoute = trimPolyline(providerLocation, remainingRoute)
+            remainingProviderRoute = trimPolyline(providerLocation, remainingProviderRoute)
+
+            val dist = previousLocation?.let { LocationUtils.calculateDistance(it, providerLocation) } ?: 0.0
+
+            // Only update bearing if moving significantly to avoid jitter
+            if (dist > 2.0 || previousLocation == null) {
+                if (previousLocation != null) {
+                    currentBearing = LocationUtils.calculateBearing(previousLocation!!, providerLocation)
+                }
+                previousLocation = providerLocation
+            }
+
             cameraState.animateTo(
                 CameraPosition(
                     target = Position(providerLocation.longitude, providerLocation.latitude),
-                    zoom = if (cameraState.position.zoom < 15.0) 16.5 else cameraState.position.zoom
+                    zoom = if (cameraState.position.zoom < 15.0) 16.5 else cameraState.position.zoom,
+                    bearing = currentBearing,
+                    tilt = 45.0
                 )
             )
+        } else if (!isTracking) {
+            // Reset rotation and routes when not tracking
+            previousLocation = null
+            currentBearing = 0.0
+            remainingRoute = routePositions
+            remainingProviderRoute = providerRoutePositions
         }
     }
+
 
     MaplibreMap(
         modifier = modifier.fillMaxSize(),
@@ -118,18 +158,14 @@ fun TrackingMap(
         val destinoIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
 
         // Trace the route if available
-        routeGeometry?.let { geometry ->
-            val routePositions = remember(geometry) {
-                parseRouteGeometry(geometry)
-            }
-
-            if (routePositions.isNotEmpty()) {
-                val routeData = remember(routePositions) {
+        if (remainingRoute.isNotEmpty()) {
+            key(remainingRoute) {
+                val routeData = remember(remainingRoute) {
                     GeoJsonData.Features(
                         geoJson = FeatureCollection(
                             features = listOf(
                                 Feature(
-                                    geometry = LineString(coordinates = routePositions),
+                                    geometry = LineString(coordinates = remainingRoute),
                                     properties = null
                                 )
                             )
@@ -160,18 +196,14 @@ fun TrackingMap(
         }
 
         // Trace provider to origin route
-        providerToOriginRoute?.let { geometry ->
-            val providerRoutePositions = remember(geometry) {
-                parseRouteGeometry(geometry)
-            }
-
-            if (providerRoutePositions.isNotEmpty()) {
-                val providerRouteData = remember(providerRoutePositions) {
+        if (remainingProviderRoute.isNotEmpty()) {
+            key(remainingProviderRoute) {
+                val providerRouteData = remember(remainingProviderRoute) {
                     GeoJsonData.Features(
                         geoJson = FeatureCollection(
                             features = listOf(
                                 Feature(
-                                    geometry = LineString(coordinates = providerRoutePositions),
+                                    geometry = LineString(coordinates = remainingProviderRoute),
                                     properties = null
                                 )
                             )
@@ -236,55 +268,59 @@ fun TrackingMap(
 
         // Provider marker (The one being tracked) - Show on top
         providerLocation?.let { location ->
-            val providerSource = rememberGeoJsonSource(
-                data = remember(location) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = Point(Position(location.longitude, location.latitude)),
-                                    properties = buildJsonObject { put("type", "provider") }
+            key(location) {
+                val providerSource = rememberGeoJsonSource(
+                    data = remember(location) {
+                        GeoJsonData.Features(
+                            geoJson = FeatureCollection(
+                                features = listOf(
+                                    Feature(
+                                        geometry = Point(Position(location.longitude, location.latitude)),
+                                        properties = buildJsonObject { put("type", "provider") }
+                                    )
                                 )
                             )
                         )
-                    )
-                }
-            )
+                    }
+                )
 
-            SymbolLayer(
-                id = "provider-marker-layer",
-                source = providerSource,
-                iconImage = auxilioIcon,
-                iconColor = const(
-                    if (isProvider) 
-                        MaterialTheme.colorScheme.error 
-                    else 
-                        MaterialTheme.colorScheme.tertiary
-                ),
-                iconSize = const(1.5f),
-                iconAllowOverlap = const(true),
-                iconIgnorePlacement = const(true),
-                iconAnchor = const(SymbolAnchor.Center)
-            )
+                SymbolLayer(
+                    id = "provider-marker-layer",
+                    source = providerSource,
+                    iconImage = auxilioIcon,
+                    iconColor = const(
+                        if (isProvider)
+                            MaterialTheme.colorScheme.error
+                        else
+                            MaterialTheme.colorScheme.tertiary
+                    ),
+                    iconSize = const(1.5f),
+                    iconAllowOverlap = const(true),
+                    iconIgnorePlacement = const(true),
+                    iconAnchor = const(SymbolAnchor.Center)
+                )
+            }
         }
     }
 }
 
-private fun parseRouteGeometry(routeGeometry: String): List<Position> {
-    return try {
-        val json = JSONArray(routeGeometry)
-        buildList {
-            for (i in 0 until json.length()) {
-                val coord = json.getJSONArray(i)
-                add(
-                    Position(
-                        longitude = coord.getDouble(0),
-                        latitude = coord.getDouble(1)
-                    )
-                )
-            }
+private fun trimPolyline(point: Location, polyline: List<Position>, threshold: Double = 30.0): List<Position> {
+    if (polyline.size < 2) return polyline
+
+    var closestIndex = -1
+    var minDistance = Double.MAX_VALUE
+
+    for (i in 0 until polyline.size - 1) {
+        val distance = LocationUtils.distanceToSegment(point, polyline[i], polyline[i + 1])
+        if (distance < minDistance) {
+            minDistance = distance
+            closestIndex = i
         }
-    } catch (e: Exception) {
-        emptyList()
+    }
+
+    return if (closestIndex != -1 && minDistance <= threshold) {
+        polyline.drop(closestIndex + 1)
+    } else {
+        polyline
     }
 }

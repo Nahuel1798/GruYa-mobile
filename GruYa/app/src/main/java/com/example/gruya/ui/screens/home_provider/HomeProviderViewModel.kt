@@ -13,6 +13,8 @@ import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.data.service.ProviderLocationService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -29,6 +31,8 @@ class HomeProviderViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(HomeProviderUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var syncJob: Job? = null
+
     init {
         checkProfileCompletion()
         loadNearbyAssistances()
@@ -40,7 +44,7 @@ class HomeProviderViewModel @Inject constructor(
                 .onSuccess { profile ->
                     if (profile != null) {
                         val isFirstCheck = _uiState.value.isProfileComplete == null
-                        
+
                         _uiState.update {
                             it.copy(
                                 isProfileComplete = true,
@@ -87,17 +91,19 @@ class HomeProviderViewModel @Inject constructor(
         checkProfileCompletion()
     }
 
-    fun onLocationPermissionChanged(granted: Boolean) {
+fun onLocationPermissionChanged(granted: Boolean) {
         _uiState.update { it.copy(hasLocationPermission = granted) }
         if (granted && _uiState.value.isOnline) {
             // Si nos dieron el permiso y deberíamos estar online, iniciamos el servicio
             val intent = Intent(application, ProviderLocationService::class.java)
             application.startForegroundService(intent)
         } else if (!granted && _uiState.value.isOnline) {
-            goOffline()
+            syncJob?.cancel()
             _uiState.update { it.copy(isOnline = false) }
+            goOffline()
         }
     }
+
 
     fun updateUserLocation(latitude: Double, longitude: Double) {
         _uiState.update {
@@ -120,6 +126,8 @@ class HomeProviderViewModel @Inject constructor(
                         isLoading = false
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(
@@ -132,8 +140,9 @@ class HomeProviderViewModel @Inject constructor(
     }
 
     fun toggleAvailability() {
+        syncJob?.cancel()
         val goingOnline = !_uiState.value.isOnline
-        
+
         if (goingOnline && !hasLocationPermissions()) {
             _uiState.update { it.copy(error = "Se requieren permisos de ubicación para estar en línea") }
             return
@@ -174,7 +183,7 @@ class HomeProviderViewModel @Inject constructor(
     }
 
     private fun syncAvailabilityStatus(available: Boolean) {
-        viewModelScope.launch {
+        syncJob = viewModelScope.launch {
             providerRepository.updateAvailability(available)
                 .onSuccess {
                     Log.d("HomeProviderViewModel", "Disponibilidad sincronizada: $available")
@@ -182,11 +191,19 @@ class HomeProviderViewModel @Inject constructor(
                 .onFailure { e ->
                     Log.e("HomeProviderViewModel", "Error al sincronizar disponibilidad: ${e.message}", e)
                     // Revertimos el estado en la UI si falla la sincronización
-                    _uiState.update { 
+                    _uiState.update {
                         it.copy(
                             isOnline = !available,
                             error = "Error al sincronizar disponibilidad: ${e.message}"
                         )
+                    }
+                    // Revertir también el lifecycle del servicio
+                    if (available) {
+                        // Falló al ir online → detener el servicio
+                        application.stopService(Intent(application, ProviderLocationService::class.java))
+                    } else {
+                        // Falló al ir offline → reactivar el servicio
+                        application.startForegroundService(Intent(application, ProviderLocationService::class.java))
                     }
                 }
         }

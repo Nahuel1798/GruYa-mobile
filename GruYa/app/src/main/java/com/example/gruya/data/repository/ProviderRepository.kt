@@ -10,6 +10,7 @@ import com.example.gruya.data.service.ProviderService
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.ProviderProfile
 import com.example.gruya.domain.model.ServiceType
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 
 
@@ -51,6 +52,8 @@ class ProviderRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error HTTP ${response.code()}: ${response.message()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -64,6 +67,8 @@ class ProviderRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error al actualizar ubicación: ${response.code()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -77,6 +82,8 @@ class ProviderRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -95,6 +102,8 @@ class ProviderRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

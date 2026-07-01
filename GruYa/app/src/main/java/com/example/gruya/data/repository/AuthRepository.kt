@@ -10,6 +10,7 @@ import com.example.gruya.data.remote.dtos.response.AuthResponse
 import com.example.gruya.data.remote.dtos.response.UserResponse
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.domain.model.Role
+import kotlinx.coroutines.CancellationException
 import retrofit2.Response
 import javax.inject.Inject
 
@@ -30,6 +31,8 @@ class AuthRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error al actualizar token: ${response.code()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -70,6 +73,8 @@ class AuthRepository @Inject constructor(
                 }
                 Result.failure(Exception(errorMessage))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(Exception("Error de conexión. Verificá tu conexión a internet"))
         }
@@ -85,6 +90,8 @@ class AuthRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error: ${response.code()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -106,6 +113,8 @@ class AuthRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -119,6 +128,8 @@ class AuthRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error al resetear contraseña: ${response.code()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

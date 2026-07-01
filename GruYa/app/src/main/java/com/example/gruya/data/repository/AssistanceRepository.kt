@@ -10,6 +10,7 @@ import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.remote.dtos.response.TripStartedResponse
 import com.example.gruya.data.service.AssistanceService
 import com.example.gruya.domain.model.Assistance
+import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +30,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -62,6 +65,8 @@ class AssistanceRepository @Inject constructor(
             } else {
                 Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -73,6 +78,8 @@ class AssistanceRepository @Inject constructor(
             val domain = response.toDomain()
             Log.d("AssistanceRepository", "Solicitudes de auxilio del usuario: $domain")
             Result.success(domain)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(Exception("Error al obtener las solicitudes de auxilio", e))
         }
@@ -91,6 +98,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(Exception("Error al obtener la solicitud activa", e))
         }
@@ -107,6 +116,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(Exception("Error al cancelar la solicitud", e))
         }
@@ -124,6 +135,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -134,6 +147,8 @@ class AssistanceRepository @Inject constructor(
             val response = assistanceService.getRoute(id)
             Log.d("AssistanceRepository", "Ruta obtenida: $response")
             Result.success(response)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -150,6 +165,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -166,6 +183,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -182,6 +201,8 @@ class AssistanceRepository @Inject constructor(
                     Exception("Error ${response.code()}: ${response.message()}")
                 )
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

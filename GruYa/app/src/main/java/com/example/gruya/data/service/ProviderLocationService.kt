@@ -20,8 +20,10 @@ import com.google.android.gms.tasks.Tasks
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -36,6 +38,7 @@ class ProviderLocationService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var updateJob: Job? = null
 
     companion object {
         const val NOTIFICATION_CHANNEL_ID = "provider_location_channel"
@@ -59,7 +62,8 @@ class ProviderLocationService : Service() {
     }
 
     private fun startPeriodicUpdates() {
-        serviceScope.launch {
+        updateJob?.cancel()
+        updateJob = serviceScope.launch {
             while (isActive) {
                 try {
                     val location = getCurrentLocation()
@@ -71,6 +75,8 @@ class ProviderLocationService : Service() {
                             Log.d(TAG, "Location updated: ${location.latitude}, ${location.longitude}")
                         }
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "Error updating location", e)
                 }

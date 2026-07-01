@@ -12,6 +12,7 @@ data class QuotesListUiState(
     val trackingState: TrackingState = TrackingState.Idle,
     val providerLocation: Location? = null,
     val providerToOriginRoute: String? = null,
+    val providerToDestinationRoute: String? = null,
     val originAddress: String? = null,
     val destinationAddress: String? = null,
     val distanceKm: Double? = null,

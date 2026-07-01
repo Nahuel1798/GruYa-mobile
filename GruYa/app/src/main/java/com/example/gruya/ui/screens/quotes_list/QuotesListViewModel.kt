@@ -177,8 +177,9 @@ class QuotesListViewModel @Inject constructor(
                         _uiState.update { state ->
                             state.copy(
                                 providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
-                                distanceKm = routeResponse.providerToOrigin?.distanceKm,
-                                etaMinutes = routeResponse.providerToOrigin?.etaMinutes
+                                providerToDestinationRoute = routeResponse.providerToDestination?.geometryJson,
+                                distanceKm = routeResponse.providerToOrigin?.distanceKm ?: routeResponse.providerToDestination?.distanceKm,
+                                etaMinutes = routeResponse.providerToOrigin?.etaMinutes ?: routeResponse.providerToDestination?.etaMinutes
                             )
                         }
                     },

@@ -82,6 +82,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.connectivity.ConnectivityObserver
 import com.example.gruya.ui.screens.common.NoInternetScreen
 import com.example.gruya.domain.model.Role
+import com.example.gruya.domain.model.ServiceType
 import com.example.gruya.ui.NotificationViewModel
 import com.example.gruya.ui.navigation.AppDest
 import com.example.gruya.ui.navigation.EXTRA_ASSISTANCE_ID
@@ -583,14 +584,18 @@ fun MainNavigationSuite(
                     unselectedIcon = Icons.Outlined.Assignment
                 )
             )
-            Role.PROVIDER -> add(
-                NavItem(
-                    key = AppDest.TabKey.ProviderQuotes(),
-                    label = "Cotizaciones",
-                    selectedIcon = Icons.Filled.LocalAtm,
-                    unselectedIcon = Icons.Outlined.LocalAtm
-                )
-            )
+            Role.PROVIDER -> {
+                if (homeProviderUiState.providerProfile?.serviceType == ServiceType.AUXILIO) {
+                    add(
+                        NavItem(
+                            key = AppDest.TabKey.ProviderQuotes(),
+                            label = "Cotizaciones",
+                            selectedIcon = Icons.Filled.LocalAtm,
+                            unselectedIcon = Icons.Outlined.LocalAtm
+                        )
+                    )
+                }
+            }
             else -> {}
         }
 

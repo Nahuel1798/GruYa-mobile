@@ -55,8 +55,8 @@ class HomeProviderViewModel @Inject constructor(
                         }
 
                         // Si el perfil ya está disponible en el backend al iniciar,
-                        // nos aseguramos de que el servicio de ubicación esté corriendo.
-                        if (isFirstCheck && profile.isAvailable) {
+                        // nos aseguramos de que el servicio de ubicación esté corriendo (solo para Auxilio).
+                        if (isFirstCheck && profile.isAvailable && profile.serviceType == com.example.gruya.domain.model.ServiceType.AUXILIO) {
                             if (hasLocationPermissions()) {
                                 val intent = Intent(application, ProviderLocationService::class.java)
                                 application.startForegroundService(intent)
@@ -142,8 +142,9 @@ fun onLocationPermissionChanged(granted: Boolean) {
     fun toggleAvailability() {
         syncJob?.cancel()
         val goingOnline = !_uiState.value.isOnline
+        val isMobile = _uiState.value.providerProfile?.serviceType == com.example.gruya.domain.model.ServiceType.AUXILIO
 
-        if (goingOnline && !hasLocationPermissions()) {
+        if (goingOnline && isMobile && !hasLocationPermissions()) {
             _uiState.update { it.copy(error = "Se requieren permisos de ubicación para estar en línea") }
             return
         }
@@ -169,10 +170,14 @@ fun onLocationPermissionChanged(granted: Boolean) {
     }
 
     private fun goOnline() {
-        if (!hasLocationPermissions()) return
+        val isMobile = _uiState.value.providerProfile?.serviceType == com.example.gruya.domain.model.ServiceType.AUXILIO
+        
+        if (isMobile) {
+            if (!hasLocationPermissions()) return
+            val intent = Intent(application, ProviderLocationService::class.java)
+            application.startForegroundService(intent)
+        }
 
-        val intent = Intent(application, ProviderLocationService::class.java)
-        application.startForegroundService(intent)
         syncAvailabilityStatus(true)
     }
 

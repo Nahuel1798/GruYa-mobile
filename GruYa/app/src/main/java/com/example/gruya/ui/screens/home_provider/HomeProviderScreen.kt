@@ -30,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -57,7 +58,20 @@ import android.os.Build
 import java.util.Locale
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.History
+import androidx.compose.ui.draw.scale
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Engineering
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Business
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.ui.graphics.vector.ImageVector
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.gms.rememberFusedLocationProvider
@@ -80,9 +94,16 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.example.gruya.domain.model.ServiceType
+import com.example.gruya.domain.model.ProviderProfile
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.maplibre.compose.util.ClickResult
+import org.maplibre.compose.layers.SymbolLayer
+import androidx.compose.ui.res.painterResource
+import com.example.gruya.R
+import org.maplibre.compose.expressions.dsl.*
+import org.maplibre.compose.expressions.value.SymbolAnchor
 
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
@@ -150,9 +171,11 @@ fun HomeProviderScreen(
     val context = LocalContext.current
     val geocoder = remember { Geocoder(context, Locale.getDefault()) }
 
+    val isStatic = uiState.providerProfile?.serviceType != ServiceType.AUXILIO
+
     // Location State logic similar to HomeScreen
     val locationProvider = rememberFusedLocationProvider()
-    val locationState = if (uiState.hasLocationPermission) {
+    val locationState = if (uiState.hasLocationPermission && !isStatic) {
         rememberUserLocationState(locationProvider = locationProvider)
     } else {
         null
@@ -166,14 +189,16 @@ fun HomeProviderScreen(
     }
 
     LaunchedEffect(Unit) {
-        val permissions = mutableListOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        if (!isStatic) {
+            val permissions = mutableListOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            locationPermissionLauncher.launch(permissions.toTypedArray())
         }
-        locationPermissionLauncher.launch(permissions.toTypedArray())
     }
 
     var hasLoadedAssistances by remember { mutableStateOf(false) }
@@ -205,7 +230,7 @@ fun HomeProviderScreen(
                     } ?: "${"%.4f".format(lat)}, ${"%.4f".format(lng)}"
                     viewModel.updateLocationName(address)
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 viewModel.updateLocationName("${"%.4f".format(lat)}, ${"%.4f".format(lng)}")
             }
 
@@ -242,28 +267,54 @@ fun HomeProviderScreen(
                     )
                 },
                 actions = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = 8.dp)
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.padding(end = 8.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            width = 1.dp,
+                            color = if (uiState.isOnline) 
+                                Color(0xFF4CAF50).copy(alpha = 0.5f) 
+                            else 
+                                MaterialTheme.colorScheme.outlineVariant
+                        )
                     ) {
-                        Text(
-                            text = if (uiState.isOnline) "En línea" else "Desconectado",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (uiState.isOnline) Color.Green else Color.Gray,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Switch(
-                            checked = uiState.isOnline,
-                            onCheckedChange = {
-                                viewModel.toggleAvailability()
-                            }
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(
+                                        if (uiState.isOnline) Color(0xFF4CAF50) else Color.Gray,
+                                        CircleShape
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (uiState.isOnline) "En línea" else "Desconectado",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Medium,
+                                color = if (uiState.isOnline) 
+                                    MaterialTheme.colorScheme.onPrimaryContainer 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = uiState.isOnline,
+                                onCheckedChange = { viewModel.toggleAvailability() },
+                                modifier = Modifier.scale(0.7f)
+                            )
+                        }
                     }
 
                     IconButton(onClick = { /* TODO: Notifications */ }) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
-                            contentDescription = null
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
@@ -273,99 +324,14 @@ fun HomeProviderScreen(
             )
         },
         sheetContent = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                // Barra de arrastre (visual)
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .width(40.dp)
-                        .height(4.dp)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), CircleShape)
-                        .align(Alignment.CenterHorizontally)
+            val profile = uiState.providerProfile
+            if (profile != null && profile.serviceType != ServiceType.AUXILIO) {
+                StaticProviderSheetContent(profile = profile)
+            } else {
+                MobileProviderSheetContent(
+                    uiState = uiState,
+                    onNavigateToQuote = onNavigateToQuote
                 )
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
-                            ),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.LocationOn,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Tu ubicación actual",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = uiState.currentLocation,
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    item {
-                        Text(
-                            text = "Solicitudes Cercanas",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    if (uiState.nearbyAssistances.isEmpty()) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                                )
-                            ) {
-                                Text(
-                                    "No hay solicitudes pendientes en tu zona",
-                                    modifier = Modifier.padding(16.dp),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
-
-                    items(uiState.nearbyAssistances) { assistance ->
-                        AssistanceRequestCard(
-                            assistance = assistance,
-                            onClick = { onNavigateToQuote(assistance.id) }
-                        )
-                    }
-
-                    item {
-                        Spacer(modifier = Modifier.height(32.dp))
-                    }
-                }
             }
         }
     ) { padding ->
@@ -375,8 +341,313 @@ fun HomeProviderScreen(
             FullCoverageMap(
                 assistances = uiState.nearbyAssistances,
                 userLocationState = locationState,
+                providerProfile = uiState.providerProfile,
                 onRefresh = { viewModel.loadNearbyAssistances() },
                 onAssistanceClick = onNavigateToQuote
+            )
+        }
+    }
+}
+
+@Composable
+fun StaticProviderSheetContent(
+    profile: ProviderProfile
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(vertical = 12.dp)
+                .width(40.dp)
+                .height(4.dp)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), CircleShape)
+                .align(Alignment.CenterHorizontally)
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Business,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
+                Text(
+                    text = profile.companyName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = profile.serviceType.displayName.uppercase(),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            ),
+            shape = RoundedCornerShape(20.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Ubicación del establecimiento",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = profile.address,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 32.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Sobre nosotros",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = profile.description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified // Default is fine
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+    }
+}
+
+@Composable
+fun MobileProviderSheetContent(
+    uiState: HomeProviderUiState,
+    onNavigateToQuote: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        // Barra de arrastre (visual)
+        Box(
+            modifier = Modifier
+                .padding(vertical = 12.dp)
+                .width(40.dp)
+                .height(4.dp)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f), CircleShape)
+                .align(Alignment.CenterHorizontally)
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    StatCard(
+                        title = "Servicios hoy",
+                        value = uiState.todayServices.toString(),
+                        icon = Icons.Default.History,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        title = "Ganancias",
+                        value = "$${uiState.earnings}",
+                        icon = Icons.Default.AttachMoney,
+                        modifier = Modifier.weight(1f),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    )
+                }
+            }
+
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Ubicación actual",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = uiState.currentLocation.ifBlank { "Buscando ubicación..." },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = "Solicitudes Cercanas",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            if (uiState.nearbyAssistances.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "No hay solicitudes en tu zona",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            items(uiState.nearbyAssistances) { assistance ->
+                AssistanceRequestCard(
+                    assistance = assistance,
+                    onClick = { onNavigateToQuote(assistance.id) }
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(32.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun StatCard(
+    title: String,
+    value: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
             )
         }
     }
@@ -393,59 +664,96 @@ fun AssistanceRequestCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = assistance.serviceType.take(1).uppercase(),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when(assistance.serviceType) {
+                            "AUXILIO" -> Icons.Default.LocalShipping
+                            "MECANICO" -> Icons.Default.Engineering
+                            "GOMERIA" -> Icons.Default.Build
+                            else -> Icons.Default.DirectionsCar
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = assistance.clientName,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = assistance.vehicle,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                if (assistance.isDirected) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "DIRECTO",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = assistance.clientName,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = assistance.vehicle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = assistance.issueType ?: "Sin especificar",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = assistance.issueType ?: "Asistencia técnica",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-            Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "${"%.1f".format(assistance.distanceKm)} km",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.ExtraBold
                 )
             }
         }
@@ -456,6 +764,7 @@ fun AssistanceRequestCard(
 fun FullCoverageMap(
     assistances: List<NearbyAssistanceResponse>,
     userLocationState: org.maplibre.compose.location.UserLocationState? = null,
+    providerProfile: ProviderProfile? = null,
     onRefresh: () -> Unit = {},
     onAssistanceClick: (Int) -> Unit = {}
 ) {
@@ -463,8 +772,12 @@ fun FullCoverageMap(
     var locationCentered by remember { mutableStateOf(false) }
     var selectedAssistance by remember { mutableStateOf<NearbyAssistanceResponse?>(null) }
 
-    val initialPosition = remember(assistances) {
-        if (assistances.isNotEmpty()) {
+    val isStatic = providerProfile != null && providerProfile.serviceType != ServiceType.AUXILIO
+
+    val initialPosition = remember(assistances, providerProfile) {
+        if (isStatic) {
+            Position(providerProfile.longitude, providerProfile.latitude)
+        } else if (assistances.isNotEmpty()) {
             Position(assistances[0].origin.longitude, assistances[0].origin.latitude)
         } else {
             Position(-66.3356, -33.2950)
@@ -474,13 +787,13 @@ fun FullCoverageMap(
     val cameraState = rememberCameraState(
         firstPosition = CameraPosition(
             target = initialPosition,
-            zoom = 11.0
+            zoom = if (isStatic) 15.0 else 11.0
         )
     )
 
-    // Center on user location once
+    // Center on user location once (only for mobile providers)
     LaunchedEffect(userLocationState?.location) {
-        if (!locationCentered) {
+        if (!locationCentered && !isStatic) {
             userLocationState?.location?.let { location ->
                 cameraState.animateTo(
                     CameraPosition(
@@ -507,50 +820,93 @@ fun FullCoverageMap(
                 ClickResult.Pass
             }
         ) {
-            userLocationState?.let {
-                LocationTrackingEffect(locationState = it, onLocationChange = {})
-                LocationPuck(
-                    idPrefix = "provider-location",
-                    location = it.location,
-                    cameraState = cameraState
+            if (!isStatic) {
+                userLocationState?.let {
+                    LocationTrackingEffect(locationState = it, onLocationChange = {})
+                    LocationPuck(
+                        idPrefix = "provider-location",
+                        location = it.location,
+                        cameraState = cameraState
+                    )
+                }
+            }
+
+            if (isStatic) {
+                val establishmentSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = Point(
+                                        coordinates = Position(
+                                            longitude = providerProfile.longitude,
+                                            latitude = providerProfile.latitude
+                                        )
+                                    ),
+                                    properties = buildJsonObject { }
+                                )
+                            )
+                        )
+                    )
+                )
+
+                val icon = when (providerProfile.serviceType) {
+                    ServiceType.GOMERIA -> image(painterResource(R.drawable.ic_gomeria), drawAsSdf = true)
+                    ServiceType.MECANICO -> image(painterResource(R.drawable.ic_mecanico), drawAsSdf = true)
+                    else -> image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
+                }
+
+                SymbolLayer(
+                    id = "establishment-marker",
+                    source = establishmentSource,
+                    iconImage = icon,
+                    iconColor = const(MaterialTheme.colorScheme.primary),
+                    iconSize = const(1.5f),
+                    iconAllowOverlap = const(true),
+                    iconAnchor = const(SymbolAnchor.Bottom)
                 )
             }
 
-            val assistanceSource = rememberGeoJsonSource(
-                data = GeoJsonData.Features(
-                    geoJson = FeatureCollection(
-                        features = assistances.map { assistance ->
-                            Feature(
-                                geometry = Point(
-                                    coordinates = Position(
-                                        longitude = assistance.origin.longitude,
-                                        latitude = assistance.origin.latitude
-                                    )
-                                ),
-                                properties = buildJsonObject {
-                                    put("id", assistance.id)
-                                    put("type", assistance.serviceType)
-                                }
-                            )
-                        }
+            if (!isStatic) {
+                val assistanceSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = assistances.map { assistance ->
+                                Feature(
+                                    geometry = Point(
+                                        coordinates = Position(
+                                            longitude = assistance.origin.longitude,
+                                            latitude = assistance.origin.latitude
+                                        )
+                                    ),
+                                    properties = buildJsonObject {
+                                        put("id", assistance.id)
+                                        put("type", assistance.serviceType)
+                                    }
+                                )
+                            }
+                        )
                     )
                 )
-            )
 
-            CircleLayer(
-                id = "assistance-markers",
-                source = assistanceSource,
-                color = const(MaterialTheme.colorScheme.primary),
-                radius = const(10.dp),
-                strokeColor = const(Color.White),
-                strokeWidth = const(2.dp),
-                onClick = { features ->
-                    features.firstOrNull()?.properties?.get("id")?.jsonPrimitive?.intOrNull?.let { id ->
-                        selectedAssistance = assistances.find { it.id == id }
+                val assistanceIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
+
+                SymbolLayer(
+                    id = "assistance-markers",
+                    source = assistanceSource,
+                    iconImage = assistanceIcon,
+                    iconColor = const(MaterialTheme.colorScheme.primary),
+                    iconSize = const(1.2f),
+                    iconAllowOverlap = const(true),
+                    iconAnchor = const(SymbolAnchor.Bottom),
+                    onClick = { features ->
+                        features.firstOrNull()?.properties?.get("id")?.jsonPrimitive?.intOrNull?.let { id ->
+                            selectedAssistance = assistances.find { it.id == id }
+                        }
+                        ClickResult.Consume
                     }
-                    ClickResult.Consume
-                }
-            )
+                )
+            }
         }
 
         // Overlay Button for Selected Assistance
@@ -561,31 +917,57 @@ fun FullCoverageMap(
                     .padding(bottom = 220.dp) // Above the bottom sheet peek
                     .padding(horizontal = 16.dp)
                     .fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(16.dp))
+                    
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = assistance.clientName,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = "${assistance.serviceType} • ${"%.1f".format(assistance.distanceKm)} km",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Map,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${assistance.serviceType} • ${"%.1f".format(assistance.distanceKm)} km",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     Button(
                         onClick = { onAssistanceClick(assistance.id) },
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp)
                     ) {
-                        Text("Revisar")
+                        Text("Detalles")
                     }
                 }
             }

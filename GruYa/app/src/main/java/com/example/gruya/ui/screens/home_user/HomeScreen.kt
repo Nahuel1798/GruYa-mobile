@@ -40,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
 import com.example.gruya.R
+import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.ui.theme.Success
 import com.example.gruya.ui.theme.Warning
 import com.example.gruya.ui.theme.Info
@@ -163,32 +164,23 @@ fun HomeScreen(
             ) {
                 TopAppBar(
                     title = {
-                        Text(
-                            text = "GruYa",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary
+                        androidx.compose.material3.Text(
+                            "GruYa",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                     },
-                    navigationIcon = {
-                        IconButton(onClick = {}) {
-                            Icon(
-                                Icons.Default.Menu,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    },
                     actions = {
-                        IconButton(onClick = {}) {
+                        IconButton(onClick = { /* Notifications */ }) {
                             Icon(
-                                Icons.Default.Notifications,
+                                imageVector = Icons.Default.Notifications,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
                 )
             }
@@ -197,8 +189,8 @@ fun HomeScreen(
             if (uiState.isMapFullScreen) {
                 FloatingActionButton(
                     onClick = viewModel::toggleMapFullScreen,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                 ) {
                     Icon(Icons.Default.Close, contentDescription = "Cerrar Mapa Completo")
                 }
@@ -208,21 +200,10 @@ fun HomeScreen(
     ) { padding ->
 
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
-                if (uiState.isLoading) {
-                    LinearProgressIndicator(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(padding)
-                            .align(Alignment.TopCenter),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // MAPA (Fondo)
-                val isDarkTheme = isSystemInDarkTheme()
+            // MAPA (Fondo)
+            val isDarkTheme = isSystemInDarkTheme()
 
             MaplibreMap(
                 modifier = Modifier.fillMaxSize(),
@@ -234,10 +215,10 @@ fun HomeScreen(
                 },
                 options = MapOptions(
                     ornamentOptions = OrnamentOptions(
-                        isCompassEnabled = true,
-                        isScaleBarEnabled = true,
-                        isAttributionEnabled = true,
-                        isLogoEnabled = true
+                        isCompassEnabled = false,
+                        isScaleBarEnabled = false,
+                        isAttributionEnabled = false,
+                        isLogoEnabled = false
                     )
                 )
             ) {
@@ -313,12 +294,12 @@ fun HomeScreen(
                     ),
                     iconColor = switch(
                         input = feature["serviceType"].asString(),
-                        case("AUXILIO", const(Color(0xFFFFEB3B))),
-                        case("GOMERIA", const(Color(0xFFF4F6F8))),
-                        case("MECANICO", const(Color(0xFF3F51B5))),
+                        case("AUXILIO", const(Color(0xFFFFD600))),
+                        case("GOMERIA", const(Color(0xFF424242))),
+                        case("MECANICO", const(Color(0xFF1976D2))),
                         fallback = const(Color.Gray)
                     ),
-                    iconSize = const(1.5f),
+                    iconSize = const(1.3f),
                     iconAllowOverlap = const(true),
                     iconIgnorePlacement = const(true),
                     onClick = { features ->
@@ -339,135 +320,109 @@ fun HomeScreen(
                     source = fuelStationSource,
                     iconImage = fuelStationIcon,
                     iconColor = const(Color(0xFF4CAF50)),
-                    iconSize = const(1.2f),
-                    iconAllowOverlap = const(true),
-                    iconIgnorePlacement = const(true)
+                    iconSize = const(1.0f),
+                    iconAllowOverlap = const(false),
+                    iconIgnorePlacement = const(false)
                 )
             }
 
-            // My Location FAB (Overlay)
-            FloatingActionButton(
-                onClick = {
-                    locationState?.location?.let { location ->
-                        scope.launch {
-                            cameraState.animateTo(
-                                CameraPosition(
-                                    target = location.position.value,
-                                    zoom = 16.0
-                                )
-                            )
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(bottom = 120.dp, end = 16.dp),
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(
-                    Icons.Default.MyLocation,
-                    contentDescription = "Mi ubicación"
+            // Loading Indicator
+            if (uiState.isLoading) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = padding.calculateTopPadding())
+                        .align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
 
+            // Map Actions Overlay (Refresh & Location)
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .align(Alignment.TopEnd)
+                    .padding(top = padding.calculateTopPadding() + 16.dp, end = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.End
             ) {
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // SEARCH BAR
-                AnimatedVisibility(
-                    visible = !uiState.isMapFullScreen,
-                    enter = fadeIn() + slideInVertically(),
-                    exit = fadeOut() + slideOutVertically()
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 6.dp
-                        ),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
+                IconButton(
+                    onClick = { viewModel.loadService() },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            shape = CircleShape
                         )
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            TextField(
-                                value = uiState.searchText,
-                                onValueChange = viewModel::onSearchChange,
-                                placeholder = {
-                                    Text("¿A dónde necesitas ayuda?")
-                                },
-                                modifier = Modifier.weight(1f),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color.Transparent,
-                                    unfocusedContainerColor = Color.Transparent,
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    cursorColor = MaterialTheme.colorScheme.primary
-                                )
-                            )
-                            Text(
-                                text = "Mapa",
-                                modifier = Modifier.clickable { viewModel.toggleMapFullScreen() },
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Actualizar",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        locationState?.location?.let { location ->
+                            scope.launch {
+                                cameraState.animateTo(
+                                    CameraPosition(
+                                        target = location.position.value,
+                                        zoom = 16.0
+                                    )
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            shape = CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MyLocation,
+                        contentDescription = "Mi ubicación",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
 
+            // Bottom Panel
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
                 AnimatedVisibility(
                     visible = uiState.panelVisible && !uiState.isMapFullScreen,
-                    enter = slideInVertically(
-                        initialOffsetY = { fullHeight -> fullHeight }
-                    ) + fadeIn() + scaleIn(initialScale = 0.9f),
-                    exit = slideOutVertically(
-                        targetOffsetY = { fullHeight -> fullHeight }
-                    ) + fadeOut()
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                 ) {
-
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
-                            .animateContentSize(),
-                        shape = RoundedCornerShape(24.dp),
-                        elevation = CardDefaults.cardElevation(
-                            defaultElevation = 10.dp
-                        ),
+                            .padding(16.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surface
                         )
                     ) {
                         Column(
-                            modifier = Modifier.padding(20.dp)
+                            modifier = Modifier
+                                .padding(24.dp)
+                                .animateContentSize()
                         ) {
-
                             Box(
                                 modifier = Modifier
-                                    .width(50.dp)
-                                    .height(5.dp)
+                                    .width(40.dp)
+                                    .height(4.dp)
                                     .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                                        MaterialTheme.colorScheme.outlineVariant,
                                         RoundedCornerShape(50)
                                     )
                                     .align(Alignment.CenterHorizontally)
@@ -475,268 +430,242 @@ fun HomeScreen(
 
                             Spacer(modifier = Modifier.height(20.dp))
 
-                            Text(
+                            androidx.compose.material3.Text(
                                 text = "¿Qué necesitas hoy?",
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
 
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
-                            Text(
-                                text = "${uiState.nearbyTowTrucks.size} servicios disponibles cerca de ti",
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            Text(
-                                text = "Pedir auxilio a una grua cercana.",
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-
-                            Spacer(modifier = Modifier.height(18.dp))
-
-                            Button(
-                                onClick = { 
-                                    onNavigateToRequestAssistance(
-                                        null, 
-                                        null, 
-                                        uiState.userLocation?.latitude, 
-                                        uiState.userLocation?.longitude
-                                    ) 
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(55.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
-                                ),
-                                shape = RoundedCornerShape(16.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.Warning,
-                                    contentDescription = null
+                                    Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
                                 )
-
-                                Spacer(modifier = Modifier.width(8.dp))
-
-                                Text(
-                                    text = "Solicitar Auxilio",
-                                    fontWeight = FontWeight.Bold
+                                androidx.compose.material3.Text(
+                                    text = "${uiState.nearbyTowTrucks.size} servicios disponibles cerca",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Button(
+                                onClick = {
+                                    onNavigateToRequestAssistance(
+                                        null,
+                                        null,
+                                        uiState.userLocation?.latitude,
+                                        uiState.userLocation?.longitude
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                androidx.compose.material3.Text(
+                                    text = "SOLICITAR AUXILIO AHORA",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
             }
-
-            uiState.selectedProvider?.let { provider ->
-
-                var addressText by remember(provider.id) { mutableStateOf("Cargando ubicación...") }
-
-                LaunchedEffect(provider.id) {
-                    try {
-                        val geocoder = Geocoder(context, Locale.getDefault())
-                        val addresses = withContext(Dispatchers.IO) {
-                            geocoder.getFromLocation(provider.latitude, provider.longitude, 1)
-                        }
-                        if (!addresses.isNullOrEmpty()) {
-                            val address = addresses[0]
-                            val street = address.thoroughfare ?: ""
-                            val number = address.subThoroughfare ?: ""
-                            val city = address.locality ?: ""
-                            addressText = if (street.isNotEmpty()) "$street $number, $city" else city
-                        } else {
-                            addressText = "Ubicación no disponible"
-                        }
-                    } catch (_: Exception) {
-                        addressText = "Lat: ${provider.latitude}, Lng: ${provider.longitude}"
-                    }
-                }
-
-                ModalBottomSheet(
-                    onDismissRequest = {
-                        viewModel.clearSelectedProvider()
-                    }
-                ) {
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 10.dp)
-                    ) {
-
-                        Text(
-                            text = provider.companyName,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = provider.serviceType.uppercase(),
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-
-                            // Fila de Disponibilidad
-                            Surface(
-                                color = if (provider.isAvailable) Success.copy(alpha = 0.1f) else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = if (provider.isAvailable) "DISPONIBLE" else "NO DISPONIBLE",
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    color = if (provider.isAvailable) Success else MaterialTheme.colorScheme.error,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(20.dp))
-
-                        Text(
-                            text = "Descripción",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = provider.description,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
-                        )
-
-                        Spacer(Modifier.height(16.dp))
-
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            InfoRow(
-                                icon = Icons.Default.Phone,
-                                label = "Contacto",
-                                value = provider.phone
-                            )
-                            InfoRow(
-                                icon = Icons.Default.LocationOn,
-                                label = "Ubicación",
-                                value = addressText
-                            )
-                        }
-
-                        Spacer(Modifier.height(24.dp))
-
-                        // Botones de acción
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // WhatsApp
-                            Button(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                onClick = {
-                                    val url = "https://wa.me/${provider.phone.filter { it.isDigit() }}"
-                                    val intent = Intent(Intent.ACTION_VIEW, url.toUri())
-                                    context.startActivity(intent)
-                                },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF25D366),
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("WhatsApp", style = MaterialTheme.typography.labelLarge)
-                            }
-
-                            // Llamar
-                            OutlinedButton(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp),
-                                onClick = {
-                                    val intent = Intent(Intent.ACTION_DIAL, "tel:${provider.phone}".toUri())
-                                    context.startActivity(intent)
-                                },
-                                shape = RoundedCornerShape(16.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                            ) {
-                                Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Llamar", style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-
-                        // Botón Solicitar (Principal)
-                        Button(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            onClick = {
-                                viewModel.clearSelectedProvider()
-                                onNavigateToRequestAssistance(
-                                    provider.id, 
-                                    provider.serviceType,
-                                    uiState.userLocation?.latitude,
-                                    uiState.userLocation?.longitude
-                                )
-                            },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                        ) {
-                            Text(
-                                "SOLICITAR ASISTENCIA",
-                                fontWeight = FontWeight.ExtraBold,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                        }
-                    }
-                }
-            }   // cierra .let
-
             
-            // Botón de refrescar manual — como en el provider
-            IconButton(
-                onClick = { viewModel.loadService() },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = padding.calculateTopPadding() + 4.dp, end = 8.dp)
-                    .size(36.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shape = CircleShape
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Actualizar servicios",
-                    tint = MaterialTheme.colorScheme.primary
+            // Selected Provider Sheet
+            uiState.selectedProvider?.let { provider ->
+                ProviderDetailSheet(
+                    provider = provider,
+                    context = context,
+                    onDismiss = viewModel::clearSelectedProvider,
+                    onNavigateToRequest = {
+                        viewModel.clearSelectedProvider()
+                        onNavigateToRequestAssistance(
+                            provider.id,
+                            provider.serviceType,
+                            uiState.userLocation?.latitude,
+                            uiState.userLocation?.longitude
+                        )
+                    }
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProviderDetailSheet(
+    provider: ProviderLocationResponse,
+    context: android.content.Context,
+    onDismiss: () -> Unit,
+    onNavigateToRequest: () -> Unit
+) {
+    var addressText by remember(provider.id) { mutableStateOf("Cargando ubicación...") }
+
+    LaunchedEffect(provider.id) {
+        try {
+            val geocoder = Geocoder(context, Locale.getDefault())
+            val addresses = withContext(Dispatchers.IO) {
+                geocoder.getFromLocation(provider.latitude, provider.longitude, 1)
+            }
+            if (!addresses.isNullOrEmpty()) {
+                val address = addresses[0]
+                val street = address.thoroughfare ?: ""
+                val number = address.subThoroughfare ?: ""
+                val city = address.locality ?: ""
+                addressText = if (street.isNotEmpty()) "$street $number, $city" else city
+            } else {
+                addressText = "Ubicación no disponible"
+            }
+        } catch (_: Exception) {
+            addressText = "Lat: ${provider.latitude}, Lng: ${provider.longitude}"
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = provider.companyName,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SuggestionChip(
+                    onClick = { },
+                    label = { Text(provider.serviceType.uppercase()) },
+                    colors = SuggestionChipDefaults.suggestionChipColors(
+                        labelColor = MaterialTheme.colorScheme.primary
+                    )
+                )
+                
+                val statusColor = if (provider.isAvailable) Success else MaterialTheme.colorScheme.error
+                Surface(
+                    color = statusColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = if (provider.isAvailable) "DISPONIBLE" else "OCUPADO",
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Información del servicio",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(
+                text = provider.description.ifEmpty { "Sin descripción disponible." },
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            InfoRow(
+                icon = Icons.Default.Phone,
+                label = "Contacto",
+                value = provider.phone
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            InfoRow(
+                icon = Icons.Default.LocationOn,
+                label = "Ubicación aproximada",
+                value = addressText
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    onClick = {
+                        val url = "https://wa.me/${provider.phone.filter { it.isDigit() }}"
+                        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+                        context.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF25D366))
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null, tint = Color(0xFF25D366))
+                    Spacer(Modifier.width(8.dp))
+                    Text("WhatsApp", color = Color(0xFF25D366))
+                }
+
+                Button(
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_DIAL, "tel:${provider.phone}".toUri())
+                        context.startActivity(intent)
+                    },
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Call, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Llamar")
+                }
+            }
+
+            if (provider.serviceType.equals("AUXILIO", ignoreCase = true)) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    onClick = onNavigateToRequest,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Text(
+                        "SOLICITAR ASISTENCIA",
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
             }
         }
     }
@@ -782,7 +711,5 @@ private fun InfoRow(
     }
 }
 
-
-// OpenFreeMap style URLs
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"

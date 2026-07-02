@@ -10,4 +10,5 @@ data class VehicleResponse(
     val model: String,
     val insurance: String,
     val color: String,
+    val imageUrl: String? = null,
 )

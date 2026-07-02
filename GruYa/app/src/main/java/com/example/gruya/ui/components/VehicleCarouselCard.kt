@@ -60,7 +60,11 @@ fun VehicleCarouselCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            VehicleImagePlaceholder(modifier = Modifier.size(48.dp))
+            VehicleImage(
+                imageUrl = vehicle.imageUrl,
+                type = vehicle.type,
+                modifier = Modifier.size(60.dp)
+            )
 
             Text(
                 text = "${vehicle.brand} ${vehicle.model}",

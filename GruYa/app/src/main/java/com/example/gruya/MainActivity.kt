@@ -850,6 +850,7 @@ fun MainNavigationSuite(
                             onModelChange = addVehicleViewModel::onModelChange,
                             onInsurerChange = addVehicleViewModel::onInsurerChange,
                             onColorChange = addVehicleViewModel::onColorChange,
+                            onImageUrlChange = addVehicleViewModel::onImageUrlChange,
                             onSave = {
                                 addVehicleViewModel.onSave(
                                     onSuccess = {

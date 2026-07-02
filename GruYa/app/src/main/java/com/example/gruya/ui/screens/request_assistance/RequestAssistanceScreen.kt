@@ -5,64 +5,29 @@ import android.annotation.SuppressLint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ArrowBackIosNew
-import androidx.compose.material.icons.outlined.BatteryChargingFull
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Engineering
-import androidx.compose.material.icons.outlined.LocalGasStation
-import androidx.compose.material.icons.outlined.LocalShipping
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material.icons.outlined.Warning
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,7 +65,6 @@ fun RequestAssistanceScreen(
         )
     }
 
-    // --- Error Snackbar ---
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             snackbarHostState.showSnackbar(
@@ -111,7 +75,6 @@ fun RequestAssistanceScreen(
         }
     }
 
-    // --- Navigate back on success ---
     LaunchedEffect(uiState.isSubmitted) {
         if (uiState.isSubmitted) {
             onNavigateBack()
@@ -149,16 +112,15 @@ fun RequestAssistanceContent(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
-    val focusManager = LocalFocusManager.current
-
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
+            CenterAlignedTopAppBar(
                 title = {
                     Text(
                         text = "Solicitar Auxilio",
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
@@ -181,47 +143,25 @@ fun RequestAssistanceContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 32.dp)
         ) {
-            // --- Vehicle Carousel ---
+            // --- Vehicle Section ---
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Seleccioná tu vehículo",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    TextButton(onClick = onNavigateToAddVehicle) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Agregar")
-                    }
-                }
-            }
-
-            item {
+                SectionHeader(
+                    title = "Tu Vehículo",
+                    actionText = "Agregar",
+                    onActionClick = onNavigateToAddVehicle
+                )
+                Spacer(modifier = Modifier.height(12.dp))
                 if (uiState.vehicles.isEmpty()) {
-                    Text(
-                        text = "No tenés vehículos registrados",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.padding(vertical = 16.dp)
-                    )
+                    EmptyVehiclesPlaceholder(onNavigateToAddVehicle)
                 } else {
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(end = 20.dp)
+                    ) {
                         items(uiState.vehicles, key = { it.id }) { vehicle ->
                             VehicleCarouselCard(
                                 vehicle = vehicle,
@@ -233,17 +173,10 @@ fun RequestAssistanceContent(
                 }
             }
 
-            // --- Issue Type Grid (2 columns) ---
+            // --- Issue Type Section ---
             item {
-                Text(
-                    text = "Tipo de problema",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            item {
+                SectionHeader(title = "Tipo de Problema")
+                Spacer(modifier = Modifier.height(12.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     IssueType.entries.chunked(2).forEach { rowItems ->
                         Row(
@@ -251,181 +184,283 @@ fun RequestAssistanceContent(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             rowItems.forEach { issueType ->
-                                val isSelected = uiState.selectedIssueType == issueType
-
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clickable { onIssueTypeSelected(issueType) },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (isSelected) {
-                                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                                        } else {
-                                            MaterialTheme.colorScheme.surface
-                                        }
-                                    ),
-                                    border = BorderStroke(
-                                        width = if (isSelected) 2.dp else 1.dp,
-                                        color = if (isSelected) {
-                                            MaterialTheme.colorScheme.primary
-                                        } else {
-                                            MaterialTheme.colorScheme.outline
-                                        }
-                                    ),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = issueTypeIcon(issueType),
-                                            contentDescription = null,
-                                            tint = if (isSelected) {
-                                                MaterialTheme.colorScheme.primary
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                            },
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                        Text(
-                                            text = issueType.displayName,
-                                            color = if (isSelected) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSurface
-                                            },
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            textAlign = TextAlign.Center,
-                                            maxLines = 2
-                                        )
-                                    }
-                                }
+                                IssueTypeCard(
+                                    issueType = issueType,
+                                    isSelected = uiState.selectedIssueType == issueType,
+                                    onClick = { onIssueTypeSelected(issueType) },
+                                    modifier = Modifier.weight(1f)
+                                )
                             }
-
-                            // Fill remaining space if odd count
-                            if (rowItems.size < 2) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
+                            if (rowItems.size < 2) Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
             }
 
-            // --- Location Section ---
+            // --- Location Section (Route Card) ---
             item {
-                Text(
-                    text = "Ubicación de origen",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            item {
-                AppTextField(
-                    value = uiState.addressQuery,
-                    onValueChange = onAddressQueryChanged,
-                    placeholder = "Buscar dirección o seleccionar en mapa...",
-                    leadingIcon = Icons.Outlined.Search,
-                    imeAction = ImeAction.Search,
-                    keyboardActions = KeyboardActions(onSearch = {
-                        onSearchAddress(false)
-                        focusManager.clearFocus()
-                    }),
-                    trailingIcon = {
-                        IconButton(onClick = { onNavigateToMapPicker(false) }) {
-                            Icon(
-                                imageVector = Icons.Outlined.Map,
-                                contentDescription = "Seleccionar en mapa",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                )
-            }
-
-            // --- Destination Section ---
-            item {
-                Text(
-                    text = "Destino",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-
-            item {
-                val isLocationConfirmed = uiState.location != null
-
-                AppTextField(
-                    value = uiState.destinationAddressQuery,
-                    onValueChange = onDestinationAddressQueryChanged,
-                    placeholder = if (isLocationConfirmed) "Hacia dónde vamos..." else "Primero seleccioná tu ubicación",
-                    leadingIcon = Icons.Outlined.Search,
-                    enabled = isLocationConfirmed,
-                    imeAction = ImeAction.Search,
-                    keyboardActions = KeyboardActions(onSearch = {
-                        onSearchAddress(true)
-                        focusManager.clearFocus()
-                    }),
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { onNavigateToMapPicker(true) },
-                            enabled = isLocationConfirmed
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Map,
-                                contentDescription = "Seleccionar en mapa",
-                                tint = if (isLocationConfirmed) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-                                }
-                            )
-                        }
-                    }
+                SectionHeader(title = "Ubicación y Destino")
+                Spacer(modifier = Modifier.height(12.dp))
+                RouteSelectionCard(
+                    originQuery = uiState.addressQuery,
+                    destinationQuery = uiState.destinationAddressQuery,
+                    isDestinationEnabled = uiState.location != null,
+                    onOriginChange = onAddressQueryChanged,
+                    onDestinationChange = onDestinationAddressQueryChanged,
+                    onSearch = onSearchAddress,
+                    onMapClick = onNavigateToMapPicker
                 )
             }
 
             // --- Submit Button ---
             item {
+                Spacer(modifier = Modifier.height(8.dp))
                 Button(
                     onClick = onSubmit,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(55.dp)
-                        .padding(top = 8.dp),
+                        .height(56.dp),
                     enabled = uiState.isFormValid && !uiState.isLoading,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
-                    )
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onSecondary,
+                            color = MaterialTheme.colorScheme.onPrimary,
                             strokeWidth = 2.dp
                         )
                     } else {
-                        Icon(
-                            imageVector = Icons.Outlined.CheckCircle,
-                            contentDescription = null
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(Icons.Outlined.CheckCircle, contentDescription = null)
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "Confirmar Solicitud",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    actionText: String? = null,
+    onActionClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        if (actionText != null && onActionClick != null) {
+            TextButton(
+                onClick = onActionClick,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(actionText, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun IssueTypeCard(
+    issueType: IssueType,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Card(
+        modifier = modifier.clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(contentColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = issueTypeIcon(issueType),
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Text(
+                text = issueType.displayName,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun RouteSelectionCard(
+    originQuery: String,
+    destinationQuery: String,
+    isDestinationEnabled: Boolean,
+    onOriginChange: (String) -> Unit,
+    onDestinationChange: (String) -> Unit,
+    onSearch: (Boolean) -> Unit,
+    onMapClick: (Boolean) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Origin
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.MyLocation,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                AppTextField(
+                    value = originQuery,
+                    onValueChange = onOriginChange,
+                    placeholder = "Tu ubicación actual...",
+                    leadingIcon = Icons.Outlined.Search,
+                    imeAction = ImeAction.Search,
+                    keyboardActions = KeyboardActions(onSearch = {
+                        onSearch(false)
+                        focusManager.clearFocus()
+                    }),
+                    trailingIcon = {
+                        IconButton(onClick = { onMapClick(false) }) {
+                            Icon(Icons.Outlined.Map, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Connecting line
+            Box(
+                modifier = Modifier
+                    .padding(start = 9.dp)
+                    .height(24.dp)
+                    .width(2.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant)
+            )
+
+            // Destination
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Place,
+                    contentDescription = null,
+                    tint = if (isDestinationEnabled) Color(0xFFEF4444) else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                AppTextField(
+                    value = destinationQuery,
+                    onValueChange = onDestinationChange,
+                    placeholder = if (isDestinationEnabled) "¿A dónde lo llevamos?" else "Primero fijá el origen",
+                    leadingIcon = Icons.Outlined.Search,
+                    enabled = isDestinationEnabled,
+                    imeAction = ImeAction.Search,
+                    keyboardActions = KeyboardActions(onSearch = {
+                        onSearch(true)
+                        focusManager.clearFocus()
+                    }),
+                    trailingIcon = {
+                        IconButton(onClick = { onMapClick(true) }, enabled = isDestinationEnabled) {
+                            Icon(
+                                Icons.Outlined.Map,
+                                contentDescription = null,
+                                tint = if (isDestinationEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+                            )
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyVehiclesPlaceholder(onAddClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onAddClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(24.dp)
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                Icons.Outlined.DirectionsCar,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.outline
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "No tenés vehículos registrados",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            TextButton(onClick = onAddClick) {
+                Text("Presioná para agregar uno")
             }
         }
     }
@@ -447,8 +482,8 @@ private fun RequestAssistanceContentPreviewDark() {
         RequestAssistanceContent(
             uiState = RequestAssistanceUiState(
                 vehicles = listOf(
-                    Vehicle(1, VehicleType.AUTO, "EX 123 AM", "Ejemplo", "Ejemplo", "Ejemplo", "Blanco"),
-                    Vehicle(2, VehicleType.MOTO, "EJ 456 EM", "Ejemplo", "Ejemplo", "Ejemplo", "Rojo")
+                    Vehicle(1, VehicleType.AUTO, "EX 123 AM", "Toyota", "Corolla", "Allianz", "Blanco"),
+                    Vehicle(2, VehicleType.MOTO, "EJ 456 EM", "Honda", "CB500", "Federación", "Rojo")
                 ),
                 selectedVehicleId = 1,
                 selectedIssueType = IssueType.NEUMATICO_PINCHADO,
@@ -474,7 +509,7 @@ private fun RequestAssistanceContentPreviewLight() {
         RequestAssistanceContent(
             uiState = RequestAssistanceUiState(
                 vehicles = listOf(
-                    Vehicle(1, VehicleType.AUTO, "EX 123 AM", "Ejemplo", "Ejemplo", "Ejemplo", "Blanco")
+                    Vehicle(1, VehicleType.AUTO, "EX 123 AM", "Ford", "Fiesta", "La Caja", "Blanco")
                 ),
                 location = Pair(-34.6037, -58.3816)
             ),

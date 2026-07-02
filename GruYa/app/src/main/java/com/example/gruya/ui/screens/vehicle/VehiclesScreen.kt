@@ -8,9 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -29,6 +31,15 @@ fun VehiclesScreen(
     onEditVehicle: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Manejo de errores
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
     // Refresca la lista al reanudar la pantalla (vuelta de add/edit)
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -48,52 +59,61 @@ fun VehiclesScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         text = "Mis Vehículos",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold
                     )
                 },
+                scrollBehavior = scrollBehavior,
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = viewModel::onAddVehicle,
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                elevation = FloatingActionButtonDefaults.elevation(8.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Agregar Vehículo")
             }
         }
     ) { padding ->
-        Box(
+        PullToRefreshBox(
+            isRefreshing = uiState.isLoading,
+            onRefresh = viewModel::listVehicles,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (uiState.isLoading && uiState.vehicles.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else if (uiState.vehicles.isEmpty()) {
+            if (uiState.vehicles.isEmpty() && !uiState.isLoading) {
                 EmptyVehiclesState(onAddClick = viewModel::onAddVehicle)
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp)
+                    contentPadding = PaddingValues(bottom = 88.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    items(uiState.vehicles) { vehicle ->
+                    items(
+                        items = uiState.vehicles,
+                        key = { it.id }
+                    ) { vehicle ->
                         VehicleCard(
                             vehicle = vehicle,
                             onDelete = viewModel::onDeleteClick,
                             onEdit = viewModel::onEditClick,
+                            modifier = Modifier.animateItem()
                         )
                     }
                 }
@@ -109,7 +129,7 @@ fun VehiclesScreen(
                     },
                     confirmButton = {
                         TextButton(onClick = viewModel::confirmDelete) {
-                            Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                            Text("Eliminar", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {
@@ -128,37 +148,55 @@ fun EmptyVehiclesState(onAddClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(40.dp),
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(
-            imageVector = Icons.Outlined.DirectionsCar,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-        )
-        Spacer(modifier = Modifier.height(24.dp))
+        Surface(
+            modifier = Modifier.size(120.dp),
+            shape = RoundedCornerShape(32.dp),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Outlined.DirectionsCar,
+                    contentDescription = null,
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
         Text(
-            text = "Sin vehículos",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
+            text = "Sin vehículos aún",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
         Text(
-            text = "Registra tus vehículos para solicitar asistencia rápidamente.",
-            style = MaterialTheme.typography.bodyMedium,
+            text = "Registra tus vehículos para solicitar asistencia de forma más ágil y sencilla.",
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
         )
-        Spacer(modifier = Modifier.height(32.dp))
+        
+        Spacer(modifier = Modifier.height(40.dp))
+        
         Button(
             onClick = onAddClick,
             shape = RoundedCornerShape(16.dp),
-            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 12.dp)
+            contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
         ) {
-            Text("Agregar mi primer vehículo")
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Agregar Vehículo", style = MaterialTheme.typography.titleMedium)
         }
     }
 }

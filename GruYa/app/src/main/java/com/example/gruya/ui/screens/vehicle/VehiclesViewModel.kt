@@ -1,5 +1,6 @@
 package com.example.gruya.ui.screens.vehicle
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.VehicleRepository
@@ -31,6 +32,7 @@ class VehiclesViewModel @Inject constructor(
     val navigationEvent = _navigationEvent.receiveAsFlow()
 
     fun listVehicles() {
+        Log.d("VehiclesViewModel", "listVehicles called")
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val vehicles = vehicleRepository.listAll()

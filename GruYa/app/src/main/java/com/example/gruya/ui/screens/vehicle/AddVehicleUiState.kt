@@ -39,6 +39,8 @@ data class AddVehicleUiState(
     val color: String = "",
     val colorError: String? = null,
 
+    val imageUrl: String? = null,
+
     // ── Estado de la pantalla ──────────────────────────────────────────────
     val isLoading: Boolean = false,
     val error: String? = null,

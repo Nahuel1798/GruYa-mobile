@@ -1,11 +1,21 @@
 package com.example.gruya.ui.screens.provider_quotes
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -16,12 +26,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CarRepair
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material.icons.filled.TireRepair
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -36,6 +54,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.SecondaryIndicator
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -47,6 +68,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -62,12 +84,6 @@ import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.ServiceType
 import kotlinx.coroutines.launch
 import java.util.Locale
-import androidx.compose.material.icons.filled.HourglassEmpty
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CheckCircleOutline
-import androidx.compose.material.icons.filled.Cancel
-import androidx.compose.material.icons.filled.TimerOff
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,18 +123,25 @@ fun ProviderQuotesScreen(
                 title = {
                     Text(
                         text = "Mis Cotizaciones",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                windowInsets = TopAppBarDefaults.windowInsets
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.surface
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+        ) {
             // Tabs Row
             FilterTabs(
                 selectedFilter = uiState.selectedFilter,
@@ -129,45 +152,40 @@ fun ProviderQuotesScreen(
                 }
             )
 
-            // Filter description
-            Text(
-                text = uiState.selectedFilter.description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.Top
+                verticalAlignment = Alignment.Top,
+                beyondViewportPageCount = 1
             ) { pageIndex ->
                 val currentFilter = filters[pageIndex]
                 
-                // Show content only if it matches the current selection to avoid showing old data
-                // while the new data is loading for the specific filter.
-                // Note: The current ViewModel architecture only holds one list.
-                if (currentFilter == uiState.selectedFilter) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        when {
-                            uiState.isLoading && !uiState.isRefreshing -> {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator()
-                                }
-                            }
-
-                            uiState.error != null && uiState.quotes.isEmpty() -> {
+                AnimatedContent(
+                    targetState = uiState.isLoading && !uiState.isRefreshing && currentFilter == uiState.selectedFilter,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                    },
+                    label = "ContentTransition"
+                ) { loading ->
+                    if (loading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                strokeWidth = 3.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else if (currentFilter == uiState.selectedFilter) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (uiState.error != null && uiState.quotes.isEmpty()) {
                                 ProviderQuotesErrorContent(
                                     error = uiState.error!!,
                                     onRetry = { viewModel.loadQuotes() },
                                     modifier = Modifier.fillMaxSize()
                                 )
-                            }
-
-                            else -> {
+                            } else {
                                 ProviderQuotesListContent(
                                     quotes = uiState.quotes,
                                     isRefreshing = uiState.isRefreshing,
@@ -183,14 +201,9 @@ fun ProviderQuotesScreen(
                                 )
                             }
                         }
-                    }
-                } else {
-                    // Loading state for other pages during swipe
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp), strokeWidth = 2.dp)
+                    } else {
+                        // Keep content visible or show loading for other pages
+                        Box(modifier = Modifier.fillMaxSize())
                     }
                 }
             }
@@ -209,20 +222,28 @@ private fun FilterTabs(
 
     SecondaryTabRow(
         selectedTabIndex = selectedIndex,
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.background,
-        divider = {}
+        modifier = modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.primary,
+        divider = {
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+        }
     ) {
         filters.forEachIndexed { index, filter ->
+            val isSelected = index == selectedIndex
             Tab(
-                selected = index == selectedIndex,
+                selected = isSelected,
                 onClick = { onFilterSelected(filter) },
                 text = {
                     Text(
                         text = filter.label,
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = if (index == selectedIndex) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 12.dp)
                     )
                 }
             )
@@ -250,12 +271,12 @@ private fun ProviderQuotesListContent(
             EmptyState(filter = selectedFilter)
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp, end = 16.dp, top = 16.dp, bottom = 32.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item { Spacer(modifier = Modifier.height(8.dp)) }
                 items(quotes, key = { it.id }) { quote ->
                     QuoteCard(
                         quote = quote,
@@ -263,7 +284,6 @@ private fun ProviderQuotesListContent(
                         onClick = { onQuoteClick(quote) }
                     )
                 }
-                item { Spacer(modifier = Modifier.height(16.dp)) }
             }
         }
     }
@@ -278,30 +298,39 @@ private fun EmptyState(filter: ProviderQuoteFilter) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = when (filter) {
-                ProviderQuoteFilter.PENDIENTES -> Icons.Default.HourglassEmpty
-                ProviderQuoteFilter.ACEPTADAS -> Icons.Default.CheckCircleOutline
-                ProviderQuoteFilter.FINALIZADAS -> Icons.Default.History
-            },
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-        )
+        Surface(
+            modifier = Modifier.size(100.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = when (filter) {
+                        ProviderQuoteFilter.PENDIENTES -> Icons.Default.HourglassEmpty
+                        ProviderQuoteFilter.ACEPTADAS -> Icons.Default.CheckCircleOutline
+                        ProviderQuoteFilter.FINALIZADAS -> Icons.Default.History
+                    },
+                    contentDescription = null,
+                    modifier = Modifier.size(50.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = emptyMessageFor(filter),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.ExtraBold
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "No encontramos registros en esta categoría.\nDesliza hacia abajo para actualizar.",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            fontWeight = FontWeight.Medium
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "Desliza hacia abajo para actualizar",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center
+            lineHeight = 20.sp
         )
     }
 }
@@ -323,154 +352,194 @@ private fun QuoteCard(
     val vehicle = assistance.vehicle
     val isAccepted = quote.status == QuoteStatus.ACEPTADA
     val isInactive = quote.status in listOf(QuoteStatus.COMPLETADO, QuoteStatus.RECHAZADA, QuoteStatus.CANCELADA, QuoteStatus.EXPIRADA)
+    val statusColor = getStatusColor(quote.status)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = isAccepted) { onClick() },
-        shape = RoundedCornerShape(20.dp),
+            .clickable(enabled = isAccepted || quote.status == QuoteStatus.PENDIENTE) { onClick() },
+        shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isAccepted) 4.dp else 2.dp
+            defaultElevation = if (isAccepted) 6.dp else 2.dp,
+            pressedElevation = 8.dp
         ),
         border = if (isAccepted) {
-            androidx.compose.foundation.BorderStroke(
+            BorderStroke(
                 width = 2.dp,
-                color = Color(0xFF10B981).copy(alpha = 0.5f)
+                color = statusColor.copy(alpha = 0.5f)
             )
         } else null,
         colors = CardDefaults.cardColors(
             containerColor = if (isInactive) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
         )
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .alpha(if (isInactive) 0.7f else 1f)
-        ) {
-            // Header: Icon + Client + Cancel
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
+            // Status Indicator Strip
+            Box(
+                modifier = Modifier
+                    .width(6.dp)
+                    .fillMaxHeight()
+                    .background(statusColor.copy(alpha = 0.8f))
+            )
+            
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth()
+                    .alpha(if (isInactive) 0.6f else 1f)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            IconForServiceType(
-                                serviceType = assistance.serviceType,
-                                modifier = Modifier.size(24.dp)
+                // Header: Service Icon + Client + Action
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                IconForServiceType(
+                                    serviceType = assistance.serviceType,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = assistance.clientName.ifEmpty { "Cliente GruYa" },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = assistance.issueType.toDisplayName(),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = assistance.clientName.ifEmpty { "Cliente" },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = assistance.issueType.toDisplayName(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    
+                    if (quote.status == QuoteStatus.PENDIENTE) {
+                        IconButton(
+                            onClick = onCancel,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                                    CircleShape
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Cancelar",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    } else if (isAccepted) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp).padding(top = 4.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
                 
-                if (quote.status == QuoteStatus.PENDIENTE) {
-                    IconButton(
-                        onClick = onCancel,
-                        modifier = Modifier.size(32.dp)
+                // Vehicle Details
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancelar",
-                            tint = MaterialTheme.colorScheme.error
+                            imageVector = Icons.Default.DirectionsCar,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Details: Vehicle
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.DirectionsCar,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "${vehicle.brand} ${vehicle.model} • ${vehicle.color}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                thickness = 0.5.dp
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Footer: Price and Status
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Presupuesto",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "$${String.format(Locale.getDefault(), "%.0f", quote.price)}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = if (isAccepted) Color(0xFF10B981) else MaterialTheme.colorScheme.primary
-                    )
-                }
-                
-                Column(horizontalAlignment = Alignment.End) {
-                    QuoteStatusBadge(status = quote.status)
-                    if (isAccepted) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Toca para ver seguimiento",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF10B981),
+                            text = "${vehicle.brand} ${vehicle.model} • ${vehicle.color}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
                 }
-            }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    thickness = 0.5.dp
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Price and Status Badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "PRESUPUESTO",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            letterSpacing = 1.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "$${String.format(Locale.getDefault(), "%,.0f", quote.price)}",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (isAccepted) statusColor else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    
+                    QuoteStatusBadge(status = quote.status)
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // Date
-            Text(
-                text = "Enviada el ${quote.createdAt}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.End
-            )
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // Date
+                Text(
+                    text = "Enviada: ${quote.createdAt}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Start,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
+}
+
+private fun getStatusColor(status: QuoteStatus): Color = when (status) {
+    QuoteStatus.PENDIENTE -> Color(0xFFF59E0B) // Amber
+    QuoteStatus.ACEPTADA -> Color(0xFF10B981) // Emerald
+    QuoteStatus.COMPLETADO -> Color(0xFF3B82F6) // Blue
+    QuoteStatus.RECHAZADA -> Color(0xFFEF4444) // Red
+    QuoteStatus.CANCELADA -> Color(0xFF6B7280) // Gray
+    QuoteStatus.EXPIRADA -> Color(0xFF9CA3AF) // Silver/Gray
 }
 
 private fun IssueType.toDisplayName(): String = name.lowercase()
@@ -507,14 +576,14 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
     }
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = badgeColor.copy(alpha = 0.12f),
-        modifier = Modifier.padding(bottom = 4.dp)
+        shape = RoundedCornerShape(12.dp),
+        color = badgeColor.copy(alpha = 0.15f),
+        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f))
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
                 imageVector = icon,
@@ -526,12 +595,13 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
                 text = label.uppercase(),
                 color = badgeColor,
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 0.5.sp
             )
         }
     }
 }
+
 
 @Composable
 private fun ProviderQuotesErrorContent(
@@ -547,22 +617,39 @@ private fun ProviderQuotesErrorContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(32.dp)
         ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
+                modifier = Modifier.size(80.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Cancel,
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Ups! Algo salió mal",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                text = "¡Ups! Algo salió mal",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = error,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             Button(
                 onClick = onRetry,
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth(0.6f)
             ) {
                 Text("Reintentar")
             }

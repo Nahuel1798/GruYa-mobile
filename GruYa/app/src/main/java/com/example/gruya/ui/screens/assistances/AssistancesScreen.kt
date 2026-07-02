@@ -1,6 +1,5 @@
 package com.example.gruya.ui.screens.assistances
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -70,11 +71,13 @@ fun AssistancesScreen(
                 title = {
                     Text(
                         text = "Mis Solicitudes",
-                        style = MaterialTheme.typography.titleLarge
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             )
         },
@@ -91,13 +94,17 @@ fun AssistancesScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator()
+                        CircularProgressIndicator(
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(48.dp)
+                        )
                     }
                 }
 
                 uiState.error != null && uiState.assistances.isEmpty() && uiState.activeAssistance == null -> {
                     AssistancesErrorContent(
                         error = uiState.error!!,
+                        onRetry = viewModel::loadAssistances,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -133,10 +140,10 @@ private fun AssistancesListContent(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { Spacer(modifier = Modifier.height(8.dp)) }
+        item { Spacer(modifier = Modifier.height(4.dp)) }
 
         activeAssistance?.let {
             item {
@@ -144,7 +151,8 @@ private fun AssistancesListContent(
                     text = "Solicitud Activa",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 4.dp)
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
                 )
                 ActiveAssistanceCard(
                     assistance = it,
@@ -152,26 +160,28 @@ private fun AssistancesListContent(
                     onCancelAssistance = onCancelAssistance
                 )
             }
-            item {
-                if (assistances.isNotEmpty()) {
-                    Text(
-                        text = "Historial y otras solicitudes",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
 
-        items(assistances.filter { it.id != activeAssistance?.id }, key = { it.id }) { assistance ->
-            AssistanceCard(
-                assistance = assistance,
-                onNavigateToQuotes = onNavigateToQuotes
-            )
+        if (assistances.isNotEmpty()) {
+            item {
+                Text(
+                    text = "Historial",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 4.dp),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            items(assistances.filter { it.id != activeAssistance?.id }, key = { it.id }) { assistance ->
+                AssistanceCard(
+                    assistance = assistance,
+                    onNavigateToQuotes = onNavigateToQuotes
+                )
+            }
         }
-        item { Spacer(modifier = Modifier.height(16.dp)) }
+        
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }
 
@@ -184,123 +194,120 @@ private fun ActiveAssistanceCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.5.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
         )
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primary
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        IconForServiceType(
+                            serviceType = assistance.serviceType,
+                            modifier = Modifier.size(26.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = assistance.issueType.displayName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        letterSpacing = (-0.5).sp
+                    )
+                    Text(
+                        text = "${assistance.vehicle.brand} ${assistance.vehicle.model} • ${assistance.vehicle.licensePlate}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .background(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                RoundedCornerShape(12.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        IconForServiceType(
-                            serviceType = assistance.serviceType,
-                            modifier = Modifier.size(24.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = assistance.issueType.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Solicitud en curso",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
                 StatusBadge(status = assistance.status)
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Vehicle info in a subtle box
-            Surface(
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CarRepair,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(8.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary
+                    ) {}
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "SOLICITUD ACTIVA",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 1.sp
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "${assistance.vehicle.brand} ${assistance.vehicle.model}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = assistance.vehicle.licensePlate,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Button(
-                onClick = { onNavigateToQuotes(assistance.id) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Ver detalles y seguimiento",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
+                OutlinedButton(
+                    onClick = onCancelAssistance,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp, 
+                        MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                    )
+                ) {
+                    Text(
+                        text = "Cancelar",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = onCancelAssistance,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text(
-                    text = "Cancelar solicitud",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Button(
+                    onClick = { onNavigateToQuotes(assistance.id) },
+                    modifier = Modifier
+                        .weight(1.5f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                ) {
+                    Text(
+                        text = "Seguimiento",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
             }
         }
     }
@@ -313,10 +320,9 @@ private fun AssistanceCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -326,21 +332,29 @@ private fun AssistanceCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconForServiceType(
-                        serviceType = assistance.serviceType,
-                        modifier = Modifier.size(22.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Surface(
+                        modifier = Modifier.size(44.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            IconForServiceType(
+                                serviceType = assistance.serviceType,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
                             text = assistance.issueType.displayName,
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${assistance.vehicle.brand} ${assistance.vehicle.model}",
+                            text = "${assistance.vehicle.brand} • ${assistance.vehicle.licensePlate}",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -349,25 +363,26 @@ private fun AssistanceCard(
                 StatusBadge(status = assistance.status)
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            Button(
+            Surface(
                 onClick = { onNavigateToQuotes(assistance.id) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Ver respuestas",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = if (assistance.status == AssistanceStatus.PENDIENTE) "Ver Cotizaciones" else "Ver Detalles",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
@@ -387,7 +402,7 @@ private fun IconForServiceType(
     Icon(
         imageVector = icon,
         contentDescription = serviceType.displayName,
-        modifier = modifier.size(24.dp),
+        modifier = modifier,
         tint = tint
     )
 }
@@ -395,27 +410,26 @@ private fun IconForServiceType(
 @Composable
 private fun StatusBadge(status: AssistanceStatus) {
     val (label, badgeColor) = when (status) {
-        AssistanceStatus.PENDIENTE -> "Pendiente" to Color(0xFFF59E0B) // Warning
-        AssistanceStatus.ACEPTADA -> "Aceptada" to Color(0xFF8B5CF6)   // Purple
-        AssistanceStatus.EN_CAMINO_AL_CLIENTE -> "En camino al cliente" to Color(0xFF3B82F6) // Blue
-        AssistanceStatus.EN_ORIGEN -> "En origen" to Color(0xFFF97316) // Orange
-        AssistanceStatus.EN_CAMINO_AL_DESTINO -> "En camino al destino" to Color(0xFF14B8A6) // Teal
-        AssistanceStatus.COMPLETADO -> "Completado" to Color(0xFF22C55E) // Success
-        AssistanceStatus.CANCELADO -> "Cancelado" to Color(0xFFEF4444)   // Error
+        AssistanceStatus.PENDIENTE -> "Pendiente" to Color(0xFFF59E0B)
+        AssistanceStatus.ACEPTADA -> "Aceptada" to Color(0xFF8B5CF6)
+        AssistanceStatus.EN_CAMINO_AL_CLIENTE -> "En Camino" to Color(0xFF3B82F6)
+        AssistanceStatus.EN_ORIGEN -> "En Origen" to Color(0xFFF97316)
+        AssistanceStatus.EN_CAMINO_AL_DESTINO -> "A Destino" to Color(0xFF14B8A6)
+        AssistanceStatus.COMPLETADO -> "Completada" to Color(0xFF10B981)
+        AssistanceStatus.CANCELADO -> "Cancelada" to Color(0xFFEF4444)
     }
 
-    Card(
-        shape = RoundedCornerShape(6.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = badgeColor.copy(alpha = 0.15f)
-        )
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = badgeColor.copy(alpha = 0.12f),
     ) {
         Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            text = label.uppercase(),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             color = badgeColor,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 0.5.sp
         )
     }
 }
@@ -423,42 +437,79 @@ private fun StatusBadge(status: AssistanceStatus) {
 @Composable
 private fun AssistancesEmptyContent(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.CarRepair,
-            contentDescription = null,
-            modifier = Modifier.size(100.dp),
-            tint = MaterialTheme.colorScheme.surfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        Surface(
+            modifier = Modifier.size(120.dp),
+            shape = RoundedCornerShape(40.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Default.CarRepair,
+                    contentDescription = null,
+                    modifier = Modifier.size(60.dp),
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Todavía no tienes solicitudes de auxilio.",
+            text = "Sin solicitudes",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Cuando solicites asistencia, aparecerá aquí para que puedas hacerle seguimiento.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
     }
 }
 
 @Composable
 private fun AssistancesErrorContent(
+    modifier: Modifier = Modifier,
     error: String,
-    modifier: Modifier = Modifier
+    onRetry: () -> Unit = {}
 ) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Text(
+            text = "Ups! Algo salió mal",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = error,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Reintentar")
+        }
     }
 }
+
 
 @Preview(
     name = "AssistancesScreen – Light",

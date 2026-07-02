@@ -37,6 +37,7 @@ class AddVehicleViewModel @Inject constructor(
                         model = vehicle.model,
                         insurer = vehicle.insurance,
                         color = vehicle.color,
+                        imageUrl = vehicle.imageUrl,
                         isLoading = false
                     )
                 }
@@ -95,6 +96,10 @@ class AddVehicleViewModel @Inject constructor(
         }
     }
 
+    fun onImageUrlChange(imageUrl: String?) {
+        _uiState.update { it.copy(imageUrl = imageUrl) }
+    }
+
     fun onSave(onSuccess: () -> Unit) {
         if (!validate()) return
 
@@ -108,7 +113,8 @@ class AddVehicleViewModel @Inject constructor(
                 brand = state.brand,
                 model = state.model,
                 insurance = state.insurer,
-                color = state.color
+                color = state.color,
+                imageUrl = state.imageUrl
             )
 
             val success = if (state.isEditMode && state.vehicleId != null) {
@@ -118,7 +124,8 @@ class AddVehicleViewModel @Inject constructor(
                     brand = state.brand,
                     model = state.model,
                     insurance = state.insurer,
-                    color = state.color
+                    color = state.color,
+                    imageUrl = state.imageUrl
                 )
                 vehicleRepository.update(state.vehicleId, updateRequest) != null
             } else {

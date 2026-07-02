@@ -1,5 +1,7 @@
 package com.example.gruya.ui.screens.vehicle
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,12 +17,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.gruya.domain.model.VehicleType
 import com.example.gruya.ui.components.AppTextField
 
@@ -104,10 +108,17 @@ fun AddVehicleScreen(
     onModelChange: (String) -> Unit,
     onInsurerChange: (String) -> Unit,
     onColorChange: (String) -> Unit,
+    onImageUrlChange: (String) -> Unit,
     onSave: () -> Unit,
     onNavigateBack: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { onImageUrlChange(it.toString()) }
+    }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let { snackbarHostState.showSnackbar(it) }
@@ -186,6 +197,63 @@ fun AddVehicleScreen(
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             Spacer(modifier = Modifier.height(4.dp))
+
+            // ── Foto del vehículo ─────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SectionLabel("Foto del Vehículo")
+                
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                        .clickable { photoPickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!uiState.imageUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = uiState.imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        
+                        // Botón para quitar/cambiar foto
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
+                            onClick = { onImageUrlChange("") }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Quitar foto",
+                                modifier = Modifier.padding(6.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.AddAPhoto,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Toca para agregar foto",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
 
             // ── Tipo de vehículo ───────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -370,6 +438,7 @@ private fun AddVehicleScreenPreview() {
         onModelChange   = {},
         onInsurerChange = {},
         onColorChange   = {},
+        onImageUrlChange = {},
         onSave          = {}
     )
 }
@@ -391,6 +460,7 @@ private fun AddVehicleScreenWithErrorsPreview() {
         onModelChange   = {},
         onInsurerChange = {},
         onColorChange   = {},
+        onImageUrlChange = {},
         onSave          = {}
     )
 }

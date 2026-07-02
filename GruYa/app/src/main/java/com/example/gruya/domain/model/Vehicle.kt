@@ -7,5 +7,6 @@ data class Vehicle(
     val brand: String,
     val model: String,
     val insurance: String,
-    val color: String
+    val color: String,
+    val imageUrl: String? = null
 )

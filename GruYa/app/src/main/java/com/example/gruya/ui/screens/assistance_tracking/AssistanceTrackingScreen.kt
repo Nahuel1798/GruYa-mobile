@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,9 +27,15 @@ import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.TrackingState
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Check
-
-private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
-private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,11 +86,12 @@ fun AssistanceTrackingScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        sheetPeekHeight = 140.dp,
+        sheetPeekHeight = 160.dp,
         sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         sheetShadowElevation = 8.dp,
         sheetDragHandle = { BottomSheetDefaults.DragHandle() },
@@ -94,65 +100,165 @@ fun AssistanceTrackingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 24.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Header: Status and Type
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        StatusBadge(assistance.status)
+                        Text(
+                            text = "#${assistance.id}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Client Info Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
-                                .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Person,
                                 contentDescription = null,
+                                modifier = Modifier.size(32.dp),
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
+                        
                         Spacer(modifier = Modifier.width(16.dp))
-                        Column {
+                        
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "${assistance.client.firstName} ${assistance.client.lastName}",
                                 style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = assistance.serviceType.name,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Row {
+                            IconButton(
+                                onClick = { /* TODO: Call client */ },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Icon(Icons.Default.Call, contentDescription = "Llamar", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = { /* TODO: Chat with client */ },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Mensaje", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    // ETA and Distance Row
+                    if (assistance.status != AssistanceStatus.COMPLETADO && assistance.status != AssistanceStatus.CANCELADO) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceAround
+                        ) {
+                            MetricItem(
+                                icon = Icons.Default.AccessTime,
+                                value = if (assistance.etaMinutes != null) "${assistance.etaMinutes.toInt()} min" else "--",
+                                label = "Llegada"
+                            )
+                            VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                            MetricItem(
+                                icon = Icons.Default.DirectionsCar,
+                                value = if (assistance.distanceKm != null) String.format(Locale.getDefault(), "%.1f km", assistance.distanceKm) else "--",
+                                label = "Distancia"
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+
+                    // Address Card
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        tonalElevation = 2.dp,
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            InfoRow(
+                                icon = Icons.Default.LocationOn,
+                                label = "Punto de recogida",
+                                value = uiState.originAddress ?: "Cargando...",
+                                iconColor = Color(0xFF4CAF50)
+                            )
+                            
+                            Box(modifier = Modifier.padding(start = 9.dp)) {
+                                VerticalDivider(
+                                    modifier = Modifier
+                                        .height(20.dp)
+                                        .width(2.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            }
+
+                            InfoRow(
+                                icon = Icons.Default.Flag,
+                                label = "Destino final",
+                                value = uiState.destinationAddress ?: "Cargando...",
+                                iconColor = MaterialTheme.colorScheme.error
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    InfoRow(Icons.Default.LocationOn, "Origen", uiState.originAddress ?: "Cargando...")
-                    Spacer(modifier = Modifier.height(8.dp))
-                    InfoRow(Icons.Default.LocationOn, "Destino", uiState.destinationAddress ?: "Cargando...")
-
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     val trackingState = uiState.trackingState
                     val status = assistance.status
 
                     if (trackingState is TrackingState.Error) {
                         Text(
-                            text = "Error: ${trackingState.message}",
+                            text = trackingState.message,
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            textAlign = TextAlign.Center
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
                     }
 
                     when (status) {
                         AssistanceStatus.ACEPTADA -> {
                             ProviderActionButton(
-                                label = "Iniciar viaje",
+                                label = "INICIAR VIAJE",
                                 icon = Icons.Default.PlayArrow,
                                 isLoading = uiState.isLoading,
                                 isError = trackingState is TrackingState.Error,
@@ -161,7 +267,7 @@ fun AssistanceTrackingScreen(
                         }
                         AssistanceStatus.EN_CAMINO_AL_CLIENTE -> {
                             ProviderActionButton(
-                                label = "Llegué al cliente",
+                                label = "LLEGUÉ AL CLIENTE",
                                 icon = Icons.Default.LocationOn,
                                 isLoading = uiState.isLoading,
                                 isError = trackingState is TrackingState.Error,
@@ -169,19 +275,20 @@ fun AssistanceTrackingScreen(
                                 onClick = { viewModel.arriveAtOrigin() }
                             )
                             if (!uiState.isNearOrigin && !uiState.isLoading) {
-                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Debes estar a menos de 300m del origen",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                         AssistanceStatus.EN_ORIGEN -> {
                             ProviderActionButton(
-                                label = "Ir al destino",
+                                label = "IR AL DESTINO",
                                 icon = Icons.Default.Flag,
                                 isLoading = uiState.isLoading,
                                 isError = trackingState is TrackingState.Error,
@@ -190,7 +297,7 @@ fun AssistanceTrackingScreen(
                         }
                         AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
                             ProviderActionButton(
-                                label = "Finalizar servicio",
+                                label = "FINALIZAR SERVICIO",
                                 icon = Icons.Default.Check,
                                 isLoading = uiState.isLoading,
                                 isError = trackingState is TrackingState.Error,
@@ -198,33 +305,35 @@ fun AssistanceTrackingScreen(
                                 onClick = { viewModel.completeService() }
                             )
                             if (!uiState.isNearDestination && !uiState.isLoading) {
-                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = "Debes estar a menos de 300m del destino",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                         AssistanceStatus.COMPLETADO -> {
                             Text(
                                 text = "Servicio completado",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color(0xFF4CAF50),
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center
                             )
                         }
                         AssistanceStatus.CANCELADO -> {
                             Text(
                                 text = "Servicio cancelado",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold,
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center
                             )
                         }
                         AssistanceStatus.PENDIENTE -> {
@@ -233,7 +342,7 @@ fun AssistanceTrackingScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.fillMaxWidth(),
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -242,9 +351,9 @@ fun AssistanceTrackingScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-            if (uiState.isLoading) {
+            if (uiState.assistance == null && uiState.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (uiState.error != null) {
+            } else if (uiState.error != null && uiState.assistance == null) {
                 Column(
                     modifier = Modifier.align(Alignment.Center).padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
@@ -252,7 +361,7 @@ fun AssistanceTrackingScreen(
                     Text(
                         text = uiState.error!!,
                         color = MaterialTheme.colorScheme.error,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { viewModel.loadAssistance(assistanceId, trackingSessionId) }) {
@@ -283,18 +392,84 @@ fun AssistanceTrackingScreen(
 
 
 @Composable
-private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+private fun StatusBadge(status: AssistanceStatus) {
+    val (color, text) = when (status) {
+        AssistanceStatus.PENDIENTE -> MaterialTheme.colorScheme.outline to "Pendiente"
+        AssistanceStatus.ACEPTADA -> MaterialTheme.colorScheme.primary to "Aceptada"
+        AssistanceStatus.EN_CAMINO_AL_CLIENTE -> Color(0xFF4CAF50) to "En camino"
+        AssistanceStatus.EN_ORIGEN -> Color(0xFFFF9800) to "En origen"
+        AssistanceStatus.EN_CAMINO_AL_DESTINO -> Color(0xFF2196F3) to "Al destino"
+        AssistanceStatus.COMPLETADO -> Color(0xFF4CAF50) to "Completado"
+        AssistanceStatus.CANCELADO -> MaterialTheme.colorScheme.error to "Cancelado"
+    }
+
+    Surface(
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(8.dp),
+    ) {
+        Text(
+            text = text.uppercase(),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = color
+        )
+    }
+}
+
+@Composable
+private fun MetricItem(icon: androidx.compose.ui.graphics.vector.ImageVector, value: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun InfoRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    iconColor: Color = MaterialTheme.colorScheme.primary
+) {
+    Row(verticalAlignment = Alignment.Top) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = iconColor
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(value, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -310,27 +485,36 @@ private fun ProviderActionButton(
 ) {
     Button(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary
         ),
-        enabled = !isLoading && !isError && enabled
+        enabled = !isLoading && !isError && enabled,
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
     ) {
         if (isLoading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
+                modifier = Modifier.size(24.dp),
+                strokeWidth = 3.dp,
                 color = MaterialTheme.colorScheme.onPrimary
             )
         } else {
             Icon(
                 imageVector = icon,
-                contentDescription = null
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(label)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp
+            )
         }
     }
 }

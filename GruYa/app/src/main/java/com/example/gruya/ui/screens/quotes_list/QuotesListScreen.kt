@@ -72,6 +72,7 @@ import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.TrackingState
 import com.example.gruya.domain.model.displayName
 import com.example.gruya.ui.components.TrackingMap
+import com.example.gruya.utils.DateTimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,7 +98,8 @@ fun QuotesListScreen(
                     title = {
                         Text(
                             text = "Respuestas",
-                            style = MaterialTheme.typography.titleLarge
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
                         )
                     },
                     navigationIcon = {
@@ -311,7 +313,7 @@ private fun ActiveServiceTrackingContent(
                     ) {
                         MetricItem(label = "Distancia", value = "%.1f km".format(uiState.distanceKm))
                         VerticalDivider(modifier = Modifier.height(24.dp), thickness = 1.dp)
-                        MetricItem(label = "Llegada", value = "~%.0f min".format(uiState.etaMinutes ?: 0.0))
+                        MetricItem(label = "Llegada", value = DateTimeUtils.formatEtaToArrivalTime(uiState.etaMinutes))
                     }
                 }
             }
@@ -517,7 +519,7 @@ private fun QuoteCard(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = quote.createdAt,
+                                    text = DateTimeUtils.formatRelative(quote.createdAt),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

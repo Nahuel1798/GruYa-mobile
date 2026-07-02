@@ -119,7 +119,7 @@ fun RequestAssistanceContent(
                 title = {
                     Text(
                         text = "Solicitar Auxilio",
-                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
                     )
                 },

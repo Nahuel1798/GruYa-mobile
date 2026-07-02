@@ -6,7 +6,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -105,13 +104,15 @@ fun TrackingMap(
                 
                 val maxDelta = maxOf(deltaLat, deltaLon)
                 val zoom = when {
-                    maxDelta > 1.0 -> 7.5
-                    maxDelta > 0.5 -> 8.5
-                    maxDelta > 0.2 -> 10.0
-                    maxDelta > 0.1 -> 11.2
-                    maxDelta > 0.05 -> 12.2
-                    maxDelta > 0.02 -> 13.2
-                    else -> 14.2
+                    maxDelta > 2.0 -> 7.0
+                    maxDelta > 1.0 -> 8.0
+                    maxDelta > 0.5 -> 9.0
+                    maxDelta > 0.2 -> 10.5
+                    maxDelta > 0.1 -> 11.5
+                    maxDelta > 0.05 -> 12.5
+                    maxDelta > 0.02 -> 13.5
+                    maxDelta > 0.01 -> 14.5
+                    else -> 15.5
                 }
 
                 cameraState.animateTo(
@@ -142,7 +143,7 @@ fun TrackingMap(
             cameraState.animateTo(
                 CameraPosition(
                     target = Position(providerLocation.longitude, providerLocation.latitude),
-                    zoom = if (cameraState.position.zoom < 15.0) 16.5 else cameraState.position.zoom,
+                    zoom = if (cameraState.position.zoom < 14.0) 16.0 else cameraState.position.zoom,
                     bearing = currentBearing,
                     tilt = 45.0
                 )
@@ -158,6 +159,31 @@ fun TrackingMap(
     }
 
 
+    // Computed display routes that start from the provider's current location to avoid gaps
+    val displayRoute = remember(remainingRoute, providerLocation) {
+        if (providerLocation != null && remainingRoute.isNotEmpty()) {
+            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingRoute
+        } else {
+            remainingRoute
+        }
+    }
+
+    val displayProviderRoute = remember(remainingProviderRoute, providerLocation) {
+        if (providerLocation != null && remainingProviderRoute.isNotEmpty()) {
+            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingProviderRoute
+        } else {
+            remainingProviderRoute
+        }
+    }
+
+    val displayProviderToDestRoute = remember(remainingProviderToDestRoute, providerLocation) {
+        if (providerLocation != null && remainingProviderToDestRoute.isNotEmpty()) {
+            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingProviderToDestRoute
+        } else {
+            remainingProviderToDestRoute
+        }
+    }
+
     MaplibreMap(
         modifier = modifier.fillMaxSize(),
         cameraState = cameraState,
@@ -168,108 +194,102 @@ fun TrackingMap(
         val destinoIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
 
         // Trace the route if available
-        if (remainingRoute.size >= 2) {
-            key(remainingRoute) {
-                val routeData = remember(remainingRoute) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = LineString(coordinates = remainingRoute),
-                                    properties = null
-                                )
+        if (displayRoute.size >= 2) {
+            val routeData = remember(displayRoute) {
+                GeoJsonData.Features(
+                    geoJson = FeatureCollection(
+                        features = listOf(
+                            Feature(
+                                geometry = LineString(coordinates = displayRoute),
+                                properties = null
                             )
                         )
                     )
-                }
-                val routeSource = rememberGeoJsonSource(data = routeData)
-
-                // Route casing (border)
-                LineLayer(
-                    id = "assistance-route-casing",
-                    source = routeSource,
-                    color = const(Color.White),
-                    width = const(9.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round)
-                )
-
-                LineLayer(
-                    id = "assistance-route",
-                    source = routeSource,
-                    color = const(MaterialTheme.colorScheme.primary),
-                    width = const(6.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round)
                 )
             }
+            val routeSource = rememberGeoJsonSource(data = routeData)
+
+            // Route casing (border)
+            LineLayer(
+                id = "assistance-route-casing",
+                source = routeSource,
+                color = const(Color.White),
+                width = const(9.dp),
+                join = const(LineJoin.Round),
+                cap = const(LineCap.Round)
+            )
+
+            LineLayer(
+                id = "assistance-route",
+                source = routeSource,
+                color = const(MaterialTheme.colorScheme.primary),
+                width = const(6.dp),
+                join = const(LineJoin.Round),
+                cap = const(LineCap.Round)
+            )
         }
 
         // Trace provider to origin route
-        if (remainingProviderRoute.size >= 2) {
-            key(remainingProviderRoute) {
-                val providerRouteData = remember(remainingProviderRoute) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = LineString(coordinates = remainingProviderRoute),
-                                    properties = null
-                                )
+        if (displayProviderRoute.size >= 2) {
+            val providerRouteData = remember(displayProviderRoute) {
+                GeoJsonData.Features(
+                    geoJson = FeatureCollection(
+                        features = listOf(
+                            Feature(
+                                geometry = LineString(coordinates = displayProviderRoute),
+                                properties = null
                             )
                         )
                     )
-                }
-                val providerRouteSource = rememberGeoJsonSource(data = providerRouteData)
-
-                LineLayer(
-                    id = "provider-to-origin-route",
-                    source = providerRouteSource,
-                    color = const(Color(0xFF3B82F6)),
-                    width = const(6.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round),
-                    dasharray = const(listOf(2f, 2f))
                 )
             }
+            val providerRouteSource = rememberGeoJsonSource(data = providerRouteData)
+
+            LineLayer(
+                id = "provider-to-origin-route",
+                source = providerRouteSource,
+                color = const(Color(0xFF3B82F6)),
+                width = const(6.dp),
+                join = const(LineJoin.Round),
+                cap = const(LineCap.Round),
+                dasharray = const(listOf(2f, 2f))
+            )
         }
 
         // Trace provider to destination route
-        if (remainingProviderToDestRoute.size >= 2) {
-            key(remainingProviderToDestRoute) {
-                val providerToDestData = remember(remainingProviderToDestRoute) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = LineString(coordinates = remainingProviderToDestRoute),
-                                    properties = null
-                                )
+        if (displayProviderToDestRoute.size >= 2) {
+            val providerToDestData = remember(displayProviderToDestRoute) {
+                GeoJsonData.Features(
+                    geoJson = FeatureCollection(
+                        features = listOf(
+                            Feature(
+                                geometry = LineString(coordinates = displayProviderToDestRoute),
+                                properties = null
                             )
                         )
                     )
-                }
-                val providerToDestSource = rememberGeoJsonSource(data = providerToDestData)
-
-                // Route casing (border)
-                LineLayer(
-                    id = "provider-to-destination-route-casing",
-                    source = providerToDestSource,
-                    color = const(Color.White),
-                    width = const(9.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round)
-                )
-
-                LineLayer(
-                    id = "provider-to-destination-route",
-                    source = providerToDestSource,
-                    color = const(MaterialTheme.colorScheme.secondary),
-                    width = const(6.dp),
-                    join = const(LineJoin.Round),
-                    cap = const(LineCap.Round)
                 )
             }
+            val providerToDestSource = rememberGeoJsonSource(data = providerToDestData)
+
+            // Route casing (border)
+            LineLayer(
+                id = "provider-to-destination-route-casing",
+                source = providerToDestSource,
+                color = const(Color.White),
+                width = const(9.dp),
+                join = const(LineJoin.Round),
+                cap = const(LineCap.Round)
+            )
+
+            LineLayer(
+                id = "provider-to-destination-route",
+                source = providerToDestSource,
+                color = const(MaterialTheme.colorScheme.secondary),
+                width = const(6.dp),
+                join = const(LineJoin.Round),
+                cap = const(LineCap.Round)
+            )
         }
 
         // Origin and Destination markers
@@ -316,38 +336,36 @@ fun TrackingMap(
 
         // Provider marker (The one being tracked) - Show on top
         providerLocation?.let { location ->
-            key(location) {
-                val providerSource = rememberGeoJsonSource(
-                    data = remember(location) {
-                        GeoJsonData.Features(
-                            geoJson = FeatureCollection(
-                                features = listOf(
-                                    Feature(
-                                        geometry = Point(Position(location.longitude, location.latitude)),
-                                        properties = buildJsonObject { put("type", "provider") }
-                                    )
+            val providerSource = rememberGeoJsonSource(
+                data = remember(location) {
+                    GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = Point(Position(location.longitude, location.latitude)),
+                                    properties = buildJsonObject { put("type", "provider") }
                                 )
                             )
                         )
-                    }
-                )
+                    )
+                }
+            )
 
-                SymbolLayer(
-                    id = "provider-marker-layer",
-                    source = providerSource,
-                    iconImage = auxilioIcon,
-                    iconColor = const(
-                        if (isProvider)
-                            MaterialTheme.colorScheme.error
-                        else
-                            MaterialTheme.colorScheme.tertiary
-                    ),
-                    iconSize = const(1.5f),
-                    iconAllowOverlap = const(true),
-                    iconIgnorePlacement = const(true),
-                    iconAnchor = const(SymbolAnchor.Center)
-                )
-            }
+            SymbolLayer(
+                id = "provider-marker-layer",
+                source = providerSource,
+                iconImage = auxilioIcon,
+                iconColor = const(
+                    if (isProvider)
+                        MaterialTheme.colorScheme.error
+                    else
+                        MaterialTheme.colorScheme.tertiary
+                ),
+                iconSize = const(1.5f),
+                iconAllowOverlap = const(true),
+                iconIgnorePlacement = const(true),
+                iconAnchor = const(SymbolAnchor.Center)
+            )
         }
     }
 }

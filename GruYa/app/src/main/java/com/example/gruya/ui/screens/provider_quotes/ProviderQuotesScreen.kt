@@ -82,6 +82,7 @@ import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.Quote
 import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.ServiceType
+import com.example.gruya.utils.DateTimeUtils
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -123,9 +124,8 @@ fun ProviderQuotesScreen(
                 title = {
                     Text(
                         text = "Mis Cotizaciones",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -227,8 +227,8 @@ private fun FilterTabs(
         contentColor = MaterialTheme.colorScheme.primary,
         divider = {
             HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
             )
         }
     ) {
@@ -351,187 +351,194 @@ private fun QuoteCard(
     val assistance = quote.assistance
     val vehicle = assistance.vehicle
     val isAccepted = quote.status == QuoteStatus.ACEPTADA
+    val isPending = quote.status == QuoteStatus.PENDIENTE
     val isInactive = quote.status in listOf(QuoteStatus.COMPLETADO, QuoteStatus.RECHAZADA, QuoteStatus.CANCELADA, QuoteStatus.EXPIRADA)
     val statusColor = getStatusColor(quote.status)
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(enabled = isAccepted || quote.status == QuoteStatus.PENDIENTE) { onClick() },
-        shape = RoundedCornerShape(24.dp),
+            .clickable(enabled = isAccepted || isPending) { onClick() },
+        shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isAccepted) 6.dp else 2.dp,
-            pressedElevation = 8.dp
+            defaultElevation = if (isAccepted) 4.dp else 0.dp
         ),
-        border = if (isAccepted) {
-            BorderStroke(
-                width = 2.dp,
-                color = statusColor.copy(alpha = 0.5f)
-            )
-        } else null,
         colors = CardDefaults.cardColors(
             containerColor = if (isInactive) {
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             } else {
                 MaterialTheme.colorScheme.surface
             }
+        ),
+        border = BorderStroke(
+            width = if (isAccepted) 1.5.dp else 1.dp,
+            color = if (isAccepted) statusColor.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         )
     ) {
-        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max)) {
-            // Status Indicator Strip
-            Box(
-                modifier = Modifier
-                    .width(6.dp)
-                    .fillMaxHeight()
-                    .background(statusColor.copy(alpha = 0.8f))
-            )
-            
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth()
-                    .alpha(if (isInactive) 0.6f else 1f)
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth()
+                .alpha(if (isInactive) 0.6f else 1f)
+        ) {
+            // Header: Status and Time
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Header: Service Icon + Client + Action
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                IconForServiceType(
-                                    serviceType = assistance.serviceType,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = assistance.clientName.ifEmpty { "Cliente GruYa" },
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = assistance.issueType.toDisplayName(),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                    
-                    if (quote.status == QuoteStatus.PENDIENTE) {
-                        IconButton(
-                            onClick = onCancel,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
-                                    CircleShape
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Cancelar",
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    } else if (isAccepted) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp).padding(top = 4.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Vehicle Details
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsCar,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${vehicle.brand} ${vehicle.model} • ${vehicle.color}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    thickness = 0.5.dp
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Price and Status Badge
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "PRESUPUESTO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            letterSpacing = 1.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "$${String.format(Locale.getDefault(), "%,.0f", quote.price)}",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = if (isAccepted) statusColor else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    
-                    QuoteStatusBadge(status = quote.status)
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                // Date
+                QuoteStatusBadge(status = quote.status)
                 Text(
-                    text = "Enviada: ${quote.createdAt}",
+                    text = DateTimeUtils.formatRelative(quote.createdAt),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Start,
                     fontWeight = FontWeight.Medium
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Main Info: Service Icon, Client and Action
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.15f),
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        IconForServiceType(
+                            serviceType = assistance.serviceType,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.width(16.dp))
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = assistance.clientName.ifEmpty { "Cliente GruYa" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = assistance.issueType.toDisplayName(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+
+                if (isPending) {
+                    IconButton(
+                        onClick = onCancel,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.15f),
+                                CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancelar",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                } else if (isAccepted) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Vehicle info capsule
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsCar,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "${vehicle.brand} ${vehicle.model} • ${vehicle.color}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+                thickness = 0.5.dp
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Footer: Price
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column {
+                    Text(
+                        text = "PRESUPUESTO",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "$${String.format(Locale.getDefault(), "%,.0f", quote.price)}",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Black,
+                        color = if (isAccepted) statusColor else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                
+                if (isAccepted) {
+                    Surface(
+                        color = statusColor.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "EN CURSO",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Black,
+                            color = statusColor
+                        )
+                    }
+                }
             }
         }
     }
 }
+
 
 private fun getStatusColor(status: QuoteStatus): Color = when (status) {
     QuoteStatus.PENDIENTE -> Color(0xFFF59E0B) // Amber
@@ -566,7 +573,7 @@ private fun IconForServiceType(
 
 @Composable
 private fun QuoteStatusBadge(status: QuoteStatus) {
-    val (label, badgeColor, icon) = when (status) {
+    val (label, badgeColor, _) = when (status) {
         QuoteStatus.PENDIENTE -> Triple("Pendiente", Color(0xFFF59E0B), Icons.Default.HourglassEmpty)
         QuoteStatus.ACEPTADA -> Triple("Aceptada", Color(0xFF10B981), Icons.Default.CheckCircleOutline)
         QuoteStatus.COMPLETADO -> Triple("Completada", Color(0xFF3B82F6), Icons.Default.CheckCircle)
@@ -576,31 +583,31 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = badgeColor.copy(alpha = 0.15f),
-        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f))
+        shape = RoundedCornerShape(8.dp),
+        color = badgeColor.copy(alpha = 0.12f),
+        border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.15f))
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = badgeColor
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(badgeColor, CircleShape)
             )
             Text(
-                text = label.uppercase(),
+                text = label,
                 color = badgeColor,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 0.5.sp
+                letterSpacing = 0.2.sp
             )
         }
     }
 }
+
 
 
 @Composable

@@ -111,7 +111,8 @@ fun ProfileContent(
                 title = { 
                     Text(
                         "Mi Perfil",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
                     ) 
                 },
                 actions = {

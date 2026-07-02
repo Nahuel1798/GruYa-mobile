@@ -59,6 +59,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -161,6 +164,8 @@ private fun ActiveServiceTrackingContent(
     val scaffoldState = rememberBottomSheetScaffoldState()
     val assistance = quote.assistance
     val status = assistance.status
+    val context = LocalContext.current
+    val phoneNumber = quote.providerPhone
 
     val showProviderToOrigin = status == AssistanceStatus.EN_CAMINO_AL_CLIENTE
     val showProviderToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
@@ -225,17 +230,44 @@ private fun ActiveServiceTrackingContent(
                     // Quick Action Buttons
                     Row {
                         IconButton(
-                            onClick = { /* TODO: Call */ },
+                            onClick = {
+                                val intent = Intent(
+                                    Intent.ACTION_DIAL,
+                                    Uri.parse("tel:$phoneNumber")
+                                )
+                                context.startActivity(intent)
+                            },
                             modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
                         ) {
                             Icon(Icons.Default.Call, contentDescription = "Llamar", tint = MaterialTheme.colorScheme.onPrimaryContainer)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         IconButton(
-                            onClick = { /* TODO: Chat */ },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.secondaryContainer, CircleShape)
+                            onClick = {
+                                val number = phoneNumber
+                                    .replace("+", "")
+                                    .replace(" ", "")
+
+                                val message = Uri.encode(
+                                    "Hola, soy el cliente de la asistencia."
+                                )
+
+                                val intent = Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse("https://wa.me/$number?text=$message")
+                                )
+
+                                context.startActivity(intent)
+                            },
+                            modifier = Modifier.background(
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                CircleShape
+                            )
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Mensaje", tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Icon(
+                                Icons.AutoMirrored.Filled.Chat,
+                                contentDescription = "WhatsApp"
+                            )
                         }
                     }
                 }

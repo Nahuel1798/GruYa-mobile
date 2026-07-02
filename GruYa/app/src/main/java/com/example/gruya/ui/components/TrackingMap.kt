@@ -168,7 +168,7 @@ fun TrackingMap(
         val destinoIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
 
         // Trace the route if available
-        if (remainingRoute.isNotEmpty()) {
+        if (remainingRoute.size >= 2) {
             key(remainingRoute) {
                 val routeData = remember(remainingRoute) {
                     GeoJsonData.Features(
@@ -206,7 +206,7 @@ fun TrackingMap(
         }
 
         // Trace provider to origin route
-        if (remainingProviderRoute.isNotEmpty()) {
+        if (remainingProviderRoute.size >= 2) {
             key(remainingProviderRoute) {
                 val providerRouteData = remember(remainingProviderRoute) {
                     GeoJsonData.Features(
@@ -235,7 +235,7 @@ fun TrackingMap(
         }
 
         // Trace provider to destination route
-        if (remainingProviderToDestRoute.isNotEmpty()) {
+        if (remainingProviderToDestRoute.size >= 2) {
             key(remainingProviderToDestRoute) {
                 val providerToDestData = remember(remainingProviderToDestRoute) {
                     GeoJsonData.Features(

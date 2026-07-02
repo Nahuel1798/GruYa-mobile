@@ -6,8 +6,10 @@ import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.QuoteRepository
 import com.example.gruya.data.repository.TrackingRepository
 import com.example.gruya.domain.model.QuoteStatus
+import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.TrackingState
 import com.example.gruya.domain.model.Location
+import com.example.gruya.domain.model.Quote
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,7 +103,7 @@ class QuotesListViewModel @Inject constructor(
         }
     }
 
-    private fun startTracking(quote: com.example.gruya.domain.model.Quote) {
+    private fun startTracking(quote: Quote) {
         viewModelScope.launch {
             val assistanceResult = assistanceRepository.getAssistanceDetails(quote.assistanceId)
             assistanceResult.onSuccess { assistance ->
@@ -135,7 +137,7 @@ class QuotesListViewModel @Inject constructor(
         }
     }
 
-    private fun updateLocalAssistanceStatus(quoteId: Int, status: com.example.gruya.domain.model.AssistanceStatus) {
+    private fun updateLocalAssistanceStatus(quoteId: Int, status: AssistanceStatus) {
         _uiState.update { state ->
             state.copy(
                 quotes = state.quotes.map { q ->
@@ -174,12 +176,25 @@ class QuotesListViewModel @Inject constructor(
                 val result = assistanceRepository.getRoute(assistanceId)
                 result.fold(
                     onSuccess = { routeResponse ->
+                        val acceptedQuote = _uiState.value.quotes.find { it.assistanceId == assistanceId }
+                        val status = acceptedQuote?.assistance?.status
+
                         _uiState.update { state ->
+                            val isHeadingToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
+
                             state.copy(
                                 providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
                                 providerToDestinationRoute = routeResponse.providerToDestination?.geometryJson,
-                                distanceKm = routeResponse.providerToOrigin?.distanceKm ?: routeResponse.providerToDestination?.distanceKm,
-                                etaMinutes = routeResponse.providerToOrigin?.etaMinutes ?: routeResponse.providerToDestination?.etaMinutes
+                                distanceKm = if (isHeadingToDestination) {
+                                    routeResponse.providerToDestination?.distanceKm
+                                } else {
+                                    routeResponse.providerToOrigin?.distanceKm
+                                },
+                                etaMinutes = if (isHeadingToDestination) {
+                                    routeResponse.providerToDestination?.etaMinutes
+                                } else {
+                                    routeResponse.providerToOrigin?.etaMinutes
+                                }
                             )
                         }
                     },

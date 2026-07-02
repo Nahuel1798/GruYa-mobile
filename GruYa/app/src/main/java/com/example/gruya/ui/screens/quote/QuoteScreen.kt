@@ -229,7 +229,7 @@ fun QuoteContent(
                             LocationUtils.parseRouteGeometry(geometry)
                         }
 
-                        if (routePositions.isNotEmpty()) {
+                        if (routePositions.size >= 2) {
 
                             val routeSource = rememberGeoJsonSource(
                                 data = GeoJsonData.Features(

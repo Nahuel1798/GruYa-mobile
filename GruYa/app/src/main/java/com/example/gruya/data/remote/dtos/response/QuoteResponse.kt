@@ -10,5 +10,6 @@ data class QuoteResponse(
     val createdAt: String,
     val updatedAt: String,
     val providerName: String,
+    val providerPhone: String,
     val assistance: AssistanceResponse?
 )

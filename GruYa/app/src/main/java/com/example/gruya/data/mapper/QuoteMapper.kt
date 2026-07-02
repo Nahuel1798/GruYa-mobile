@@ -11,6 +11,7 @@ fun QuoteResponse.toDomain(): Quote = Quote(
     createdAt = createdAt,
     updatedAt = updatedAt,
     providerName = providerName,
+    providerPhone = providerPhone,
     assistance = assistance!!.toDomain()
 )
 
@@ -26,6 +27,7 @@ fun QuoteResponse.toDomainOrNull(): Quote? {
         createdAt = createdAt,
         updatedAt = updatedAt,
         providerName = providerName,
+        providerPhone = providerPhone,
         assistance = assistance.toDomain()
     )
 }

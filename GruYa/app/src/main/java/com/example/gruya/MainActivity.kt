@@ -552,10 +552,10 @@ fun MainNavigationSuite(
             is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(event.assistanceId)
             is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
             is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
-            is NavEvent.TripStarted -> AppDest.AssistanceTracking(event.assistanceId, event.trackingSessionId)
-            is NavEvent.ProviderArrived -> AppDest.AssistanceTracking(event.assistanceId)
-            is NavEvent.ProviderHeadingToDestination -> AppDest.AssistanceTracking(event.assistanceId)
-            is NavEvent.ServiceCompleted -> AppDest.AssistanceTracking(event.assistanceId)
+            is NavEvent.TripStarted -> AppDest.TabKey.QuotesList(event.assistanceId)
+            is NavEvent.ProviderArrived -> AppDest.TabKey.QuotesList(event.assistanceId)
+            is NavEvent.ProviderHeadingToDestination -> AppDest.TabKey.QuotesList(event.assistanceId)
+            is NavEvent.ServiceCompleted -> AppDest.TabKey.QuotesList(event.assistanceId)
         }
         if (tabBackStack.lastOrNull() != dest) {
             tabBackStack.add(dest)

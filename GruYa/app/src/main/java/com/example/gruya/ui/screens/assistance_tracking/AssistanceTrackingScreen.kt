@@ -135,196 +135,106 @@ fun AssistanceTrackingScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Provider-specific controls
-                    if (uiState.isProvider) {
-                        val trackingState = uiState.trackingState
-                        val status = assistance.status
+                    val trackingState = uiState.trackingState
+                    val status = assistance.status
 
-                        if (trackingState is TrackingState.Error) {
+                    if (trackingState is TrackingState.Error) {
+                        Text(
+                            text = "Error: ${trackingState.message}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    when (status) {
+                        AssistanceStatus.ACEPTADA -> {
+                            ProviderActionButton(
+                                label = "Iniciar viaje",
+                                icon = Icons.Default.PlayArrow,
+                                isLoading = uiState.isLoading,
+                                isError = trackingState is TrackingState.Error,
+                                onClick = { viewModel.startTrip() }
+                            )
+                        }
+                        AssistanceStatus.EN_CAMINO_AL_CLIENTE -> {
+                            ProviderActionButton(
+                                label = "Llegué al cliente",
+                                icon = Icons.Default.LocationOn,
+                                isLoading = uiState.isLoading,
+                                isError = trackingState is TrackingState.Error,
+                                enabled = uiState.isNearOrigin,
+                                onClick = { viewModel.arriveAtOrigin() }
+                            )
+                            if (!uiState.isNearOrigin && !uiState.isLoading) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Debes estar a menos de 300m del origen",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                        AssistanceStatus.EN_ORIGEN -> {
+                            ProviderActionButton(
+                                label = "Ir al destino",
+                                icon = Icons.Default.Flag,
+                                isLoading = uiState.isLoading,
+                                isError = trackingState is TrackingState.Error,
+                                onClick = { viewModel.headToDestination() }
+                            )
+                        }
+                        AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
+                            ProviderActionButton(
+                                label = "Finalizar servicio",
+                                icon = Icons.Default.Check,
+                                isLoading = uiState.isLoading,
+                                isError = trackingState is TrackingState.Error,
+                                enabled = uiState.isNearDestination,
+                                onClick = { viewModel.completeService() }
+                            )
+                            if (!uiState.isNearDestination && !uiState.isLoading) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Debes estar a menos de 300m del destino",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                        AssistanceStatus.COMPLETADO -> {
                             Text(
-                                text = "Error: ${trackingState.message}",
-                                style = MaterialTheme.typography.bodySmall,
+                                text = "Servicio completado",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                        AssistanceStatus.CANCELADO -> {
+                            Text(
+                                text = "Servicio cancelado",
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.fillMaxWidth(),
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
                         }
-
-                        when (status) {
-                            AssistanceStatus.ACEPTADA -> {
-                                ProviderActionButton(
-                                    label = "Iniciar viaje",
-                                    icon = Icons.Default.PlayArrow,
-                                    isLoading = uiState.isLoading,
-                                    isError = trackingState is TrackingState.Error,
-                                    onClick = { viewModel.startTrip() }
-                                )
-                            }
-                            AssistanceStatus.EN_CAMINO_AL_CLIENTE -> {
-                                ProviderActionButton(
-                                    label = "Llegué al cliente",
-                                    icon = Icons.Default.LocationOn,
-                                    isLoading = uiState.isLoading,
-                                    isError = trackingState is TrackingState.Error,
-                                    enabled = uiState.isNearOrigin,
-                                    onClick = { viewModel.arriveAtOrigin() }
-                                )
-                                if (!uiState.isNearOrigin && !uiState.isLoading) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Debes estar a menos de 300m del origen",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            }
-                            AssistanceStatus.EN_ORIGEN -> {
-                                ProviderActionButton(
-                                    label = "Ir al destino",
-                                    icon = Icons.Default.Flag,
-                                    isLoading = uiState.isLoading,
-                                    isError = trackingState is TrackingState.Error,
-                                    onClick = { viewModel.headToDestination() }
-                                )
-                            }
-                            AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
-                                ProviderActionButton(
-                                    label = "Finalizar servicio",
-                                    icon = Icons.Default.Check,
-                                    isLoading = uiState.isLoading,
-                                    isError = trackingState is TrackingState.Error,
-                                    enabled = uiState.isNearDestination,
-                                    onClick = { viewModel.completeService() }
-                                )
-                                if (!uiState.isNearDestination && !uiState.isLoading) {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Debes estar a menos de 300m del destino",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            }
-                            AssistanceStatus.COMPLETADO -> {
-                                Text(
-                                    text = "Servicio completado",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                            AssistanceStatus.CANCELADO -> {
-                                Text(
-                                    text = "Servicio cancelado",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                            AssistanceStatus.PENDIENTE -> {
-                                Text(
-                                    text = "Esperando asignación...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                    else {
-                        // Client view: show status
-                        when (val trackingState = uiState.trackingState) {
-                            is TrackingState.Connected, is TrackingState.Tracking -> {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.LocationOn,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Proveedor en camino",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                if (assistance.distanceKm != null) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "%.1f km · ~%.0f min".format(
-                                            assistance.distanceKm,
-                                            assistance.etaMinutes ?: 0.0
-                                        ),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                }
-                            }
-                            is TrackingState.Disconnected -> {
-                                Text(
-                                    text = "Proveedor desconectado",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                            is TrackingState.Error -> {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "Error de conexión",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                    Text(
-                                        text = trackingState.message,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(
-                                        onClick = {
-                                            uiState.assistance?.trackingSessionId?.let { sessionId ->
-                                                viewModel.loadAssistance(assistanceId, sessionId)
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                        )
-                                    ) {
-                                        Text("Reintentar conexión")
-                                    }
-                                }
-                            }
-                            else -> {
-                                Text(
-                                    text = "Esperando conexión...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
+                        AssistanceStatus.PENDIENTE -> {
+                            Text(
+                                text = "Esperando asignación...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
                         }
                     }
                 }

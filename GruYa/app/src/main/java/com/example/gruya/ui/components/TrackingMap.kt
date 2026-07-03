@@ -159,30 +159,10 @@ fun TrackingMap(
     }
 
 
-    // Computed display routes that start from the provider's current location to avoid gaps
-    val displayRoute = remember(remainingRoute, providerLocation) {
-        if (providerLocation != null && remainingRoute.isNotEmpty()) {
-            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingRoute
-        } else {
-            remainingRoute
-        }
-    }
-
-    val displayProviderRoute = remember(remainingProviderRoute, providerLocation) {
-        if (providerLocation != null && remainingProviderRoute.isNotEmpty()) {
-            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingProviderRoute
-        } else {
-            remainingProviderRoute
-        }
-    }
-
-    val displayProviderToDestRoute = remember(remainingProviderToDestRoute, providerLocation) {
-        if (providerLocation != null && remainingProviderToDestRoute.isNotEmpty()) {
-            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingProviderToDestRoute
-        } else {
-            remainingProviderToDestRoute
-        }
-    }
+    // Use the remaining routes directly to avoid drawing artificial straight lines from the provider
+    val displayRoute = remainingRoute
+    val displayProviderRoute = remainingProviderRoute
+    val displayProviderToDestRoute = remainingProviderToDestRoute
 
     MaplibreMap(
         modifier = modifier.fillMaxSize(),

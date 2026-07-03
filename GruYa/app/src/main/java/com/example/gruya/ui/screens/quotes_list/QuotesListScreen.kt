@@ -347,6 +347,8 @@ private fun MetricItem(label: String, value: String) {
 
 @Composable
 private fun TrackingStatusBadge(status: AssistanceStatus, trackingState: TrackingState) {
+    val isWaiting = status == AssistanceStatus.PENDIENTE || status == AssistanceStatus.ACEPTADA
+    
     val text = when (trackingState) {
         is TrackingState.Connected, is TrackingState.Tracking -> {
             when (status) {
@@ -356,13 +358,14 @@ private fun TrackingStatusBadge(status: AssistanceStatus, trackingState: Trackin
                 else -> status.displayName
             }
         }
-        is TrackingState.Disconnected -> "Conexión perdida"
+        is TrackingState.Disconnected -> if (isWaiting) "En espera" else "Conexión perdida"
         is TrackingState.Error -> "Error de rastreo"
-        else -> status.displayName
+        else -> if (isWaiting) "En espera" else status.displayName
     }
     
     val color = when (trackingState) {
-        is TrackingState.Disconnected, is TrackingState.Error -> MaterialTheme.colorScheme.error
+        is TrackingState.Disconnected -> if (isWaiting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+        is TrackingState.Error -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.primary
     }
 

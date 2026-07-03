@@ -16,6 +16,7 @@ data class ProfileUiState(
     val email: String = "",
     val phone: String = "",
     val avatarUrl: String? = null,
+    val isUpdatingAvatar: Boolean = false,
 
     val isProvider: Boolean = false,
     val isEditing: Boolean = false,

@@ -1,11 +1,15 @@
 package com.example.gruya.ui.screens.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -49,6 +53,13 @@ fun ProfileScreen(
     }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let { viewModel.updateAvatar(it) }
+        }
+    )
     
     ProfileContent(
         uiState = uiState,
@@ -58,6 +69,11 @@ fun ProfileScreen(
         },
         onUpdateProfile = { fName, lName, email, phone ->
             viewModel.updateProfile(fName, lName, email, phone)
+        },
+        onUpdateAvatar = {
+            photoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
         },
         onUpdateProviderProfile = { companyName, address, serviceType, description ->
             viewModel.updateProviderProfile(companyName, address, serviceType, description)
@@ -87,6 +103,7 @@ fun ProfileContent(
     uiState: ProfileUiState,
     onLogout: () -> Unit,
     onUpdateProfile: (String, String, String, String) -> Unit,
+    onUpdateAvatar: () -> Unit = {},
     onUpdateProviderProfile: (String, String, ServiceType, String) -> Unit = { _, _, _, _ -> },
     onToggleProviderEdit: () -> Unit = {},
     onCancelProviderEdit: () -> Unit = {},
@@ -155,7 +172,10 @@ fun ProfileContent(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     // Avatar with Edit Badge
-                    Box(contentAlignment = Alignment.BottomEnd) {
+                    Box(
+                        contentAlignment = Alignment.BottomEnd,
+                        modifier = Modifier.clickable { onUpdateAvatar() }
+                    ) {
                         Surface(
                             modifier = Modifier
                                 .size(120.dp)
@@ -164,7 +184,17 @@ fun ProfileContent(
                             color = MaterialTheme.colorScheme.surfaceVariant,
                             tonalElevation = 2.dp
                         ) {
-                            if (uiState.avatarUrl != null) {
+                            if (uiState.isUpdatingAvatar) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        strokeWidth = 3.dp
+                                    )
+                                }
+                            } else if (uiState.avatarUrl != null) {
                                 AsyncImage(
                                     model = uiState.avatarUrl,
                                     contentDescription = "Avatar",

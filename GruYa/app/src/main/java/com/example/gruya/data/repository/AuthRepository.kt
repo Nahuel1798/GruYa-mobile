@@ -1,5 +1,7 @@
 package com.example.gruya.data.repository
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.example.gruya.data.remote.dtos.request.FcmTokenRequest
 import com.example.gruya.data.remote.dtos.request.LoginRequest
@@ -10,12 +12,19 @@ import com.example.gruya.data.remote.dtos.response.AuthResponse
 import com.example.gruya.data.remote.dtos.response.UserResponse
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.domain.model.Role
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
 import retrofit2.Response
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(
-    private val authService: AuthService
+    private val authService: AuthService,
+    @ApplicationContext private val context: Context
 ) {
     suspend fun login(email: String, password: String, fcmToken: String? = null): Response<AuthResponse> {
         val request = LoginRequest(email, password, fcmToken)
@@ -132,6 +141,40 @@ class AuthRepository @Inject constructor(
             throw e
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun updateAvatar(uri: Uri): Result<UserResponse> {
+        return try {
+            val file = getFileFromUri(uri) ?: return Result.failure(Exception("No se pudo procesar la imagen"))
+            val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+            val body = MultipartBody.Part.createFormData("avatar", file.name, requestFile)
+
+            val response = authService.updateAvatar(body)
+            if (response.isSuccessful) {
+                response.body()?.let {
+                    Result.success(it)
+                } ?: Result.failure(Exception("Respuesta vacía"))
+            } else {
+                Result.failure(Exception("Error al subir imagen: ${response.code()}"))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun getFileFromUri(uri: Uri): File? {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+            val file = File(context.cacheDir, "temp_avatar_${System.currentTimeMillis()}.jpg")
+            FileOutputStream(file).use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+            file
+        } catch (e: Exception) {
+            null
         }
     }
 }

@@ -8,12 +8,15 @@ import com.example.gruya.data.remote.dtos.request.UpdatePasswordRequest
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.remote.dtos.response.AuthResponse
 import com.example.gruya.data.remote.dtos.response.UserResponse
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 
 interface AuthService{
     // Login
@@ -34,6 +37,12 @@ interface AuthService{
     @PUT(value = Constants.AUTH_PATH + "/editprofile")
     suspend fun editprofile(
         @Body request: UpdateUserRequest
+    ): Response<UserResponse>
+
+    @Multipart
+    @POST(Constants.AUTH_PATH + "/avatar")
+    suspend fun updateAvatar(
+        @Part avatar: MultipartBody.Part
     ): Response<UserResponse>
 
     // Logout

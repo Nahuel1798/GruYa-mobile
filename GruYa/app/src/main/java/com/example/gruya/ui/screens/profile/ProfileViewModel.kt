@@ -1,9 +1,11 @@
 package com.example.gruya.ui.screens.profile
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.SessionManager
+import com.example.gruya.data.remote.Constants
 import com.example.gruya.data.remote.dtos.request.UpdateUserRequest
 import com.example.gruya.data.repository.AuthRepository
 import com.example.gruya.data.repository.ProviderRepository
@@ -67,7 +69,7 @@ class ProfileViewModel @Inject constructor(
                         user = userResponse,
                         name = "${userResponse.firstName} ${userResponse.lastName}",
                         email = userResponse.email,
-                        avatarUrl = userResponse.avatarUrl,
+                        avatarUrl = formatImageUrl(userResponse.avatarUrl),
                         isLoading = false,
                         isProvider = userResponse.role == Role.PROVIDER
                     )
@@ -283,6 +285,44 @@ class ProfileViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun updateAvatar(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isUpdatingAvatar = true, error = null) }
+            val result = authRepository.updateAvatar(uri)
+            result.onSuccess { updatedUser ->
+                _uiState.update { 
+                    it.copy(
+                        isUpdatingAvatar = false, 
+                        avatarUrl = formatImageUrl(updatedUser.avatarUrl),
+                        user = updatedUser
+                    ) 
+                }
+            }.onFailure { error ->
+                _uiState.update { 
+                    it.copy(
+                        isUpdatingAvatar = false, 
+                        error = "Error al actualizar avatar: ${error.message}" 
+                    )
+                }
+            }
+        }
+    }
+
+    private fun formatImageUrl(url: String?): String? {
+        if (url.isNullOrBlank()) return null
+
+        val fullUrl = if (url.startsWith("http")) {
+            val baseHostPort = Constants.BASE_URL.substringAfter("://").removeSuffix("/")
+            val path = url.substringAfter("://").substringAfter("/", "")
+            if (path.isEmpty()) url else "${Constants.BASE_URL.substringBefore("://")}://$baseHostPort/$path"
+        } else {
+            val cleanPath = url.replace("\\", "/").removePrefix("/")
+            "${Constants.BASE_URL.removeSuffix("/")}/$cleanPath"
+        }
+        
+        return "$fullUrl?t=${System.currentTimeMillis()}"
     }
 
     fun logout() {

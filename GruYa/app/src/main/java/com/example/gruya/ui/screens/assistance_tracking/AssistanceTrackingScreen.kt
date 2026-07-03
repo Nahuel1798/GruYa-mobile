@@ -388,8 +388,8 @@ fun AssistanceTrackingScreen(
             }
         }
     }
-}
 
+}
 
 @Composable
 private fun StatusBadge(status: AssistanceStatus) {

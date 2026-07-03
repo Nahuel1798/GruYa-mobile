@@ -63,7 +63,11 @@ class AssistanceRepository @Inject constructor(
                 Log.d("AssistanceRepository", "Solicitud de auxilio creada: $body")
                 Result.success(body)
             } else {
-                Result.failure(Exception("Error ${response.code()}: ${response.message()}"))
+                val errorMsg = when (response.code()) {
+                    404 -> "Esta asistencia ya no está disponible"
+                    else -> "Error ${response.code()}: ${response.message()}"
+                }
+                Result.failure(Exception(errorMsg))
             }
         } catch (e: CancellationException) {
             throw e

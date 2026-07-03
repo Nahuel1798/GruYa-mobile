@@ -17,7 +17,8 @@ data class NotificationListUiState(
     val error: String? = null,
     val page: Int = 1,
     val totalPages: Int = 1,
-    val isMarkingAllAsRead: Boolean = false
+    val isMarkingAllAsRead: Boolean = false,
+    val isRefreshing: Boolean = false
 )
 
 @HiltViewModel
@@ -45,6 +46,8 @@ class NotificationListViewModel @Inject constructor(
                             isLoading = false
                         )
                     }
+                } else {
+                    _uiState.update { it.copy(isLoading = false) }
                 }
             }.onFailure { e ->
                 _uiState.update { it.copy(isLoading = false, error = e.message) }
@@ -54,15 +57,33 @@ class NotificationListViewModel @Inject constructor(
 
     fun markAsRead(notificationId: Int) {
         viewModelScope.launch {
+            // Optimistic update
+            val previousReadAt = _uiState.value.notifications.find { it.id == notificationId }?.readAt
+            _uiState.update { state ->
+                state.copy(
+                    notifications = state.notifications.map {
+                        if (it.id == notificationId) it.copy(readAt = java.time.Instant.now().toString()) else it
+                    }
+                )
+            }
             notificationRepository.markAsRead(notificationId).onSuccess { updatedNotification ->
                 if (updatedNotification != null) {
                     _uiState.update { state ->
                         state.copy(
-                            notifications = state.notifications.map { 
-                                if (it.id == notificationId) updatedNotification else it 
+                            notifications = state.notifications.map {
+                                if (it.id == notificationId) updatedNotification else it
                             }
                         )
                     }
+                }
+            }.onFailure { e ->
+                _uiState.update { state ->
+                    state.copy(
+                        notifications = state.notifications.map {
+                            if (it.id == notificationId) it.copy(readAt = previousReadAt) else it
+                        },
+                        error = e.message
+                    )
                 }
             }
         }
@@ -70,20 +91,42 @@ class NotificationListViewModel @Inject constructor(
 
     fun markAllAsRead() {
         if (_uiState.value.isMarkingAllAsRead) return
-        
+
         viewModelScope.launch {
             _uiState.update { it.copy(isMarkingAllAsRead = true) }
             notificationRepository.markAllAsRead().onSuccess {
                 _uiState.update { state ->
                     state.copy(
-                        notifications = state.notifications.map { it.copy(readAt = "read") }, // Dummy value for local update
+                        notifications = state.notifications.map { it.copy(readAt = java.time.Instant.now().toString()) },
                         isMarkingAllAsRead = false
                     )
                 }
-                // Refresh to get actual readAt values from server if needed
-                loadNotifications(1)
             }.onFailure { e ->
                 _uiState.update { it.copy(isMarkingAllAsRead = false, error = e.message) }
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRefreshing = true) }
+            notificationRepository.getNotifications(1, 20).onSuccess { pagedResponse ->
+                if (pagedResponse != null) {
+                    _uiState.update {
+                        it.copy(
+                            notifications = pagedResponse.data,
+                            page = pagedResponse.page,
+                            totalPages = pagedResponse.totalPages,
+                            isLoading = false,
+                            isRefreshing = false,
+                            error = null
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isRefreshing = false, isLoading = false) }
+                }
+            }.onFailure { e ->
+                _uiState.update { it.copy(isRefreshing = false, isLoading = false, error = e.message) }
             }
         }
     }

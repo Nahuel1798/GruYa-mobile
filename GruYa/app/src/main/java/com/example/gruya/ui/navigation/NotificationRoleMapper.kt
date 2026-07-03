@@ -1,6 +1,8 @@
 package com.example.gruya.ui.navigation
 
+import androidx.navigation3.runtime.NavKey
 import com.example.gruya.domain.model.Role
+import com.example.gruya.ui.screens.provider_quotes.ProviderQuoteFilter
 
 /**
  * Maps a notification event type string to the required user role.
@@ -41,3 +43,31 @@ const val EXTRA_ASSISTANCE_ID = "nav_assistance_id"
 
 /** Intent extra key for the tracking session ID (String). */
 const val EXTRA_TRACKING_SESSION_ID = "trackingSessionId"
+
+/**
+ * Parses a tracking session ID from a notification's JSON data payload.
+ * Checks both "trackingSessionId" and "TrackingSessionId" keys for compatibility.
+ */
+fun parseTrackingSessionId(dataJson: String?): String? {
+    if (dataJson == null) return null
+    return try {
+        val json = org.json.JSONObject(dataJson)
+        json.optString("trackingSessionId", "")
+            .ifEmpty { json.optString("TrackingSessionId", "").ifEmpty { null } }
+    } catch (e: Exception) {
+        null
+    }
+}
+
+fun destForEvent(event: NavEvent, assistanceId: Int): NavKey = when (event) {
+    is NavEvent.NewAssistance -> AppDest.Quote(assistanceId)
+    is NavEvent.DirectedAssistance -> AppDest.Quote(assistanceId)
+    is NavEvent.NewQuote -> AppDest.TabKey.QuotesList(assistanceId)
+    is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(assistanceId)
+    is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(assistanceId)
+    is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
+    is NavEvent.TripStarted -> AppDest.TabKey.QuotesList(assistanceId)
+    is NavEvent.ProviderArrived -> AppDest.TabKey.QuotesList(assistanceId)
+    is NavEvent.ProviderHeadingToDestination -> AppDest.TabKey.QuotesList(assistanceId)
+    is NavEvent.ServiceCompleted -> AppDest.TabKey.QuotesList(assistanceId)
+}

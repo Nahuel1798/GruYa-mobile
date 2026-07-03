@@ -9,9 +9,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -20,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,8 +47,12 @@ fun NotificationListScreen(
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+            // Only show snackbar for errors when there are already notifications visible
+            // For initial load errors, the inline error screen handles it
+            if (uiState.notifications.isNotEmpty()) {
+                snackbarHostState.showSnackbar(it)
+                viewModel.clearError()
+            }
         }
     }
 
@@ -74,21 +85,28 @@ fun NotificationListScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        NotificationListContent(
-            modifier = Modifier.padding(padding),
-            uiState = uiState,
-            onNotificationClick = { notification ->
-                viewModel.markAsRead(notification.id)
-                notification.assistanceId?.let { assistanceId ->
-                    onNavigateToNotification(notification.type, assistanceId, notification.dataJson)
-                }
-            },
-            onLoadMore = {
-                if (uiState.page < uiState.totalPages) {
-                    viewModel.loadNotifications(uiState.page + 1)
-                }
-            }
-        )
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = viewModel::refresh,
+            modifier = Modifier.padding(padding)
+        ) {
+            NotificationListContent(
+                modifier = Modifier.fillMaxSize(),
+                uiState = uiState,
+                onNotificationClick = { notification ->
+                    viewModel.markAsRead(notification.id)
+                    notification.assistanceId?.let { assistanceId ->
+                        onNavigateToNotification(notification.type, assistanceId, notification.dataJson)
+                    }
+                },
+                onLoadMore = {
+                    if (uiState.page < uiState.totalPages) {
+                        viewModel.loadNotifications(uiState.page + 1)
+                    }
+                },
+                onRetry = { viewModel.loadNotifications() }
+            )
+        }
     }
 }
 
@@ -97,9 +115,16 @@ fun NotificationListContent(
     modifier: Modifier = Modifier,
     uiState: NotificationListUiState,
     onNotificationClick: (NotificationResponse) -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onRetry: () -> Unit = {}
 ) {
-    if (uiState.notifications.isEmpty() && !uiState.isLoading) {
+    if (uiState.error != null && uiState.notifications.isEmpty() && !uiState.isLoading) {
+        NotificationErrorContent(
+            modifier = modifier,
+            error = uiState.error!!,
+            onRetry = onRetry
+        )
+    } else if (uiState.notifications.isEmpty() && !uiState.isLoading) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Icon(
@@ -180,7 +205,7 @@ fun NotificationItem(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.NotificationsNone,
+                    imageVector = iconForNotificationType(notification.type),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
@@ -219,6 +244,52 @@ fun NotificationItem(
                         .align(Alignment.Top)
                 )
             }
+        }
+    }
+}
+
+private fun iconForNotificationType(type: String): ImageVector = when (type) {
+    "new_assistance", "directed_assistance" -> Icons.Default.LocalShipping
+    "new_quote" -> Icons.Default.Info
+    "quote_accepted_provider", "quote_accepted_client" -> Icons.Default.CheckCircle
+    "quote_rejected" -> Icons.Default.Cancel
+    "trip_started", "provider.arrived", "provider.heading_to_destination" -> Icons.Default.DirectionsCar
+    "provider.service_completed" -> Icons.Default.CheckCircle
+    else -> Icons.Default.NotificationsNone
+}
+
+@Composable
+private fun NotificationErrorContent(
+    modifier: Modifier = Modifier,
+    error: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Ups! Algo salió mal",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = error,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Reintentar")
         }
     }
 }

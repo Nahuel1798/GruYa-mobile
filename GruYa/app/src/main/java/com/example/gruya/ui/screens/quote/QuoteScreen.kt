@@ -117,7 +117,7 @@ fun QuoteContent(
     onNavigateBack: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(

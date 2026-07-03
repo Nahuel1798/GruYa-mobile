@@ -90,7 +90,9 @@ import com.example.gruya.ui.navigation.EXTRA_NAV_TYPE
 import com.example.gruya.ui.navigation.EXTRA_TRACKING_SESSION_ID
 import com.example.gruya.ui.navigation.NavEvent
 import com.example.gruya.ui.navigation.NavigationEventBus
+import com.example.gruya.ui.navigation.destForEvent
 import com.example.gruya.ui.navigation.navEventFromExtras
+import com.example.gruya.ui.navigation.parseTrackingSessionId
 import com.example.gruya.ui.screens.assistances.AssistancesScreen
 import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
 import com.example.gruya.ui.screens.notifications.NotificationListScreen
@@ -547,18 +549,7 @@ fun MainNavigationSuite(
     // Handle pending navigation from notification tap
     LaunchedEffect(pendingNavEvent.value) {
         val event = pendingNavEvent.value ?: return@LaunchedEffect
-        val dest: NavKey = when (event) {
-            is NavEvent.NewAssistance -> AppDest.Quote(event.assistanceId)
-            is NavEvent.DirectedAssistance -> AppDest.Quote(event.assistanceId)
-            is NavEvent.NewQuote -> AppDest.TabKey.QuotesList(event.assistanceId)
-            is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(event.assistanceId)
-            is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
-            is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
-            is NavEvent.TripStarted -> AppDest.TabKey.QuotesList(event.assistanceId)
-            is NavEvent.ProviderArrived -> AppDest.TabKey.QuotesList(event.assistanceId)
-            is NavEvent.ProviderHeadingToDestination -> AppDest.TabKey.QuotesList(event.assistanceId)
-            is NavEvent.ServiceCompleted -> AppDest.TabKey.QuotesList(event.assistanceId)
-        }
+        val dest: NavKey = destForEvent(event, event.assistanceId)
         if (tabBackStack.lastOrNull() != dest) {
             tabBackStack.add(dest)
         }
@@ -800,20 +791,10 @@ fun MainNavigationSuite(
                                 tabBackStack.removeAt(tabBackStack.size - 1)
                             },
                             onNavigateToNotification = { type, assistanceId, dataJson ->
-                                val event = navEventFromExtras(type, assistanceId, dataJson)
+                                val trackingSessionId = parseTrackingSessionId(dataJson)
+                                val event = navEventFromExtras(type, assistanceId, trackingSessionId)
                                 if (event != null) {
-                                    val dest: NavKey = when (event) {
-                                        is NavEvent.NewAssistance -> AppDest.Quote(event.assistanceId)
-                                        is NavEvent.DirectedAssistance -> AppDest.Quote(event.assistanceId)
-                                        is NavEvent.NewQuote -> AppDest.TabKey.QuotesList(event.assistanceId)
-                                        is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(event.assistanceId)
-                                        is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
-                                        is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
-                                        is NavEvent.TripStarted -> AppDest.TabKey.QuotesList(event.assistanceId)
-                                        is NavEvent.ProviderArrived -> AppDest.TabKey.QuotesList(event.assistanceId)
-                                        is NavEvent.ProviderHeadingToDestination -> AppDest.TabKey.QuotesList(event.assistanceId)
-                                        is NavEvent.ServiceCompleted -> AppDest.TabKey.QuotesList(event.assistanceId)
-                                    }
+                                    val dest: NavKey = destForEvent(event, event.assistanceId)
                                     if (tabBackStack.lastOrNull() != dest) {
                                         tabBackStack.add(dest)
                                     }

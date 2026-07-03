@@ -62,7 +62,7 @@ class QuoteViewModel @Inject constructor(
                     onFailure = { e ->
                         _uiState.update { 
                             it.copy(
-                                error = "Error al cargar la solicitud: ${e.message}", 
+                                error = e.message ?: "Error al cargar la solicitud", 
                                 isLoading = false 
                             ) 
                         }

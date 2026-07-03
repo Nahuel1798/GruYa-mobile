@@ -77,9 +77,12 @@ class RequestAssistanceViewModel @Inject constructor(
         }
     }
 
-    private fun loadVehicles() {
+    fun loadVehicles() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            val hasVehicles = _uiState.value.vehicles.isNotEmpty()
+            if (!hasVehicles) {
+                _uiState.update { it.copy(isLoading = true) }
+            }
             val vehicles = vehicleRepository.listAll()
             _uiState.update { it.copy(vehicles = vehicles, isLoading = false) }
         }

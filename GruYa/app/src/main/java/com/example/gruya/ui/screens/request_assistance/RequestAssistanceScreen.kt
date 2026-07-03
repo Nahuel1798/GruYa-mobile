@@ -32,6 +32,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.Vehicle
 import com.example.gruya.domain.model.VehicleType
@@ -79,6 +80,12 @@ fun RequestAssistanceScreen(
         if (uiState.isSubmitted) {
             onNavigateBack()
         }
+    }
+
+    // Refresh vehicles when returning from AddVehicle (or any resume)
+    LifecycleResumeEffect(Unit) {
+        viewModel.loadVehicles()
+        onPauseOrDispose { }
     }
 
     RequestAssistanceContent(
@@ -151,7 +158,7 @@ fun RequestAssistanceContent(
             item {
                 SectionHeader(
                     title = "Tu Vehículo",
-                    actionText = "Agregar",
+                    actionText = if (uiState.vehicles.isNotEmpty()) "Agregar" else null,
                     onActionClick = onNavigateToAddVehicle
                 )
                 Spacer(modifier = Modifier.height(12.dp))

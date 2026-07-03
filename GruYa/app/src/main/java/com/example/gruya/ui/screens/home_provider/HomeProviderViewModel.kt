@@ -11,6 +11,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.data.service.ProviderLocationService
+import com.example.gruya.ui.navigation.NavEvent
+import com.example.gruya.ui.navigation.NavigationEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -25,6 +27,7 @@ import org.maplibre.spatialk.geojson.Position
 class HomeProviderViewModel @Inject constructor(
     private val assistanceRepository: AssistanceRepository,
     private val providerRepository: ProviderRepository,
+    private val navigationEventBus: NavigationEventBus,
     private val application: Application
 ) : AndroidViewModel(application) {
 
@@ -36,6 +39,7 @@ class HomeProviderViewModel @Inject constructor(
     init {
         checkProfileCompletion()
         loadNearbyAssistances()
+        observeAssistanceNotifications()
     }
 
     fun checkProfileCompletion() {
@@ -134,6 +138,22 @@ fun onLocationPermissionChanged(granted: Boolean) {
                         error = e.message,
                         isLoading = false
                     )
+                }
+            }
+        }
+    }
+
+    private fun observeAssistanceNotifications() {
+        viewModelScope.launch {
+            navigationEventBus.notificationEvents.collect { event ->
+                when (event) {
+                    is NavEvent.NewAssistance,
+                    is NavEvent.DirectedAssistance,
+                    is NavEvent.QuoteRejected -> {
+                        Log.d("HomeProviderVM", "Refreshing assistances after $event")
+                        loadNearbyAssistances()
+                    }
+                    else -> { /* otros eventos no afectan el mapa de asistencias */ }
                 }
             }
         }

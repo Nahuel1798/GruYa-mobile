@@ -11,4 +11,5 @@ object Constants {
     const val ASSISTANCE_PATH = "/api/assistances"
     const val QUOTES_PATH = "/api/quotes"
     const val FUELSTATION_PATH = "/api/fuelstations"
+    const val NOTIFICATIONS_PATH = "/api/notifications"
 }

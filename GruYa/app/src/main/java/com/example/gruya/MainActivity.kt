@@ -93,6 +93,7 @@ import com.example.gruya.ui.navigation.NavigationEventBus
 import com.example.gruya.ui.navigation.navEventFromExtras
 import com.example.gruya.ui.screens.assistances.AssistancesScreen
 import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
+import com.example.gruya.ui.screens.notifications.NotificationListScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
 import com.example.gruya.ui.screens.auth.register.LocationPickerScreen
 import com.example.gruya.ui.screens.auth.register.ProviderProfileScreen
@@ -695,12 +696,18 @@ fun MainNavigationSuite(
                             Role.USER -> HomeScreen(
                                 onNavigateToRequestAssistance = { providerId, serviceType, lat, lng ->
                                     tabBackStack.add(AppDest.RequestAssistance(providerId, serviceType, lat, lng))
+                                },
+                                onNavigateToNotifications = {
+                                    tabBackStack.add(AppDest.Notifications)
                                 }
                             )
                             Role.PROVIDER -> HomeProviderScreen(
                                 viewModel = homeProviderViewModel,
                                 onNavigateToQuote = { assistanceId ->
                                     tabBackStack.add(AppDest.Quote(assistanceId))
+                                },
+                                onNavigateToNotifications = {
+                                    tabBackStack.add(AppDest.Notifications)
                                 },
                                 onNavigateToCompleteProfile = {
                                     tabBackStack.add(AppDest.ProviderProfile)
@@ -784,6 +791,34 @@ fun MainNavigationSuite(
                     entry<AppDest.TabKey.Profile> {
                         ProfileScreen(
                             onLogout = onLogout
+                        )
+                    }
+
+                    entry<AppDest.Notifications> {
+                        NotificationListScreen(
+                            onNavigateBack = {
+                                tabBackStack.removeAt(tabBackStack.size - 1)
+                            },
+                            onNavigateToNotification = { type, assistanceId, dataJson ->
+                                val event = navEventFromExtras(type, assistanceId, dataJson)
+                                if (event != null) {
+                                    val dest: NavKey = when (event) {
+                                        is NavEvent.NewAssistance -> AppDest.Quote(event.assistanceId)
+                                        is NavEvent.DirectedAssistance -> AppDest.Quote(event.assistanceId)
+                                        is NavEvent.NewQuote -> AppDest.TabKey.QuotesList(event.assistanceId)
+                                        is NavEvent.QuoteAcceptedProvider -> AppDest.AssistanceTracking(event.assistanceId)
+                                        is NavEvent.QuoteAcceptedClient -> AppDest.TabKey.QuotesList(event.assistanceId)
+                                        is NavEvent.QuoteRejected -> AppDest.TabKey.ProviderQuotes(ProviderQuoteFilter.FINALIZADAS)
+                                        is NavEvent.TripStarted -> AppDest.TabKey.QuotesList(event.assistanceId)
+                                        is NavEvent.ProviderArrived -> AppDest.TabKey.QuotesList(event.assistanceId)
+                                        is NavEvent.ProviderHeadingToDestination -> AppDest.TabKey.QuotesList(event.assistanceId)
+                                        is NavEvent.ServiceCompleted -> AppDest.TabKey.QuotesList(event.assistanceId)
+                                    }
+                                    if (tabBackStack.lastOrNull() != dest) {
+                                        tabBackStack.add(dest)
+                                    }
+                                }
+                            }
                         )
                     }
 

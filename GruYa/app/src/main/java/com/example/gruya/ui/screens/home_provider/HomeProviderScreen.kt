@@ -114,6 +114,7 @@ private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 fun HomeProviderScreen(
     viewModel: HomeProviderViewModel = hiltViewModel(),
     onNavigateToQuote: (Int) -> Unit = {},
+    onNavigateToNotifications: () -> Unit = {},
     onNavigateToCompleteProfile: () -> Unit = {}
 ) {
 
@@ -310,10 +311,10 @@ fun HomeProviderScreen(
                         }
                     }
 
-                    IconButton(onClick = { /* TODO: Notifications */ }) {
+                    IconButton(onClick = onNavigateToNotifications) {
                         Icon(
                             imageVector = Icons.Default.Notifications,
-                            contentDescription = null,
+                            contentDescription = "Notificaciones",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }

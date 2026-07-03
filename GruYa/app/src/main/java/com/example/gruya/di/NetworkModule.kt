@@ -9,6 +9,7 @@ import com.example.gruya.data.repository.TrackingRepository
 import com.example.gruya.data.service.AssistanceService
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.data.service.FuelStationService
+import com.example.gruya.data.service.NotificationService
 import com.example.gruya.data.service.ProviderService
 import com.example.gruya.data.service.QuoteService
 import com.example.gruya.data.service.VehicleService
@@ -78,6 +79,10 @@ object NetworkModule {
     @Provides @Singleton
     fun fuelStationService(retrofit: Retrofit): FuelStationService =
         retrofit.create(FuelStationService::class.java)
+
+    @Provides @Singleton
+    fun provideNotificationService(retrofit: Retrofit): NotificationService =
+        retrofit.create(NotificationService::class.java)
 
     @Provides @Singleton
     fun provideTrackingRepository(sessionManager: SessionManager): TrackingRepository =

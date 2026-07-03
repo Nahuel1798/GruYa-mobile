@@ -64,6 +64,11 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
+    data object Notifications : AppDest {
+        override val requieresAuth = true
+    }
+
+    @Serializable
     sealed interface TabKey : NavKey {
         @Serializable
         data object Home : TabKey

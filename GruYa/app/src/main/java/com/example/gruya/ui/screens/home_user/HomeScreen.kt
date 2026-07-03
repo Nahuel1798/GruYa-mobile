@@ -72,6 +72,7 @@ import org.maplibre.spatialk.geojson.Position
 @Composable
 fun HomeScreen(
     onNavigateToRequestAssistance: (Int?, String?, Double?, Double?) -> Unit = { _, _, _, _ -> },
+    onNavigateToNotifications: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -171,10 +172,10 @@ fun HomeScreen(
                         )
                     },
                     actions = {
-                        IconButton(onClick = { /* Notifications */ }) {
+                        IconButton(onClick = onNavigateToNotifications) {
                             Icon(
                                 imageVector = Icons.Default.Notifications,
-                                contentDescription = null,
+                                contentDescription = "Notificaciones",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

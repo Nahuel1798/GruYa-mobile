@@ -12,6 +12,7 @@ fun AssistanceResponse.toDomain(): Assistance = Assistance(
     origin = origin,
     destination = destination,
     isDirected = isDirected,
+    createdAt = createdAt,
     clientName = runCatching { "${client.firstName} ${client.lastName}" }.getOrDefault(""),
     routeGeometry = routeGeometry
 )

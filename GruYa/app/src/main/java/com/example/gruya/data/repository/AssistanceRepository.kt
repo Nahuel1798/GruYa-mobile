@@ -90,13 +90,17 @@ class AssistanceRepository @Inject constructor(
     }
 
 
-    suspend fun getAssistanceActive(): Result<AssistanceResponse?> {
+    suspend fun getAssistanceActive(): Result<Assistance?> {
         return try {
             val response = assistanceService.getActiveAssistances()
             if (response.isSuccessful) {
                 val body = response.body()
                 Log.d("AssistanceRepository", "Solicitud de auxilio activa: $body")
-                Result.success(body)
+                Result.success(body?.toDomain())
+            } else if (response.code() == 404) {
+                // Si es 404, simplemente no hay asistencia activa, no es un error para el usuario
+                Log.d("AssistanceRepository", "No hay asistencia activa (404)")
+                Result.success(null)
             } else {
                 Result.failure(
                     Exception("Error ${response.code()}: ${response.message()}")

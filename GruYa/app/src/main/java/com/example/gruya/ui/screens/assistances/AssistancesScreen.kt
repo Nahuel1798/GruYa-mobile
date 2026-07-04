@@ -1,43 +1,63 @@
 package com.example.gruya.ui.screens.assistances
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.TireRepair
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
-import androidx.compose.material3.Icon
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +71,7 @@ import com.example.gruya.domain.model.Assistance
 import com.example.gruya.domain.model.AssistanceStatus
 import com.example.gruya.domain.model.ServiceType
 import com.example.gruya.domain.model.displayName
+import com.example.gruya.utils.DateTimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,94 +80,149 @@ fun AssistancesScreen(
     viewModel: AssistancesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            if (uiState.assistances.isNotEmpty() || uiState.activeAssistance != null) {
+                snackbarHostState.showSnackbar(it)
+            }
+        }
+    }
 
     LifecycleResumeEffect(Unit) {
         viewModel.loadAssistances()
         onPauseOrDispose { }
     }
 
+    AssistancesScreenContent(
+        uiState = uiState,
+        snackbarHostState = snackbarHostState,
+        onRefresh = viewModel::onRefresh,
+        onRetry = viewModel::loadAssistances,
+        onNavigateToQuotes = onNavigateToQuotes,
+        onCancelAssistance = viewModel::cancelActiveAssistance
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AssistancesScreenContent(
+    uiState: AssistancesUiState,
+    snackbarHostState: SnackbarHostState,
+    onRefresh: () -> Unit,
+    onRetry: () -> Unit,
+    onNavigateToQuotes: (Int) -> Unit,
+    onCancelAssistance: () -> Unit
+) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Mis Solicitudes",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+            Column {
+                TopAppBar(
+                    title = {
+                        Text(
+                            text = "Mis Solicitudes",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface
                     )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
-            )
+                if ((uiState.isLoading || uiState.isPerformingAction) && (uiState.assistances.isNotEmpty() || uiState.activeAssistance != null)) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                    )
+                }
+            }
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
-            onRefresh = viewModel::onRefresh,
+            onRefresh = onRefresh,
             modifier = Modifier.padding(padding)
         ) {
-            when {
-                uiState.isLoading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            strokeWidth = 3.dp,
-                            modifier = Modifier.size(48.dp)
+            AnimatedContent(
+                targetState = uiState,
+                transitionSpec = {
+                    fadeIn() togetherWith fadeOut()
+                },
+                label = "AssistancesContentTransition"
+            ) { state ->
+                when {
+                    state.showInitialLoading -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+
+                    state.error != null && state.assistances.isEmpty() && state.activeAssistance == null -> {
+                        AssistancesErrorContent(
+                            error = state.error,
+                            onRetry = onRetry,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-                }
 
-                uiState.error != null && uiState.assistances.isEmpty() && uiState.activeAssistance == null -> {
-                    AssistancesErrorContent(
-                        error = uiState.error!!,
-                        onRetry = viewModel::loadAssistances,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                    state.assistances.isEmpty() && state.activeAssistance == null -> {
+                        AssistancesEmptyContent(
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
 
-                uiState.assistances.isEmpty() && uiState.activeAssistance == null -> {
-                    AssistancesEmptyContent(
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                else -> {
-                    AssistancesListContent(
-                        activeAssistance = uiState.activeAssistance,
-                        assistances = uiState.assistances,
-                        onNavigateToQuotes = onNavigateToQuotes,
-                        onCancelAssistance = viewModel::cancelActiveAssistance,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    else -> {
+                        AssistancesListContent(
+                            activeAssistance = state.activeAssistance,
+                            assistances = state.assistances,
+                            isPerformingAction = state.isPerformingAction,
+                            onNavigateToQuotes = onNavigateToQuotes,
+                            onCancelAssistance = onCancelAssistance,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AssistancesListContent(
     activeAssistance: Assistance?,
     assistances: List<Assistance>,
+    isPerformingAction: Boolean,
     onNavigateToQuotes: (Int) -> Unit,
     onCancelAssistance: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val historyAssistances = remember(assistances, activeAssistance) {
+        assistances.filter { it.id != activeAssistance?.id }
+    }
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = WindowInsets.navigationBars.asPaddingValues()
     ) {
         item { Spacer(modifier = Modifier.height(4.dp)) }
 
         activeAssistance?.let {
-            item {
+            item(key = "active_section_title") {
                 Text(
                     text = "Solicitud Activa",
                     style = MaterialTheme.typography.titleMedium,
@@ -154,29 +230,45 @@ private fun AssistancesListContent(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
                 )
+            }
+            item(key = "active_assistance_card") {
                 ActiveAssistanceCard(
                     assistance = it,
+                    isPerformingAction = isPerformingAction,
                     onNavigateToQuotes = onNavigateToQuotes,
                     onCancelAssistance = onCancelAssistance
                 )
             }
+        } ?: item(key = "empty_active") {
+            EmptySectionCard(
+                text = "No tienes solicitudes activas en este momento.",
+                icon = Icons.Default.AccessTime
+            )
         }
 
-        if (assistances.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Historial",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 4.dp),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
+        item(key = "history_section_title") {
+            Text(
+                text = "Historial",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 4.dp),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
 
-            items(assistances.filter { it.id != activeAssistance?.id }, key = { it.id }) { assistance ->
+        if (historyAssistances.isNotEmpty()) {
+            items(historyAssistances, key = { it.id }) { assistance ->
                 AssistanceCard(
                     assistance = assistance,
-                    onNavigateToQuotes = onNavigateToQuotes
+                    onNavigateToQuotes = onNavigateToQuotes,
+                    modifier = Modifier.animateItem()
+                )
+            }
+        } else {
+            item(key = "empty_history") {
+                EmptySectionCard(
+                    text = "Tu historial de asistencias aparecerá aquí.",
+                    icon = Icons.Default.CalendarToday
                 )
             }
         }
@@ -188,6 +280,7 @@ private fun AssistancesListContent(
 @Composable
 private fun ActiveAssistanceCard(
     assistance: Assistance,
+    isPerformingAction: Boolean,
     onNavigateToQuotes: (Int) -> Unit,
     onCancelAssistance: () -> Unit
 ) {
@@ -238,6 +331,24 @@ private fun ActiveAssistanceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
+                    
+                    if (assistance.createdAt != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.AccessTime,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = DateTimeUtils.formatRelative(assistance.createdAt),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -279,6 +390,7 @@ private fun ActiveAssistanceCard(
                         .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
+                    enabled = !isPerformingAction,
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     ),
@@ -316,32 +428,38 @@ private fun ActiveAssistanceCard(
 @Composable
 private fun AssistanceCard(
     assistance: Assistance,
-    onNavigateToQuotes: (Int) -> Unit
+    onNavigateToQuotes: (Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        onClick = { onNavigateToQuotes(assistance.id) },
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Surface(
-                        modifier = Modifier.size(44.dp),
+                        modifier = Modifier.size(48.dp),
                         shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             IconForServiceType(
                                 serviceType = assistance.serviceType,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
@@ -349,7 +467,7 @@ private fun AssistanceCard(
                     Column {
                         Text(
                             text = assistance.issueType.displayName,
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -363,27 +481,82 @@ private fun AssistanceCard(
                 StatusBadge(status = assistance.status)
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Surface(
-                onClick = { onNavigateToQuotes(assistance.id) },
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            if (assistance.createdAt != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.alpha(0.1f),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = if (assistance.status == AssistanceStatus.PENDIENTE) "Ver Cotizaciones" else "Ver Detalles",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = DateTimeUtils.formatIsoToDisplay(assistance.createdAt),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun EmptySectionCard(
+    text: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
         }
     }
 }
@@ -420,16 +593,17 @@ private fun StatusBadge(status: AssistanceStatus) {
     }
 
     Surface(
-        shape = RoundedCornerShape(8.dp),
-        color = badgeColor.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(12.dp),
+        color = badgeColor.copy(alpha = 0.1f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, badgeColor.copy(alpha = 0.2f))
     ) {
         Text(
             text = label.uppercase(),
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             color = badgeColor,
             style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 0.5.sp
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.8.sp
         )
     }
 }
@@ -439,6 +613,7 @@ private fun AssistancesEmptyContent(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -483,6 +658,7 @@ private fun AssistancesErrorContent(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -518,5 +694,14 @@ private fun AssistancesErrorContent(
 )
 @Composable
 private fun AssistancesScreenPreview() {
-    AssistancesScreen()
+    MaterialTheme {
+        AssistancesScreenContent(
+            uiState = AssistancesUiState(),
+            snackbarHostState = remember { SnackbarHostState() },
+            onRefresh = {},
+            onRetry = {},
+            onNavigateToQuotes = {},
+            onCancelAssistance = {}
+        )
+    }
 }

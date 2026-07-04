@@ -16,5 +16,6 @@ data class HomeProviderUiState(
     val userLocation: Position? = null,
     val isProfileComplete: Boolean? = null,
     val providerProfile: ProviderProfile? = null,
-    val profileCheckError: String? = null
+    val profileCheckError: String? = null,
+    val unreadNotificationsCount: Int = 0
 )

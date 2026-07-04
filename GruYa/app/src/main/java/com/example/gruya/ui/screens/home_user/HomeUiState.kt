@@ -26,5 +26,7 @@ data class HomeUiState(
 
     val error: String? = null,
 
-    val stationsError: String? = null
+    val stationsError: String? = null,
+
+    val unreadNotificationsCount: Int = 0
 )

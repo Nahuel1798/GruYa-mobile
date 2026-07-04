@@ -30,6 +30,8 @@ import android.annotation.SuppressLint
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
@@ -79,6 +81,11 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LifecycleResumeEffect(Unit) {
+        viewModel.loadUnreadNotificationsCount()
+        onPauseOrDispose { }
+    }
 
     // Mostrar error de estaciones si existe
     LaunchedEffect(uiState.stationsError) {
@@ -173,11 +180,23 @@ fun HomeScreen(
                     },
                     actions = {
                         IconButton(onClick = onNavigateToNotifications) {
-                            Icon(
-                                imageVector = Icons.Default.Notifications,
-                                contentDescription = "Notificaciones",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            BadgedBox(
+                                badge = {
+                                    if (uiState.unreadNotificationsCount > 0) {
+                                        Badge {
+                                            Text(
+                                                text = if (uiState.unreadNotificationsCount > 9) "9+" else uiState.unreadNotificationsCount.toString()
+                                            )
+                                        }
+                                    }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Notifications,
+                                    contentDescription = "Notificaciones",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(

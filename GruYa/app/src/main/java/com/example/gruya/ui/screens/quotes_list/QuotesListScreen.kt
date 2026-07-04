@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Person
@@ -81,13 +82,13 @@ fun QuotesListScreen(
     viewModel: QuotesListViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val acceptedQuote = remember(uiState.quotes) {
-        uiState.quotes.find { it.status == QuoteStatus.ACEPTADA }
+    val activeQuote = remember(uiState.quotes) {
+        uiState.quotes.find { it.status == QuoteStatus.ACEPTADA || it.status == QuoteStatus.COMPLETADO }
     }
 
-    if (acceptedQuote != null) {
+    if (activeQuote != null) {
         ActiveServiceTrackingContent(
-            quote = acceptedQuote,
+            quote = activeQuote,
             uiState = uiState,
             onNavigateBack = onNavigateBack
         )
@@ -181,7 +182,7 @@ private fun ActiveServiceTrackingContent(
                 title = {
                     Column {
                         Text(
-                            "Servicio en curso",
+                            if (status == AssistanceStatus.COMPLETADO) "Servicio finalizado" else "Servicio en curso",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
@@ -213,95 +214,150 @@ private fun ActiveServiceTrackingContent(
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 32.dp)
             ) {
-                // Provider Section
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ProviderAvatar(name = quote.providerName, size = 56.dp)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                if (status != AssistanceStatus.COMPLETADO) {
+                    // Provider Section
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ProviderAvatar(name = quote.providerName, size = 56.dp)
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = quote.providerName,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            TrackingStatusBadge(status = status, trackingState = uiState.trackingState)
+                        }
+
+                        // Quick Action Buttons
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    val intent = Intent(
+                                        Intent.ACTION_DIAL,
+                                        Uri.parse("tel:$phoneNumber")
+                                    )
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.background(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    CircleShape
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Default.Call,
+                                    contentDescription = "Llamar",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = {
+                                    val number = phoneNumber
+                                        .replace("+", "")
+                                        .replace(" ", "")
+
+                                    val message = Uri.encode(
+                                        "Hola, soy el cliente de la asistencia."
+                                    )
+
+                                    val intent = Intent(
+                                        Intent.ACTION_VIEW,
+                                        Uri.parse("https://wa.me/$number?text=$message")
+                                    )
+
+                                    context.startActivity(intent)
+                                },
+                                modifier = Modifier.background(
+                                    MaterialTheme.colorScheme.secondaryContainer,
+                                    CircleShape
+                                )
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Chat,
+                                    contentDescription = "WhatsApp"
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                if (status != AssistanceStatus.COMPLETADO) {
+                    // Trip Info Card
+                    OutlinedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.outlinedCardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(
+                                alpha = 0.3f
+                            )
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            InfoRow(
+                                Icons.Default.LocationOn,
+                                "Recogida",
+                                uiState.originAddress ?: "Cargando..."
+                            )
+
+                            Box(modifier = Modifier.padding(start = 9.dp, top = 4.dp, bottom = 4.dp)) {
+                                VerticalDivider(
+                                    modifier = Modifier.height(20.dp),
+                                    thickness = 2.dp,
+                                    color = MaterialTheme.colorScheme.outlineVariant
+                                )
+                            }
+
+                            InfoRow(
+                                Icons.Default.Navigation,
+                                "Destino",
+                                if (assistance.destination.latitude == 0.0) "Sin destino fijo" else uiState.destinationAddress
+                                    ?: "Cargando..."
+                            )
+                        }
+                    }
+                }
+
+                if (status == AssistanceStatus.COMPLETADO) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = quote.providerName,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            text = "Precio total",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        TrackingStatusBadge(status = status, trackingState = uiState.trackingState)
-                    }
-                    
-                    // Quick Action Buttons
-                    Row {
-                        IconButton(
-                            onClick = {
-                                val intent = Intent(
-                                    Intent.ACTION_DIAL,
-                                    Uri.parse("tel:$phoneNumber")
-                                )
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
-                        ) {
-                            Icon(Icons.Default.Call, contentDescription = "Llamar", tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        IconButton(
-                            onClick = {
-                                val number = phoneNumber
-                                    .replace("+", "")
-                                    .replace(" ", "")
-
-                                val message = Uri.encode(
-                                    "Hola, soy el cliente de la asistencia."
-                                )
-
-                                val intent = Intent(
-                                    Intent.ACTION_VIEW,
-                                    Uri.parse("https://wa.me/$number?text=$message")
-                                )
-
-                                context.startActivity(intent)
-                            },
-                            modifier = Modifier.background(
-                                MaterialTheme.colorScheme.secondaryContainer,
-                                CircleShape
-                            )
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.Chat,
-                                contentDescription = "WhatsApp"
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Trip Info Card
-                OutlinedCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        InfoRow(Icons.Default.LocationOn, "Recogida", uiState.originAddress ?: "Cargando...")
-                        
-                        Box(modifier = Modifier.padding(start = 9.dp, top = 4.dp, bottom = 4.dp)) {
-                            VerticalDivider(
-                                modifier = Modifier.height(20.dp),
-                                thickness = 2.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
-                            )
-                        }
-
-                        InfoRow(
-                            Icons.Default.Navigation,
-                            "Destino",
-                            if (assistance.destination.latitude == 0.0) "Sin destino fijo" else uiState.destinationAddress ?: "Cargando..."
+                        Text(
+                            text = "$%.2f".format(quote.price),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
-                }
 
-                if (uiState.distanceKm != null) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = onNavigateBack,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF22C55E)
+                        )
+                    ) {
+                        Text(
+                            "Volver",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                } else if (uiState.distanceKm != null) {
                     Spacer(modifier = Modifier.height(20.dp))
                     Row(
                         modifier = Modifier
@@ -311,9 +367,15 @@ private fun ActiveServiceTrackingContent(
                             .padding(12.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        MetricItem(label = "Distancia", value = "%.1f km".format(uiState.distanceKm))
+                        MetricItem(
+                            label = "Distancia",
+                            value = "%.1f km".format(uiState.distanceKm)
+                        )
                         VerticalDivider(modifier = Modifier.height(24.dp), thickness = 1.dp)
-                        MetricItem(label = "Llegada", value = DateTimeUtils.formatEtaToArrivalTime(uiState.etaMinutes))
+                        MetricItem(
+                            label = "Llegada",
+                            value = DateTimeUtils.formatEtaToArrivalTime(uiState.etaMinutes)
+                        )
                     }
                 }
             }
@@ -347,36 +409,54 @@ private fun MetricItem(label: String, value: String) {
 
 @Composable
 private fun TrackingStatusBadge(status: AssistanceStatus, trackingState: TrackingState) {
-    val isWaiting = status == AssistanceStatus.PENDIENTE || status == AssistanceStatus.ACEPTADA
-    
-    val text = when (trackingState) {
-        is TrackingState.Connected, is TrackingState.Tracking -> {
-            when (status) {
-                AssistanceStatus.EN_CAMINO_AL_CLIENTE -> "En camino hacia ti"
-                AssistanceStatus.EN_ORIGEN -> "En el lugar"
-                AssistanceStatus.EN_CAMINO_AL_DESTINO -> "Viajando al destino"
-                else -> status.displayName
-            }
-        }
-        is TrackingState.Disconnected -> if (isWaiting) "En espera" else "Conexión perdida"
-        is TrackingState.Error -> "Error de rastreo"
-        else -> if (isWaiting) "En espera" else status.displayName
+    val text = when {
+        status == AssistanceStatus.COMPLETADO -> "¡Servicio finalizado con éxito!"
+        status == AssistanceStatus.CANCELADO -> "Servicio cancelado"
+        status == AssistanceStatus.ACEPTADA && (trackingState is TrackingState.Idle || trackingState is TrackingState.Disconnected) -> "Esperando inicio de viaje"
+        status == AssistanceStatus.ACEPTADA -> "El prestador está preparándose"
+        status == AssistanceStatus.EN_CAMINO_AL_CLIENTE -> "La grúa está en camino"
+        status == AssistanceStatus.EN_ORIGEN -> "La grúa ha llegado"
+        status == AssistanceStatus.EN_CAMINO_AL_DESTINO -> "Viajando al destino"
+        trackingState is TrackingState.Disconnected -> "Conexión perdida"
+        trackingState is TrackingState.Error -> "Error de rastreo"
+        else -> status.displayName
     }
     
-    val color = when (trackingState) {
-        is TrackingState.Disconnected -> if (isWaiting) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-        is TrackingState.Error -> MaterialTheme.colorScheme.error
+    val color = when {
+        status == AssistanceStatus.COMPLETADO -> Color(0xFF22C55E)
+        status == AssistanceStatus.CANCELADO -> MaterialTheme.colorScheme.error
+        trackingState is TrackingState.Error -> MaterialTheme.colorScheme.error
+        trackingState is TrackingState.Disconnected && status != AssistanceStatus.ACEPTADA -> MaterialTheme.colorScheme.error
         else -> MaterialTheme.colorScheme.primary
     }
 
+    val icon = when (status) {
+        AssistanceStatus.COMPLETADO -> Icons.Default.Check
+        AssistanceStatus.ACEPTADA -> Icons.Default.AccessTime
+        else -> null
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
-        Spacer(modifier = Modifier.width(6.dp))
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = color
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(color, CircleShape)
+            )
+        }
+        Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
             color = color,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Bold
         )
     }
 }
@@ -485,7 +565,7 @@ private fun QuoteCard(
             val indicatorColor = when (quote.status) {
                 QuoteStatus.PENDIENTE -> MaterialTheme.colorScheme.primary
                 QuoteStatus.ACEPTADA -> Color(0xFF22C55E)
-                QuoteStatus.COMPLETADO -> Color(0xFF3B82F6)
+                QuoteStatus.COMPLETADO -> Color(0xFF22C55E)
                 QuoteStatus.RECHAZADA -> MaterialTheme.colorScheme.error
                 else -> MaterialTheme.colorScheme.outlineVariant
             }
@@ -600,7 +680,7 @@ private fun QuoteStatusBadge(status: QuoteStatus) {
     val (label, badgeColor) = when (status) {
         QuoteStatus.PENDIENTE -> "Pendiente" to MaterialTheme.colorScheme.primary
         QuoteStatus.ACEPTADA -> "Aceptada" to Color(0xFF22C55E)
-        QuoteStatus.COMPLETADO -> "Completada" to Color(0xFF3B82F6)
+        QuoteStatus.COMPLETADO -> "Finalizada" to Color(0xFF22C55E)
         QuoteStatus.RECHAZADA -> "Rechazada" to MaterialTheme.colorScheme.error
         QuoteStatus.CANCELADA -> "Cancelada" to MaterialTheme.colorScheme.onSurfaceVariant
         QuoteStatus.EXPIRADA -> "Expirada" to MaterialTheme.colorScheme.onSurfaceVariant

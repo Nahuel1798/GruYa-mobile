@@ -35,6 +35,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.SnackbarHost
@@ -122,6 +124,7 @@ fun HomeProviderScreen(
 
     LifecycleResumeEffect(Unit) {
         viewModel.checkProfileCompletion()
+        viewModel.loadUnreadNotificationsCount()
         onPauseOrDispose { }
     }
 
@@ -312,11 +315,23 @@ fun HomeProviderScreen(
                     }
 
                     IconButton(onClick = onNavigateToNotifications) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notificaciones",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        BadgedBox(
+                            badge = {
+                                if (uiState.unreadNotificationsCount > 0) {
+                                    Badge {
+                                        Text(
+                                            text = if (uiState.unreadNotificationsCount > 9) "9+" else uiState.unreadNotificationsCount.toString()
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Notificaciones",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

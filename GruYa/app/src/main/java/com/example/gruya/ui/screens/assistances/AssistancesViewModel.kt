@@ -2,22 +2,22 @@ package com.example.gruya.ui.screens.assistances
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.ui.navigation.NavigationEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class AssistancesViewModel @Inject constructor(
     private val assistanceRepository: AssistanceRepository,
-    private val navigationEventBus: NavigationEventBus
+    private val navigationEventBus: NavigationEventBus,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AssistancesUiState())
@@ -33,7 +33,7 @@ class AssistancesViewModel @Inject constructor(
     private fun observeNavigationEvents() {
         viewModelScope.launch {
             navigationEventBus.notificationEvents.collect {
-                loadAssistances(isRefreshing = true)
+                loadAssistances(isRefreshing = false)
             }
         }
     }
@@ -41,36 +41,50 @@ class AssistancesViewModel @Inject constructor(
     fun loadAssistances(isRefreshing: Boolean = false) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
-            val hasData = _uiState.value.assistances.isNotEmpty() || _uiState.value.activeAssistance != null
-            
             _uiState.update { 
                 it.copy(
-                    isLoading = !isRefreshing && !hasData,
+                    isLoading = true,
                     isRefreshing = isRefreshing,
                     error = null
                 )
             }
             
-            val assistancesResult = assistanceRepository.getUserAssistances()
-            val activeResult = assistanceRepository.getAssistanceActive()
+            try {
+                // Ejecutamos ambas peticiones en paralelo
+                val assistancesDeferred = async { assistanceRepository.getUserAssistances() }
+                val activeDeferred = async { assistanceRepository.getAssistanceActive() }
 
-            _uiState.update { state ->
-                var newState = state.copy(
-                    isLoading = false,
-                    isRefreshing = false
-                )
-                
-                assistancesResult.onSuccess { list ->
-                    newState = newState.copy(assistances = list)
-                }.onFailure { t ->
-                    newState = newState.copy(error = t.message)
-                }
+                val assistancesResult = assistancesDeferred.await()
+                val activeResult = activeDeferred.await()
 
-                activeResult.onSuccess { response ->
-                    newState = newState.copy(activeAssistance = response?.toDomain())
+                _uiState.update { state ->
+                    var newState = state.copy(
+                        isLoading = false,
+                        isRefreshing = false
+                    )
+                    
+                    assistancesResult.onSuccess { list ->
+                        newState = newState.copy(assistances = list)
+                    }.onFailure { t ->
+                        newState = newState.copy(error = t.message)
+                    }
+
+                    activeResult.onSuccess { active ->
+                        newState = newState.copy(activeAssistance = active)
+                    }.onFailure { _ ->
+                        // No asignamos error si la solicitud activa falla
+                    }
+                    
+                    newState
                 }
-                
-                newState
+            } catch (e: Exception) {
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false, 
+                        isRefreshing = false, 
+                        error = e.message ?: "Ocurrió un error inesperado"
+                    )
+                }
             }
         }
     }
@@ -81,13 +95,27 @@ class AssistancesViewModel @Inject constructor(
 
     fun cancelActiveAssistance() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            val result = assistanceRepository.cancelAssistance()
-            result.onSuccess {
-                loadAssistances()
-            }.onFailure { t ->
-                _uiState.update { it.copy(isLoading = false, error = t.message) }
-            }
+            _uiState.update { it.copy(isPerformingAction = true, error = null) }
+            
+            assistanceRepository.cancelAssistance()
+                .onSuccess {
+                    // Recargamos los datos para reflejar el cambio
+                    loadAssistances()
+                }
+                .onFailure { t ->
+                    _uiState.update { 
+                        it.copy(
+                            isPerformingAction = false, 
+                            error = t.message ?: "Error al cancelar la solicitud"
+                        ) 
+                    }
+                }
+            
+            _uiState.update { it.copy(isPerformingAction = false) }
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
     }
 }

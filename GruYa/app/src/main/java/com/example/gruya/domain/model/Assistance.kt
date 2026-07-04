@@ -9,6 +9,7 @@ data class Assistance(
     val origin: Location,
     val destination: Location,
     val isDirected: Boolean,
+    val createdAt: String? = null,
     val clientName: String = "",
     val routeGeometry: String? = null
 )

@@ -19,5 +19,6 @@ data class AssistanceResponse(
     val origin: Location,
     val destination: Location,
     val isDirected: Boolean,
+    val createdAt: String? = null,
     val trackingSessionId: String? = null
 )

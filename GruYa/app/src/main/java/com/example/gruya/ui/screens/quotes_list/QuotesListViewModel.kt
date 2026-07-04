@@ -109,11 +109,14 @@ class QuotesListViewModel @Inject constructor(
             assistanceResult.onSuccess { assistance ->
                 if (assistance != null) {
                     updateAddresses(assistance.origin, assistance.destination)
+                    
+                    // Always start polling for status updates (e.g. from ACEPTADA to EN_CAMINO_AL_CLIENTE)
+                    startStatusPolling(quote.assistanceId, quote.id)
+
                     val sessionId = assistance.trackingSessionId
                     if (!sessionId.isNullOrBlank()) {
                         trackingRepository.connect(sessionId, isProvider = false)
                         getRoute(quote.assistanceId)
-                        startStatusPolling(quote.assistanceId, quote.id)
                     }
                     
                     updateLocalAssistanceStatus(quote.id, assistance.status)
@@ -126,11 +129,32 @@ class QuotesListViewModel @Inject constructor(
         statusPollingJob?.cancel()
         statusPollingJob = viewModelScope.launch {
             while (isActive) {
-                delay(10_000) // Poll every 10 seconds
+                delay(5000) // Poll every 5 seconds
                 val result = assistanceRepository.getAssistanceDetails(assistanceId)
                 result.onSuccess { assistance ->
                     if (assistance != null) {
+                        val oldStatus = _uiState.value.quotes.find { it.id == quoteId }?.assistance?.status
                         updateLocalAssistanceStatus(quoteId, assistance.status)
+                        
+                        // Check if we need to connect to tracking (in case sessionId was null initially)
+                        val sessionId = assistance.trackingSessionId
+                        val currentTrackingState = _uiState.value.trackingState
+                        if (!sessionId.isNullOrBlank() && 
+                            (currentTrackingState is TrackingState.Idle || currentTrackingState is TrackingState.Disconnected)) {
+                            trackingRepository.connect(sessionId, isProvider = false)
+                            getRoute(assistanceId)
+                        }
+
+                        // If status changed, we might need a new route
+                        if (oldStatus != assistance.status) {
+                            getRoute(assistanceId)
+                        }
+
+                        // Stop polling if finished or cancelled
+                        if (assistance.status == AssistanceStatus.COMPLETADO || 
+                            assistance.status == AssistanceStatus.CANCELADO) {
+                            statusPollingJob?.cancel()
+                        }
                     }
                 }
             }
@@ -142,7 +166,14 @@ class QuotesListViewModel @Inject constructor(
             state.copy(
                 quotes = state.quotes.map { q ->
                     if (q.id == quoteId) {
-                        q.copy(assistance = q.assistance.copy(status = status))
+                        var updatedQuote = q.copy(assistance = q.assistance.copy(status = status))
+                        // Keep Quote status in sync with Assistance status for completion/cancellation
+                        if (status == AssistanceStatus.COMPLETADO) {
+                            updatedQuote = updatedQuote.copy(status = QuoteStatus.COMPLETADO)
+                        } else if (status == AssistanceStatus.CANCELADO) {
+                            updatedQuote = updatedQuote.copy(status = QuoteStatus.CANCELADA)
+                        }
+                        updatedQuote
                     } else q
                 }
             )
@@ -171,6 +202,7 @@ class QuotesListViewModel @Inject constructor(
 
     fun getRoute(assistanceId: Int) {
         if (!routeMutex.tryLock()) return
+        lastRouteFetchTime = System.currentTimeMillis()
         viewModelScope.launch {
             try {
                 val result = assistanceRepository.getRoute(assistanceId)

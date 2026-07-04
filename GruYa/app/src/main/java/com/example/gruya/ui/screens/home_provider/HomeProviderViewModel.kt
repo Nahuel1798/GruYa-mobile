@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.AssistanceRepository
+import com.example.gruya.data.repository.NotificationRepository
 import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.data.service.ProviderLocationService
 import com.example.gruya.ui.navigation.NavEvent
@@ -27,6 +28,7 @@ import org.maplibre.spatialk.geojson.Position
 class HomeProviderViewModel @Inject constructor(
     private val assistanceRepository: AssistanceRepository,
     private val providerRepository: ProviderRepository,
+    private val notificationRepository: NotificationRepository,
     private val navigationEventBus: NavigationEventBus,
     private val application: Application
 ) : AndroidViewModel(application) {
@@ -39,6 +41,7 @@ class HomeProviderViewModel @Inject constructor(
     init {
         checkProfileCompletion()
         loadNearbyAssistances()
+        loadUnreadNotificationsCount()
         observeAssistanceNotifications()
     }
 
@@ -143,9 +146,19 @@ fun onLocationPermissionChanged(granted: Boolean) {
         }
     }
 
+    fun loadUnreadNotificationsCount() {
+        viewModelScope.launch {
+            notificationRepository.getNotifications(1, 50).onSuccess { pagedResponse ->
+                val unreadCount = pagedResponse?.data?.count { it.readAt == null } ?: 0
+                _uiState.update { it.copy(unreadNotificationsCount = unreadCount) }
+            }
+        }
+    }
+
     private fun observeAssistanceNotifications() {
         viewModelScope.launch {
             navigationEventBus.notificationEvents.collect { event ->
+                loadUnreadNotificationsCount()
                 when (event) {
                     is NavEvent.NewAssistance,
                     is NavEvent.DirectedAssistance,

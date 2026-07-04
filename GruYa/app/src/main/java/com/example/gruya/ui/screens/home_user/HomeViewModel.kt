@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.FuelStationRepository
+import com.example.gruya.data.repository.NotificationRepository
+import com.example.gruya.ui.navigation.NavigationEventBus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,11 +20,18 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val assistanceRepository: AssistanceRepository,
-    private val fuelStationRepository: FuelStationRepository
+    private val fuelStationRepository: FuelStationRepository,
+    private val notificationRepository: NotificationRepository,
+    private val navigationEventBus: NavigationEventBus
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    init {
+        loadUnreadNotificationsCount()
+        observeNotifications()
+    }
 
     fun onLocationPermissionChanged(granted: Boolean) {
         _uiState.update { it.copy(hasLocationPermission = granted) }
@@ -58,6 +67,23 @@ class HomeViewModel @Inject constructor(
 
     fun clearSelectedProvider() {
         _uiState.update { it.copy(selectedProvider = null) }
+    }
+
+    fun loadUnreadNotificationsCount() {
+        viewModelScope.launch {
+            notificationRepository.getNotifications(1, 50).onSuccess { pagedResponse ->
+                val unreadCount = pagedResponse?.data?.count { it.readAt == null } ?: 0
+                _uiState.update { it.copy(unreadNotificationsCount = unreadCount) }
+            }
+        }
+    }
+
+    private fun observeNotifications() {
+        viewModelScope.launch {
+            navigationEventBus.notificationEvents.collect {
+                loadUnreadNotificationsCount()
+            }
+        }
     }
 
     fun loadService(lat: Double? = null, lon: Double? = null) {

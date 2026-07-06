@@ -47,10 +47,10 @@ private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 fun TrackingMap(
     origin: Location,
     destination: Location,
-    routeGeometry: String? = null,
+    routePositions: List<Position> = emptyList(),
     providerLocation: Location? = null,
-    providerToOriginRoute: String? = null,
-    providerToDestinationRoute: String? = null,
+    providerRoutePositions: List<Position> = emptyList(),
+    providerToDestPositions: List<Position> = emptyList(),
     isTracking: Boolean = false,
     isProvider: Boolean = false,
     modifier: Modifier = Modifier
@@ -65,19 +65,6 @@ fun TrackingMap(
 
     var previousLocation by remember { mutableStateOf<Location?>(null) }
     var currentBearing by remember { mutableDoubleStateOf(0.0) }
-
-    // Trace the route if available
-    val routePositions = remember(routeGeometry) {
-        routeGeometry?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
-    }
-
-    val providerRoutePositions = remember(providerToOriginRoute) {
-        providerToOriginRoute?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
-    }
-
-    val providerToDestPositions = remember(providerToDestinationRoute) {
-        providerToDestinationRoute?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
-    }
 
     var remainingRoute by remember(routePositions) { mutableStateOf(routePositions) }
     var remainingProviderRoute by remember(providerRoutePositions) { mutableStateOf(providerRoutePositions) }

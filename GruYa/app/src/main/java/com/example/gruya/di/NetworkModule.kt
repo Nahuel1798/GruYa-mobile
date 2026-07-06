@@ -10,6 +10,7 @@ import com.example.gruya.data.service.AssistanceService
 import com.example.gruya.data.service.AuthService
 import com.example.gruya.data.service.FuelStationService
 import com.example.gruya.data.service.NotificationService
+import com.example.gruya.data.service.PaymentService
 import com.example.gruya.data.service.ProviderService
 import com.example.gruya.data.service.QuoteService
 import com.example.gruya.data.service.VehicleService
@@ -75,6 +76,10 @@ object NetworkModule {
     @Provides @Singleton
     fun provideQuoteService(retrofit: Retrofit): QuoteService =
         retrofit.create(QuoteService::class.java)
+
+    @Provides @Singleton
+    fun providePaymentService(retrofit: Retrofit): PaymentService =
+        retrofit.create(PaymentService::class.java)
 
     @Provides @Singleton
     fun fuelStationService(retrofit: Retrofit): FuelStationService =

@@ -173,7 +173,7 @@ class RequestAssistanceViewModel @Inject constructor(
         _uiState.update { it.copy(isGpsAvailable = isGpsEnabled) }
 
         // Try to get current GPS location automatically (offline/online)
-        if (isGpsEnabled) {
+        if (isGpsEnabled && _uiState.value.location == null) {
             loadCurrentGpsLocation(locationManager)
         }
     }

@@ -24,13 +24,19 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gruya.ui.components.TrackingMap
 import com.example.gruya.domain.model.AssistanceStatus
+import com.example.gruya.domain.model.Payment
+import com.example.gruya.domain.model.PaymentMethod
+import com.example.gruya.domain.model.PaymentStatus
 import com.example.gruya.domain.model.TrackingState
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.LocalAtm
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.clip
@@ -43,6 +49,7 @@ fun AssistanceTrackingScreen(
     assistanceId: Int,
     trackingSessionId: String? = null,
     onNavigateBack: () -> Unit,
+    onNavigateToPayment: (Int, Double) -> Unit,
     viewModel: AssistanceTrackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -257,74 +264,155 @@ fun AssistanceTrackingScreen(
 
                     when (status) {
                         AssistanceStatus.ACEPTADA -> {
-                            ProviderActionButton(
-                                label = "INICIAR VIAJE",
-                                icon = Icons.Default.PlayArrow,
-                                isLoading = uiState.isLoading,
-                                isError = trackingState is TrackingState.Error,
-                                onClick = { viewModel.startTrip() }
-                            )
+                            if (uiState.isProvider) {
+                                ProviderActionButton(
+                                    label = "INICIAR VIAJE",
+                                    icon = Icons.Default.PlayArrow,
+                                    isLoading = uiState.isLoading,
+                                    isError = trackingState is TrackingState.Error,
+                                    onClick = { viewModel.startTrip() }
+                                )
+                            } else {
+                                Text(
+                                    text = "El proveedor está en camino a tu ubicación",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                                )
+                            }
                         }
                         AssistanceStatus.EN_CAMINO_AL_CLIENTE -> {
-                            ProviderActionButton(
-                                label = "LLEGUÉ AL CLIENTE",
-                                icon = Icons.Default.LocationOn,
-                                isLoading = uiState.isLoading,
-                                isError = trackingState is TrackingState.Error,
-                                enabled = uiState.isNearOrigin,
-                                onClick = { viewModel.arriveAtOrigin() }
-                            )
-                            if (!uiState.isNearOrigin && !uiState.isLoading) {
+                            if (uiState.isProvider) {
+                                ProviderActionButton(
+                                    label = "LLEGUÉ AL CLIENTE",
+                                    icon = Icons.Default.LocationOn,
+                                    isLoading = uiState.isLoading,
+                                    isError = trackingState is TrackingState.Error,
+                                    enabled = uiState.isNearOrigin,
+                                    onClick = { viewModel.arriveAtOrigin() }
+                                )
+                                if (!uiState.isNearOrigin && !uiState.isLoading) {
+                                    Text(
+                                        text = "Debes estar a menos de 300m del origen",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else {
                                 Text(
-                                    text = "Debes estar a menos de 300m del origen",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp),
-                                    textAlign = TextAlign.Center
+                                    text = "El proveedor está en camino a tu ubicación",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                                 )
                             }
                         }
                         AssistanceStatus.EN_ORIGEN -> {
-                            ProviderActionButton(
-                                label = "IR AL DESTINO",
-                                icon = Icons.Default.Flag,
-                                isLoading = uiState.isLoading,
-                                isError = trackingState is TrackingState.Error,
-                                onClick = { viewModel.headToDestination() }
-                            )
-                        }
-                        AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
-                            ProviderActionButton(
-                                label = "FINALIZAR SERVICIO",
-                                icon = Icons.Default.Check,
-                                isLoading = uiState.isLoading,
-                                isError = trackingState is TrackingState.Error,
-                                enabled = uiState.isNearDestination,
-                                onClick = { viewModel.completeService() }
-                            )
-                            if (!uiState.isNearDestination && !uiState.isLoading) {
+                            if (uiState.isProvider) {
+                                ProviderActionButton(
+                                    label = "IR AL DESTINO",
+                                    icon = Icons.Default.Flag,
+                                    isLoading = uiState.isLoading,
+                                    isError = trackingState is TrackingState.Error,
+                                    onClick = { viewModel.headToDestination() }
+                                )
+                            } else {
                                 Text(
-                                    text = "Debes estar a menos de 300m del destino",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 8.dp),
-                                    textAlign = TextAlign.Center
+                                    text = "El proveedor ha llegado a tu ubicación",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
                                 )
                             }
                         }
+                        AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
+                            if (uiState.isProvider) {
+                                ProviderActionButton(
+                                    label = "REALIZAR PAGO",
+                                    icon = Icons.Default.CreditCard,
+                                    isLoading = uiState.isLoading,
+                                    isError = trackingState is TrackingState.Error,
+                                    enabled = uiState.isNearDestination,
+                                    onClick = { 
+                                        onNavigateToPayment(
+                                            assistance.id, 
+                                            uiState.acceptedQuote?.price ?: 0.0
+                                        ) 
+                                    }
+                                )
+                                if (!uiState.isNearDestination && !uiState.isLoading) {
+                                    Text(
+                                        text = "Debes estar a menos de 300m del destino",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 8.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else {
+                                if (uiState.payment?.status == PaymentStatus.PAGADO) {
+                                    PaidSuccessBadge(uiState.acceptedQuote?.price ?: 0.0)
+                                } else if (uiState.isNearDestination) {
+                                    ProviderActionButton(
+                                        label = "REALIZAR PAGO",
+                                        icon = Icons.Default.CreditCard,
+                                        isLoading = uiState.isLoading,
+                                        isError = false,
+                                        onClick = { 
+                                            onNavigateToPayment(
+                                                assistance.id, 
+                                                uiState.acceptedQuote?.price ?: 0.0
+                                            ) 
+                                        }
+                                    )
+                                } else {
+                                    Text(
+                                        text = "El proveedor está en camino al destino",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+                                    )
+                                }
+                            }
+                        }
                         AssistanceStatus.COMPLETADO -> {
-                            Text(
-                                text = "Servicio completado",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color(0xFF4CAF50),
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.fillMaxWidth(),
-                                textAlign = TextAlign.Center
-                            )
+                            if (!uiState.isProvider) {
+                                if (uiState.payment?.status == PaymentStatus.PAGADO) {
+                                    PaidSuccessBadge(uiState.acceptedQuote?.price ?: 0.0)
+                                } else {
+                                    ProviderActionButton(
+                                        label = "REALIZAR PAGO",
+                                        icon = Icons.Default.CreditCard,
+                                        isLoading = uiState.isLoading,
+                                        isError = false,
+                                        onClick = { 
+                                            onNavigateToPayment(
+                                                assistance.id, 
+                                                uiState.acceptedQuote?.price ?: 0.0
+                                            ) 
+                                        }
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Servicio completado",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = Color(0xFF4CAF50),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                         AssistanceStatus.CANCELADO -> {
                             Text(
@@ -377,10 +465,10 @@ fun AssistanceTrackingScreen(
                     TrackingMap(
                         origin = assistance.origin,
                         destination = assistance.destination,
-                        routeGeometry = if (showProviderToDestination) null else assistance.routeGeometry,
+                        routePositions = if (showProviderToDestination) emptyList() else uiState.assistanceRoutePositions,
                         providerLocation = uiState.providerLocation,
-                        providerToOriginRoute = if (showProviderToOrigin) uiState.providerToOriginRoute else null,
-                        providerToDestinationRoute = if (showProviderToDestination) uiState.providerToDestinationRoute else null,
+                        providerRoutePositions = if (showProviderToOrigin) uiState.providerToOriginPositions else emptyList(),
+                        providerToDestPositions = if (showProviderToDestination) uiState.providerToDestinationPositions else emptyList(),
                         isTracking = isTracking,
                         isProvider = uiState.isProvider
                     )
@@ -389,6 +477,30 @@ fun AssistanceTrackingScreen(
         }
     }
 
+}
+
+@Composable
+private fun PaidSuccessBadge(price: Double) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFFE8F5E9)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(Icons.Default.Check, contentDescription = null, tint = Color(0xFF4CAF50))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Pago completado - $${String.format(Locale.getDefault(), "%.2f", price)}",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF2E7D32),
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
 }
 
 @Composable
@@ -518,3 +630,4 @@ private fun ProviderActionButton(
         }
     }
 }
+

@@ -1,32 +1,35 @@
 package com.example.gruya.ui.screens.quotes_list
 
+import android.content.Context
+import android.location.Geocoder
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.QuoteRepository
 import com.example.gruya.data.repository.TrackingRepository
-import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.AssistanceStatus
-import com.example.gruya.domain.model.TrackingState
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.Quote
+import com.example.gruya.domain.model.QuoteStatus
+import com.example.gruya.domain.model.TrackingState
+import com.example.gruya.utils.LocationUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import android.util.Log
-import android.content.Context
-import android.location.Geocoder
+import org.maplibre.spatialk.geojson.Position
 import java.util.Locale
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.isActive
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,30 +49,39 @@ class QuotesListViewModel @Inject constructor(
     private var statusPollingJob: Job? = null
 
     init {
-        // Observe tracking state
+        observeTrackingState()
+        observeLocationUpdates()
+        observeSessionEnded()
+    }
+
+    private fun observeTrackingState() {
         viewModelScope.launch {
             trackingRepository.trackingState.collect { state ->
                 _uiState.update { it.copy(trackingState = state) }
             }
         }
+    }
 
-        // Observe location updates
+    private fun observeLocationUpdates() {
         viewModelScope.launch {
-            trackingRepository.locationUpdates.collect { location ->
-                _uiState.update { it.copy(providerLocation = location) }
-                
-                // Throttle route fetch
-                val acceptedQuote = _uiState.value.quotes.find { it.status == QuoteStatus.ACEPTADA }
-                val assistanceId = acceptedQuote?.assistanceId
-                val now = System.currentTimeMillis()
-                if (assistanceId != null && (now - lastRouteFetchTime) > 20_000L) {
-                    lastRouteFetchTime = now
-                    getRoute(assistanceId)
+            trackingRepository.locationUpdates
+                .distinctUntilChanged()
+                .collect { location ->
+                    _uiState.update { it.copy(providerLocation = location) }
+                    
+                    // Throttled route fetch
+                    val acceptedQuote = _uiState.value.quotes.find { it.status == QuoteStatus.ACEPTADA }
+                    val assistanceId = acceptedQuote?.assistanceId
+                    val now = System.currentTimeMillis()
+                    
+                    if (assistanceId != null && (now - lastRouteFetchTime) > 30_000L) {
+                        getRoute(assistanceId)
+                    }
                 }
-            }
         }
+    }
 
-        // Observe session ended
+    private fun observeSessionEnded() {
         viewModelScope.launch {
             trackingRepository.sessionEnded.collect {
                 _uiState.update {
@@ -90,11 +102,8 @@ class QuotesListViewModel @Inject constructor(
                 onSuccess = { quotes ->
                     _uiState.update { it.copy(quotes = quotes, isLoading = false) }
                     
-                    // If there's an accepted quote, start tracking
                     val acceptedQuote = quotes.find { it.status == QuoteStatus.ACEPTADA }
-                    acceptedQuote?.let { quote ->
-                        startTracking(quote)
-                    }
+                    acceptedQuote?.let { startTracking(it) }
                 },
                 onFailure = { throwable ->
                     _uiState.update { it.copy(error = throwable.message, isLoading = false) }
@@ -110,7 +119,12 @@ class QuotesListViewModel @Inject constructor(
                 if (assistance != null) {
                     updateAddresses(assistance.origin, assistance.destination)
                     
-                    // Always start polling for status updates (e.g. from ACEPTADA to EN_CAMINO_AL_CLIENTE)
+                    // Parse assistance route geometry if available
+                    val assistancePositions = withContext(Dispatchers.Default) {
+                        assistance.routeGeometry?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+                    }
+                    _uiState.update { it.copy(assistanceRoutePositions = assistancePositions) }
+
                     startStatusPolling(quote.assistanceId, quote.id)
 
                     val sessionId = assistance.trackingSessionId
@@ -129,28 +143,24 @@ class QuotesListViewModel @Inject constructor(
         statusPollingJob?.cancel()
         statusPollingJob = viewModelScope.launch {
             while (isActive) {
-                delay(5000) // Poll every 5 seconds
+                delay(8000) // Poll every 8 seconds
                 val result = assistanceRepository.getAssistanceDetails(assistanceId)
                 result.onSuccess { assistance ->
                     if (assistance != null) {
                         val oldStatus = _uiState.value.quotes.find { it.id == quoteId }?.assistance?.status
                         updateLocalAssistanceStatus(quoteId, assistance.status)
                         
-                        // Check if we need to connect to tracking (in case sessionId was null initially)
                         val sessionId = assistance.trackingSessionId
                         val currentTrackingState = _uiState.value.trackingState
                         if (!sessionId.isNullOrBlank() && 
                             (currentTrackingState is TrackingState.Idle || currentTrackingState is TrackingState.Disconnected)) {
                             trackingRepository.connect(sessionId, isProvider = false)
-                            getRoute(assistanceId)
                         }
 
-                        // If status changed, we might need a new route
                         if (oldStatus != assistance.status) {
                             getRoute(assistanceId)
                         }
 
-                        // Stop polling if finished or cancelled
                         if (assistance.status == AssistanceStatus.COMPLETADO || 
                             assistance.status == AssistanceStatus.CANCELADO) {
                             statusPollingJob?.cancel()
@@ -163,24 +173,24 @@ class QuotesListViewModel @Inject constructor(
 
     private fun updateLocalAssistanceStatus(quoteId: Int, status: AssistanceStatus) {
         _uiState.update { state ->
-            state.copy(
-                quotes = state.quotes.map { q ->
-                    if (q.id == quoteId) {
-                        var updatedQuote = q.copy(assistance = q.assistance.copy(status = status))
-                        // Keep Quote status in sync with Assistance status for completion/cancellation
-                        if (status == AssistanceStatus.COMPLETADO) {
-                            updatedQuote = updatedQuote.copy(status = QuoteStatus.COMPLETADO)
-                        } else if (status == AssistanceStatus.CANCELADO) {
-                            updatedQuote = updatedQuote.copy(status = QuoteStatus.CANCELADA)
-                        }
-                        updatedQuote
-                    } else q
-                }
-            )
+            val updatedQuotes = state.quotes.map { q ->
+                if (q.id == quoteId) {
+                    var updatedQuote = q.copy(assistance = q.assistance.copy(status = status))
+                    if (status == AssistanceStatus.COMPLETADO) {
+                        updatedQuote = updatedQuote.copy(status = QuoteStatus.COMPLETADO)
+                    } else if (status == AssistanceStatus.CANCELADO) {
+                        updatedQuote = updatedQuote.copy(status = QuoteStatus.CANCELADA)
+                    }
+                    updatedQuote
+                } else q
+            }
+            if (state.quotes == updatedQuotes) state else state.copy(quotes = updatedQuotes)
         }
     }
 
     private fun updateAddresses(origin: Location, destination: Location) {
+        if (_uiState.value.originAddress != null && _uiState.value.destinationAddress != null) return
+
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 @Suppress("DEPRECATION")
@@ -202,21 +212,34 @@ class QuotesListViewModel @Inject constructor(
 
     fun getRoute(assistanceId: Int) {
         if (!routeMutex.tryLock()) return
-        lastRouteFetchTime = System.currentTimeMillis()
         viewModelScope.launch {
             try {
+                lastRouteFetchTime = System.currentTimeMillis()
                 val result = assistanceRepository.getRoute(assistanceId)
                 result.fold(
                     onSuccess = { routeResponse ->
                         val acceptedQuote = _uiState.value.quotes.find { it.assistanceId == assistanceId }
                         val status = acceptedQuote?.assistance?.status
+                        val isHeadingToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
+
+                        // Parse geometries in background
+                        val pToOriginPositions = withContext(Dispatchers.Default) {
+                            routeResponse.providerToOrigin?.geometryJson?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+                        }
+                        val pToDestPositions = withContext(Dispatchers.Default) {
+                            routeResponse.providerToDestination?.geometryJson?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+                        }
+                        val assistancePositions = withContext(Dispatchers.Default) {
+                            routeResponse.originToDestination?.geometryJson?.let { LocationUtils.parseRouteGeometry(it) } ?: emptyList()
+                        }
 
                         _uiState.update { state ->
-                            val isHeadingToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
-
                             state.copy(
                                 providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
                                 providerToDestinationRoute = routeResponse.providerToDestination?.geometryJson,
+                                providerToOriginPositions = pToOriginPositions,
+                                providerToDestinationPositions = pToDestPositions,
+                                assistanceRoutePositions = if (assistancePositions.isNotEmpty()) assistancePositions else state.assistanceRoutePositions,
                                 distanceKm = if (isHeadingToDestination) {
                                     routeResponse.providerToDestination?.distanceKm
                                 } else {
@@ -289,6 +312,7 @@ class QuotesListViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        statusPollingJob?.cancel()
         trackingRepository.disconnect()
     }
 }

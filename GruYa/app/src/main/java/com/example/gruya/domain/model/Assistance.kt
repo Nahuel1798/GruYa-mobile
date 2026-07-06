@@ -11,5 +11,6 @@ data class Assistance(
     val isDirected: Boolean,
     val createdAt: String? = null,
     val clientName: String = "",
-    val routeGeometry: String? = null
+    val routeGeometry: String? = null,
+    val payment: Payment? = null
 )

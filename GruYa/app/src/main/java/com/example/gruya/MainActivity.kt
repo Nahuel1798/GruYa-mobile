@@ -97,6 +97,9 @@ import com.example.gruya.ui.navigation.navEventFromExtras
 import com.example.gruya.ui.navigation.parseTrackingSessionId
 import com.example.gruya.ui.screens.assistances.AssistancesScreen
 import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
+import com.example.gruya.ui.screens.payment.PaymentScreen
+import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
+import kotlinx.serialization.json.Json
 import com.example.gruya.ui.screens.notifications.NotificationListScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
 import com.example.gruya.ui.screens.auth.register.LocationPickerScreen
@@ -800,6 +803,26 @@ fun MainNavigationSuite(
                                 if (tabBackStack.size > 1) {
                                     tabBackStack.removeAt(tabBackStack.size - 1)
                                 }
+                            },
+                            onNavigateToPayment = { id, amount ->
+                                tabBackStack.add(AppDest.Payment(id, amount))
+                            }
+                        )
+                    }
+
+                    entry<AppDest.Payment> {
+                        val currentEntry = tabBackStack.findLast { it is AppDest.Payment } as? AppDest.Payment
+                        val assistanceId = currentEntry?.assistanceId ?: return@entry
+                        val amount = currentEntry.amount
+
+                        PaymentScreen(
+                            assistanceId = assistanceId,
+                            amount = amount,
+                            onPaymentSuccess = {
+                                tabBackStack.removeAt(tabBackStack.size - 1)
+                            },
+                            onNavigateBack = {
+                                tabBackStack.removeAt(tabBackStack.size - 1)
                             }
                         )
                     }

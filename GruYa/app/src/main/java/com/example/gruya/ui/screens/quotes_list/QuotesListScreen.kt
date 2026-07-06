@@ -387,10 +387,10 @@ private fun ActiveServiceTrackingContent(
             TrackingMap(
                 origin = assistance.origin,
                 destination = assistance.destination,
-                routeGeometry = if (showProviderToDestination) null else assistance.routeGeometry,
+                routePositions = if (showProviderToDestination) emptyList() else uiState.assistanceRoutePositions,
                 providerLocation = uiState.providerLocation,
-                providerToOriginRoute = if (showProviderToOrigin) uiState.providerToOriginRoute else null,
-                providerToDestinationRoute = if (showProviderToDestination) uiState.providerToDestinationRoute else null,
+                providerRoutePositions = if (showProviderToOrigin) uiState.providerToOriginPositions else emptyList(),
+                providerToDestPositions = if (showProviderToDestination) uiState.providerToDestinationPositions else emptyList(),
                 isTracking = isTracking,
                 isProvider = false,
                 modifier = Modifier.fillMaxSize()

@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import com.example.gruya.data.sync.SyncHandler
 import dagger.hilt.android.HiltAndroidApp
 import okhttp3.OkHttpClient
 import javax.inject.Inject
@@ -17,6 +18,9 @@ class GruYaApplication : Application(), ImageLoaderFactory, Configuration.Provid
 
     @Inject
     lateinit var hiltWorkerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var syncHandler: SyncHandler
 
     override fun newImageLoader(): ImageLoader {
         return ImageLoader.Builder(this)

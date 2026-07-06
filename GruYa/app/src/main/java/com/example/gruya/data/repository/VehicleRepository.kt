@@ -3,6 +3,8 @@ package com.example.gruya.data.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.example.gruya.data.local.dao.VehicleCacheDao
+import com.example.gruya.data.local.entity.VehicleCacheEntity
 import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateVehicleRequest
 import com.example.gruya.data.remote.dtos.request.UpdateVehicleRequest
@@ -10,6 +12,8 @@ import com.example.gruya.data.remote.dtos.response.VehicleResponse
 import com.example.gruya.data.service.VehicleService
 import com.example.gruya.domain.model.Vehicle
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody
@@ -21,14 +25,60 @@ import javax.inject.Inject
 
 class VehicleRepository @Inject constructor(
     private val vehicleService: VehicleService,
+    private val vehicleCacheDao: VehicleCacheDao,
     @ApplicationContext private val context: Context
 ) {
-    suspend fun listAll(): List<Vehicle>{
-        val response = vehicleService.getAll()
-        if (response.isSuccessful) return response.body()!!.toDomain()
-        else Log.d("API_ERROR", "${response.code().toString()} \n ${response.message()}")
-        return emptyList()
+    suspend fun listAll(): List<Vehicle> {
+        return try {
+            val response = vehicleService.getAll()
+            if (response.isSuccessful) {
+                val vehicles = response.body()!!.toDomain()
+                // Cache to Room after successful API fetch
+                vehicleCacheDao.upsertAll(vehicles.map { it.toCacheEntity() })
+                vehicles
+            } else {
+                Log.d("API_ERROR", "${response.code().toString()} \n ${response.message()}")
+                emptyList()
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.e("VehicleRepository", "Error fetching vehicles", e)
+            emptyList()
+        }
     }
+
+    fun getCachedVehicles(): Flow<List<VehicleCacheEntity>> = vehicleCacheDao.getAll()
+
+    suspend fun refreshVehicleCache(): Result<Unit> {
+        return try {
+            val response = vehicleService.getAll()
+            if (response.isSuccessful) {
+                val vehicles = response.body()!!.toDomain()
+                vehicleCacheDao.deleteAll()
+                vehicleCacheDao.upsertAll(vehicles.map { it.toCacheEntity() })
+                Log.d("VehicleRepository", "Vehicle cache refreshed with ${vehicles.size} vehicles")
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("${response.code()}: ${response.message()}"))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun Vehicle.toCacheEntity() = VehicleCacheEntity(
+        id = id,
+        type = type.name,
+        licensePlate = licensePlate,
+        brand = brand,
+        model = model,
+        insurance = insurance,
+        color = color,
+        imageUrl = imageUrl
+    )
 
     suspend fun getById(id: Int): Vehicle? {
         val response = vehicleService.getById(id)

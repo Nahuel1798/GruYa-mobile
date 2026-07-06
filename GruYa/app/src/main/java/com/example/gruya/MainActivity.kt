@@ -62,6 +62,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +81,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.connectivity.ConnectivityObserver
+import com.example.gruya.data.local.dao.VehicleCacheDao
 import com.example.gruya.ui.screens.common.NoInternetScreen
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.ServiceType
@@ -119,7 +121,9 @@ import com.example.gruya.ui.screens.vehicle.VehiclesScreen
 import com.example.gruya.ui.theme.GruYaTheme
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -130,6 +134,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var connectivityObserver: ConnectivityObserver
+
+    @Inject
+    lateinit var vehicleCacheDao: VehicleCacheDao
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -143,7 +150,8 @@ class MainActivity : ComponentActivity() {
                 ) {
                     GruYaApp(
                         navEventBus = navEventBus,
-                        connectivityObserver = connectivityObserver
+                        connectivityObserver = connectivityObserver,
+                        vehicleCacheDao = vehicleCacheDao
                     )
                 }
             }
@@ -186,18 +194,77 @@ fun GruYaApp(
     authViewModel: AuthViewModel = hiltViewModel(),
     notificationViewModel: NotificationViewModel = hiltViewModel(),
     navEventBus: NavigationEventBus,
-    connectivityObserver: ConnectivityObserver
+    connectivityObserver: ConnectivityObserver,
+    vehicleCacheDao: VehicleCacheDao
 ) {
     val connectivityFlow = remember { connectivityObserver.observe() }
     val status by connectivityFlow.collectAsState(initial = ConnectivityObserver.Status.Available)
 
+    val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
+    val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
+    val currentRole by authViewModel.currentRole.collectAsState()
+
+    // Define backStack early so all blocks can use it
+    val backStack = rememberNavBackStack(
+        if (isLoggedIn) AppDest.MainContent
+        else AppDest.Login
+    )
+
+    LaunchedEffect(isLoggedIn) {
+        val expected = if (isLoggedIn) AppDest.MainContent else AppDest.Login
+        if (backStack.lastOrNull() != expected) {
+            backStack.clear()
+            backStack.add(expected)
+        }
+    }
+
+    var showAssistanceFromNoInternet by remember { mutableStateOf(false) }
+    var hasCachedVehicles by remember { mutableStateOf(true) }
+
+    // Check vehicle cache from Room
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                hasCachedVehicles = vehicleCacheDao.count() > 0
+            } catch (_: Exception) {
+                hasCachedVehicles = false
+            }
+        }
+    }
+
     if (status != ConnectivityObserver.Status.Available) {
-        NoInternetScreen()
+        if (showAssistanceFromNoInternet) {
+            // Inline RequestAssistanceScreen — direct composable, no MapPicker in offline
+            val assistanceVm: RequestAssistanceViewModel = hiltViewModel()
+            RequestAssistanceScreen(
+                viewModel = assistanceVm,
+                onNavigateBack = { showAssistanceFromNoInternet = false },
+                onNavigateToMapPicker = { /* no-op — offline: auto current location */ },
+                onNavigateToAddVehicle = { /* no-op — requires internet */ },
+                onNavigateToLogin = {
+                    showAssistanceFromNoInternet = false
+                    backStack.clear()
+                    backStack.add(AppDest.Login)
+                }
+            )
+            return
+        }
+
+        NoInternetScreen(
+            onRetry = { /* connectivity will be re-evaluated automatically */ },
+            onRequestAssistance = { showAssistanceFromNoInternet = true },
+            hasCachedVehicles = hasCachedVehicles,
+            isUser = currentRole == Role.USER
+        )
         return
     }
 
-    val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
-    val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
+    // Reset override when connectivity returns
+    LaunchedEffect(status) {
+        if (status == ConnectivityObserver.Status.Available) {
+            showAssistanceFromNoInternet = false
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -291,19 +358,6 @@ fun GruYaApp(
             CircularProgressIndicator()
         }
         return
-    }
-
-    val backStack = rememberNavBackStack(
-        if (isLoggedIn) AppDest.MainContent
-        else AppDest.Login
-    )
-
-    LaunchedEffect(isLoggedIn) {
-        val expected = if (isLoggedIn) AppDest.MainContent else AppDest.Login
-        if (backStack.lastOrNull() != expected) {
-            backStack.clear()
-            backStack.add(expected)
-        }
     }
 
     val providerViewModel: ProviderProfileViewModel = hiltViewModel()

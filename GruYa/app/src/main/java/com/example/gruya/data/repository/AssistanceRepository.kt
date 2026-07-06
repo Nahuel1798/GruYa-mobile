@@ -1,6 +1,9 @@
 package com.example.gruya.data.repository
 
 import android.util.Log
+import com.example.gruya.data.local.dao.PendingAssistanceDao
+import com.example.gruya.data.local.entity.PendingAssistanceEntity
+import com.example.gruya.data.local.entity.SyncStatus
 import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateAssistanceRequest
 import com.example.gruya.data.remote.dtos.response.AssistanceRouteResponse
@@ -9,15 +12,138 @@ import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
 import com.example.gruya.data.remote.dtos.response.TripStartedResponse
 import com.example.gruya.data.service.AssistanceService
+import com.example.gruya.data.sync.SyncHandler
 import com.example.gruya.domain.model.Assistance
+import com.example.gruya.domain.model.IssueType
+import com.example.gruya.domain.model.Location
+import com.example.gruya.domain.model.ServiceType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AssistanceRepository @Inject constructor(
-    private val assistanceService: AssistanceService
+    private val assistanceService: AssistanceService,
+    private val pendingAssistanceDao: PendingAssistanceDao,
+    private val syncScheduler: SyncHandler
 ) {
+
+    sealed interface QueueAssistanceOutcome {
+        data class Queued(val pendingId: Long) : QueueAssistanceOutcome
+        data class Submitted(val response: AssistanceResponse?) : QueueAssistanceOutcome
+        data class Failed(val error: String) : QueueAssistanceOutcome
+    }
+
+    suspend fun createOffline(request: CreateAssistanceRequest): QueueAssistanceOutcome {
+        return try {
+            val now = System.currentTimeMillis()
+            val entity = PendingAssistanceEntity(
+                serviceType = request.serviceType.name,
+                issueType = request.issueType.name,
+                vehicleId = request.vehicleId,
+                originLat = request.origin.latitude,
+                originLng = request.origin.longitude,
+                destLat = request.destination.latitude,
+                destLng = request.destination.longitude,
+                capturedAt = now,
+                status = SyncStatus.PENDING.name
+            )
+            val id = pendingAssistanceDao.insert(entity)
+            syncScheduler.enqueueSync()
+            Log.d("AssistanceRepository", "Offline request queued with id=$id")
+            QueueAssistanceOutcome.Queued(pendingId = id)
+        } catch (e: Exception) {
+            Log.e("AssistanceRepository", "Failed to queue offline request", e)
+            QueueAssistanceOutcome.Failed(error = e.message ?: "Unknown error")
+        }
+    }
+
+    suspend fun syncPendingAssistances(): Result<Unit> {
+        return try {
+            val pendingItems = pendingAssistanceDao.readPending()
+            if (pendingItems.isEmpty()) return Result.success(Unit)
+
+            var hasFailure = false
+
+            for (item in pendingItems) {
+                try {
+                    val request = CreateAssistanceRequest(
+                        serviceType = ServiceType.valueOf(item.serviceType),
+                        issueType = IssueType.valueOf(item.issueType),
+                        vehicleId = item.vehicleId,
+                        origin = Location(item.originLat, item.originLng),
+                        destination = Location(item.destLat, item.destLng)
+                    )
+
+                    val response = assistanceService.create(request)
+                    if (response.isSuccessful) {
+                        val updated = item.copy(
+                            status = SyncStatus.SYNCED.name,
+                            retryCount = 0,
+                            lastError = null
+                        )
+                        pendingAssistanceDao.updateStatus(updated)
+                        Log.d("AssistanceRepository", "Synced pending assistance id=${item.id}")
+                    } else if (response.code() == 401) {
+                        val updated = item.copy(
+                            status = SyncStatus.NEEDS_REAUTH.name,
+                            lastError = "401: Session expired"
+                        )
+                        pendingAssistanceDao.updateStatus(updated)
+                        Log.w("AssistanceRepository", "Sync failed (401) for id=${item.id}, marked NEEDS_REAUTH")
+                    } else {
+                        val newRetryCount = item.retryCount + 1
+                        val newStatus = if (newRetryCount >= 5) {
+                            SyncStatus.FAILED.name
+                        } else {
+                            SyncStatus.PENDING.name
+                        }
+                        val updated = item.copy(
+                            status = newStatus,
+                            retryCount = newRetryCount,
+                            lastError = "HTTP ${response.code()}"
+                        )
+                        pendingAssistanceDao.updateStatus(updated)
+                        hasFailure = true
+                        Log.w("AssistanceRepository", "Sync failed for id=${item.id}, retryCount=$newRetryCount")
+                    }
+                } catch (e: Exception) {
+                    val newRetryCount = item.retryCount + 1
+                    val newStatus = if (newRetryCount >= 5) {
+                        SyncStatus.FAILED.name
+                    } else {
+                        SyncStatus.PENDING.name
+                    }
+                    val updated = item.copy(
+                        status = newStatus,
+                        retryCount = newRetryCount,
+                        lastError = e.message
+                    )
+                    pendingAssistanceDao.updateStatus(updated)
+                    hasFailure = true
+                    Log.e("AssistanceRepository", "Sync error for id=${item.id}", e)
+                }
+            }
+
+            return if (hasFailure) {
+                Result.failure(Exception("Some items failed to sync"))
+            } else {
+                Result.success(Unit)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getPendingById(id: Long): PendingAssistanceEntity? =
+        pendingAssistanceDao.getById(id)
+
+    fun observePendingCount(): Flow<Int> =
+        pendingAssistanceDao.observePendingCount()
+
     suspend fun create(request: CreateAssistanceRequest): Result<AssistanceResponse?> {
         return try {
             val response = assistanceService.create(request)

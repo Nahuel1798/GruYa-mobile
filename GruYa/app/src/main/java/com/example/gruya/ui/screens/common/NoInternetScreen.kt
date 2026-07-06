@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.AirplanemodeInactive
 import androidx.compose.material.icons.filled.Apps
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Phone
@@ -33,6 +34,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -54,7 +56,10 @@ import com.google.gson.reflect.TypeToken
 
 @Composable
 fun NoInternetScreen(
-    onRetry: () -> Unit = {}
+    onRetry: () -> Unit = {},
+    onRequestAssistance: () -> Unit = {},
+    hasCachedVehicles: Boolean = true,
+    isUser: Boolean = false
 ) {
     val context = LocalContext.current
     var selectedMechanicalGuide by remember { mutableStateOf<MechanicalGuideDetail?>(null) }
@@ -199,7 +204,32 @@ fun NoInternetScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+
+        // "Solicitar auxilio" — offline assistance request (user-only)
+        if (isUser) {
+            OutlinedButton(
+                onClick = onRequestAssistance,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = hasCachedVehicles
+            ) {
+                Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Solicitar auxilio")
+            }
+
+            if (!hasCachedVehicles) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Necesitás conexión al menos una vez para registrar tus vehículos.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         Button(
             onClick = onRetry,

@@ -1,5 +1,7 @@
 package com.example.gruya.ui.screens.request_assistance
 
+import com.example.gruya.data.local.entity.SyncStatus
+import com.example.gruya.data.local.entity.VehicleCacheEntity
 import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.Vehicle
 
@@ -17,7 +19,14 @@ data class RequestAssistanceUiState(
     val serviceType: String? = null,
     val isLoading: Boolean = false,
     val isSubmitted: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    // --- Sync & Offline fields ---
+    val syncStatus: SyncStatus? = null,
+    val pendingId: Long? = null,
+    val offlineQueueMessage: String? = null,
+    val isGpsAvailable: Boolean = true,
+    val cachedVehicles: List<VehicleCacheEntity> = emptyList(),
+    val isOfflineMode: Boolean = false
 ) {
     val isFormValid: Boolean
         get() = selectedVehicleId != null && selectedIssueType != null

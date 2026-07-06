@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.example.gruya.data.local.entity.SyncStatus
 import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.Vehicle
 import com.example.gruya.domain.model.VehicleType
@@ -48,6 +51,7 @@ fun RequestAssistanceScreen(
     onNavigateBack: () -> Unit,
     onNavigateToMapPicker: (isDestination: Boolean) -> Unit,
     onNavigateToAddVehicle: () -> Unit,
+    onNavigateToLogin: () -> Unit = {},
     viewModel: RequestAssistanceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -76,8 +80,9 @@ fun RequestAssistanceScreen(
         }
     }
 
+    // Online: navigate back on success. Offline: stay and show sync status.
     LaunchedEffect(uiState.isSubmitted) {
-        if (uiState.isSubmitted) {
+        if (uiState.isSubmitted && uiState.syncStatus == null) {
             onNavigateBack()
         }
     }
@@ -85,6 +90,12 @@ fun RequestAssistanceScreen(
     // Refresh vehicles when returning from AddVehicle (or any resume)
     LifecycleResumeEffect(Unit) {
         viewModel.loadVehicles()
+        onPauseOrDispose { }
+    }
+
+    // Re-check GPS state when user returns from settings
+    LifecycleResumeEffect(Unit) {
+        viewModel.onResume()
         onPauseOrDispose { }
     }
 
@@ -98,6 +109,8 @@ fun RequestAssistanceScreen(
         onNavigateToMapPicker = onNavigateToMapPicker,
         onNavigateToAddVehicle = onNavigateToAddVehicle,
         onSubmit = { viewModel.onSubmit(onSuccess = {}) },
+        onRetrySync = { pendingId -> viewModel.retryPendingAssistance(pendingId) },
+        onNavigateToLogin = onNavigateToLogin,
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState
     )
@@ -115,6 +128,8 @@ fun RequestAssistanceContent(
     onNavigateToMapPicker: (Boolean) -> Unit,
     onNavigateToAddVehicle: () -> Unit,
     onSubmit: () -> Unit,
+    onRetrySync: (Long) -> Unit = {},
+    onNavigateToLogin: () -> Unit = {},
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
@@ -158,12 +173,15 @@ fun RequestAssistanceContent(
             item {
                 SectionHeader(
                     title = "Tu Vehículo",
-                    actionText = if (uiState.vehicles.isNotEmpty()) "Agregar" else null,
+                    actionText = if (!uiState.isOfflineMode && uiState.vehicles.isNotEmpty()) "Agregar" else null,
                     onActionClick = onNavigateToAddVehicle
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 if (uiState.vehicles.isEmpty()) {
-                    EmptyVehiclesPlaceholder(onNavigateToAddVehicle)
+                    EmptyVehiclesPlaceholder(
+                        isOfflineMode = uiState.isOfflineMode,
+                        onAddClick = onNavigateToAddVehicle
+                    )
                 } else {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -204,19 +222,27 @@ fun RequestAssistanceContent(
                 }
             }
 
-            // --- Location Section (Route Card) ---
+            // --- Location Section ---
             item {
-                SectionHeader(title = "Ubicación y Destino")
+                SectionHeader(title = "Ubicación")
                 Spacer(modifier = Modifier.height(12.dp))
-                RouteSelectionCard(
-                    originQuery = uiState.addressQuery,
-                    destinationQuery = uiState.destinationAddressQuery,
-                    isDestinationEnabled = uiState.location != null,
-                    onOriginChange = onAddressQueryChanged,
-                    onDestinationChange = onDestinationAddressQueryChanged,
-                    onSearch = onSearchAddress,
-                    onMapClick = onNavigateToMapPicker
-                )
+                if (uiState.isOfflineMode) {
+                    LocationConfirmedCard(
+                        location = uiState.location,
+                        address = uiState.addressQuery,
+                        isGpsAvailable = uiState.isGpsAvailable
+                    )
+                } else {
+                    RouteSelectionCard(
+                        originQuery = uiState.addressQuery,
+                        destinationQuery = uiState.destinationAddressQuery,
+                        isDestinationEnabled = uiState.location != null,
+                        onOriginChange = onAddressQueryChanged,
+                        onDestinationChange = onDestinationAddressQueryChanged,
+                        onSearch = onSearchAddress,
+                        onMapClick = onNavigateToMapPicker
+                    )
+                }
             }
 
             // --- Submit Button ---
@@ -227,7 +253,7 @@ fun RequestAssistanceContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    enabled = uiState.isFormValid && !uiState.isLoading,
+                    enabled = uiState.isFormValid && !uiState.isLoading && uiState.syncStatus == null && uiState.isGpsAvailable,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -245,12 +271,169 @@ fun RequestAssistanceContent(
                         Icon(Icons.Outlined.CheckCircle, contentDescription = null)
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = "Confirmar Solicitud",
+                            text = if (uiState.isOfflineMode) "Guardar solicitud" else "Confirmar Solicitud",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
+            }
+
+            // --- GPS Unavailable Blocking ---
+            if (!uiState.isGpsAvailable && !uiState.isOfflineMode) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "Activá el GPS para solicitar auxilio.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // --- Sync Status Feedback (offline flow) ---
+            if (uiState.syncStatus != null) {
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SyncStatusCard(
+                        syncStatus = uiState.syncStatus!!,
+                        pendingId = uiState.pendingId,
+                        message = uiState.offlineQueueMessage,
+                        onRetry = onRetrySync,
+                        onNavigateToLogin = onNavigateToLogin
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SyncStatusCard(
+    syncStatus: SyncStatus,
+    pendingId: Long?,
+    message: String?,
+    onRetry: (Long) -> Unit,
+    onNavigateToLogin: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = when (syncStatus) {
+                SyncStatus.SYNCED -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                SyncStatus.FAILED, SyncStatus.NEEDS_REAUTH -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+                else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            }
+        ),
+        border = BorderStroke(
+            1.dp,
+            when (syncStatus) {
+                SyncStatus.SYNCED -> MaterialTheme.colorScheme.primary
+                SyncStatus.FAILED, SyncStatus.NEEDS_REAUTH -> MaterialTheme.colorScheme.error
+                else -> MaterialTheme.colorScheme.outlineVariant
+            }
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            when (syncStatus) {
+                SyncStatus.SYNCING -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(32.dp),
+                        strokeWidth = 3.dp
+                    )
+                }
+                SyncStatus.PENDING -> {
+                    Icon(
+                        imageVector = Icons.Outlined.HourglassEmpty,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                SyncStatus.SYNCED -> {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+                SyncStatus.FAILED, SyncStatus.NEEDS_REAUTH -> {
+                    Icon(
+                        imageVector = Icons.Filled.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            val titleText = when (syncStatus) {
+                SyncStatus.PENDING -> message ?: "Tu solicitud fue guardada. Se enviará automáticamente cuando tengas conexión."
+                SyncStatus.SYNCING -> "Enviando solicitud..."
+                SyncStatus.SYNCED -> "Solicitud enviada correctamente"
+                SyncStatus.FAILED -> "No se pudo enviar. Intentá de nuevo manualmente."
+                SyncStatus.NEEDS_REAUTH -> "Sesión expirada. Iniciá sesión de nuevo para enviar la solicitud."
+            }
+
+            Text(
+                text = titleText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+
+            when (syncStatus) {
+                SyncStatus.FAILED -> {
+                    if (pendingId != null) {
+                        Button(
+                            onClick = { onRetry(pendingId) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Reintentar envío")
+                        }
+                    }
+                }
+                SyncStatus.NEEDS_REAUTH -> {
+                    OutlinedButton(
+                        onClick = onNavigateToLogin,
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Outlined.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Iniciar sesión")
+                    }
+                }
+                else -> { /* no action needed */ }
             }
         }
     }
@@ -281,6 +464,93 @@ private fun SectionHeader(
                 Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(actionText, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationConfirmedCard(
+    location: Pair<Double, Double>?,
+    address: String?,
+    isGpsAvailable: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (location != null) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else if (!isGpsAvailable) {
+                Icon(
+                    imageVector = Icons.Filled.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 3.dp
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                if (location != null) {
+                    Text(
+                        text = "Ubicación obtenida correctamente",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = String.format("%.6f, %.6f", location.first, location.second),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    if (!address.isNullOrBlank()) {
+                        Text(
+                            text = address,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else if (!isGpsAvailable) {
+                    Text(
+                        text = "GPS apagado",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Activá el GPS para solicitar auxilio.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Obteniendo ubicación...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "Usando GPS",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -439,11 +709,14 @@ private fun RouteSelectionCard(
 }
 
 @Composable
-private fun EmptyVehiclesPlaceholder(onAddClick: () -> Unit) {
+private fun EmptyVehiclesPlaceholder(isOfflineMode: Boolean, onAddClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onAddClick() },
+            .then(
+                if (!isOfflineMode) Modifier.clickable { onAddClick() }
+                else Modifier
+            ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
@@ -462,12 +735,22 @@ private fun EmptyVehiclesPlaceholder(onAddClick: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "No tenés vehículos registrados",
+                text = if (isOfflineMode) "No hay vehículos guardados sin conexión"
+                       else "No tenés vehículos registrados",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            TextButton(onClick = onAddClick) {
-                Text("Presioná para agregar uno")
+            if (isOfflineMode) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Agregá uno cuando tengas conexión",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            } else {
+                TextButton(onClick = onAddClick) {
+                    Text("Presioná para agregar uno")
+                }
             }
         }
     }

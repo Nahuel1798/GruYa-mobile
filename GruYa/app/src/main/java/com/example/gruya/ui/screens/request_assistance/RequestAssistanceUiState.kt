@@ -24,6 +24,7 @@ data class RequestAssistanceUiState(
     val syncStatus: SyncStatus? = null,
     val pendingId: Long? = null,
     val offlineQueueMessage: String? = null,
+    val showOfflineSuccessDialog: Boolean = false,
     val isGpsAvailable: Boolean = true,
     val cachedVehicles: List<VehicleCacheEntity> = emptyList(),
     val isOfflineMode: Boolean = false

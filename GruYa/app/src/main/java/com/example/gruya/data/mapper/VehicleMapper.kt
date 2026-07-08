@@ -2,6 +2,7 @@ package com.example.gruya.data.mapper
 
 import android.util.Log
 import com.example.gruya.data.remote.Constants
+import com.example.gruya.data.local.entity.VehicleCacheEntity
 import com.example.gruya.data.remote.dtos.request.CreateVehicleRequest
 import com.example.gruya.data.remote.dtos.response.VehicleResponse
 import com.example.gruya.domain.model.Vehicle
@@ -34,6 +35,17 @@ fun List<VehicleResponse>.toDomain(): List<Vehicle> = map { it.toDomain() }
 
 fun Vehicle.toRequest(): CreateVehicleRequest = CreateVehicleRequest(
     type = type,
+    licensePlate = licensePlate,
+    brand = brand,
+    model = model,
+    insurance = insurance,
+    color = color,
+    imageUrl = imageUrl
+)
+
+fun Vehicle.toCacheEntity() = VehicleCacheEntity(
+    id = id,
+    type = type.name,
     licensePlate = licensePlate,
     brand = brand,
     model = model,

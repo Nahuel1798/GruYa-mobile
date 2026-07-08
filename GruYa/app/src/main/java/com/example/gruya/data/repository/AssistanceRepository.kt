@@ -31,7 +31,6 @@ class AssistanceRepository @Inject constructor(
 
     sealed interface QueueAssistanceOutcome {
         data class Queued(val pendingId: Long) : QueueAssistanceOutcome
-        data class Submitted(val response: AssistanceResponse?) : QueueAssistanceOutcome
         data class Failed(val error: String) : QueueAssistanceOutcome
     }
 
@@ -53,6 +52,8 @@ class AssistanceRepository @Inject constructor(
             syncScheduler.enqueueSync()
             Log.d("AssistanceRepository", "Offline request queued with id=$id")
             QueueAssistanceOutcome.Queued(pendingId = id)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e("AssistanceRepository", "Failed to queue offline request", e)
             QueueAssistanceOutcome.Failed(error = e.message ?: "Unknown error")
@@ -61,7 +62,7 @@ class AssistanceRepository @Inject constructor(
 
     suspend fun syncPendingAssistances(): Result<Unit> {
         return try {
-            val pendingItems = pendingAssistanceDao.readPending()
+            val pendingItems = pendingAssistanceDao.readNeedsSync()
             if (pendingItems.isEmpty()) return Result.success(Unit)
 
             var hasFailure = false
@@ -78,13 +79,8 @@ class AssistanceRepository @Inject constructor(
 
                     val response = assistanceService.create(request)
                     if (response.isSuccessful) {
-                        val updated = item.copy(
-                            status = SyncStatus.SYNCED.name,
-                            retryCount = 0,
-                            lastError = null
-                        )
-                        pendingAssistanceDao.updateStatus(updated)
-                        Log.d("AssistanceRepository", "Synced pending assistance id=${item.id}")
+                        pendingAssistanceDao.deleteById(item.id)
+                        Log.d("AssistanceRepository", "Synced and deleted pending assistance id=${item.id}")
                     } else if (response.code() == 401) {
                         val updated = item.copy(
                             status = SyncStatus.NEEDS_REAUTH.name,
@@ -93,20 +89,14 @@ class AssistanceRepository @Inject constructor(
                         pendingAssistanceDao.updateStatus(updated)
                         Log.w("AssistanceRepository", "Sync failed (401) for id=${item.id}, marked NEEDS_REAUTH")
                     } else {
-                        val newRetryCount = item.retryCount + 1
-                        val newStatus = if (newRetryCount >= 5) {
-                            SyncStatus.FAILED.name
-                        } else {
-                            SyncStatus.PENDING.name
-                        }
+                        // Server responded with an error (4xx, 5xx) — retrying won't change the outcome
                         val updated = item.copy(
-                            status = newStatus,
-                            retryCount = newRetryCount,
+                            status = SyncStatus.FAILED.name,
                             lastError = "HTTP ${response.code()}"
                         )
                         pendingAssistanceDao.updateStatus(updated)
                         hasFailure = true
-                        Log.w("AssistanceRepository", "Sync failed for id=${item.id}, retryCount=$newRetryCount")
+                        Log.w("AssistanceRepository", "Sync failed (HTTP ${response.code()}) for id=${item.id}, marked FAILED")
                     }
                 } catch (e: Exception) {
                     val newRetryCount = item.retryCount + 1
@@ -138,11 +128,77 @@ class AssistanceRepository @Inject constructor(
         }
     }
 
+    suspend fun syncPendingAssistance(id: Long): Result<Unit> {
+        return try {
+            val item = pendingAssistanceDao.getById(id)
+                ?: return Result.failure(Exception("Pending assistance not found"))
+
+            try {
+                val request = CreateAssistanceRequest(
+                    serviceType = ServiceType.valueOf(item.serviceType),
+                    issueType = IssueType.valueOf(item.issueType),
+                    vehicleId = item.vehicleId,
+                    origin = Location(item.originLat, item.originLng),
+                    destination = Location(item.destLat, item.destLng)
+                )
+
+                val response = assistanceService.create(request)
+                if (response.isSuccessful) {
+                    pendingAssistanceDao.deleteById(item.id)
+                    Log.d("AssistanceRepository", "Synced and deleted pending assistance id=${item.id}")
+                    Result.success(Unit)
+                } else if (response.code() == 401) {
+                    val updated = item.copy(
+                        status = SyncStatus.NEEDS_REAUTH.name,
+                        lastError = "401: Session expired"
+                    )
+                    pendingAssistanceDao.updateStatus(updated)
+                    Log.w("AssistanceRepository", "Sync failed (401) for id=${item.id}, marked NEEDS_REAUTH")
+                    Result.failure(Exception("Session expired"))
+                } else {
+                    val updated = item.copy(
+                        status = SyncStatus.FAILED.name,
+                        lastError = "HTTP ${response.code()}"
+                    )
+                    pendingAssistanceDao.updateStatus(updated)
+                    Log.w("AssistanceRepository", "Sync failed (HTTP ${response.code()}) for id=${item.id}, marked FAILED")
+                    Result.failure(Exception("HTTP ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                val newRetryCount = item.retryCount + 1
+                val newStatus = if (newRetryCount >= 5) {
+                    SyncStatus.FAILED.name
+                } else {
+                    SyncStatus.PENDING.name
+                }
+                val updated = item.copy(
+                    status = newStatus,
+                    retryCount = newRetryCount,
+                    lastError = e.message
+                )
+                pendingAssistanceDao.updateStatus(updated)
+                Log.e("AssistanceRepository", "Sync error for id=${item.id}", e)
+                Result.failure(e)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getPendingById(id: Long): PendingAssistanceEntity? =
         pendingAssistanceDao.getById(id)
 
     fun observePendingCount(): Flow<Int> =
         pendingAssistanceDao.observePendingCount()
+
+    fun observePendingAssistances(): Flow<List<PendingAssistanceEntity>> =
+        pendingAssistanceDao.observeAll()
+
+    suspend fun deletePendingAssistance(id: Long) {
+        pendingAssistanceDao.deleteById(id)
+    }
 
     suspend fun create(request: CreateAssistanceRequest): Result<AssistanceResponse?> {
         return try {

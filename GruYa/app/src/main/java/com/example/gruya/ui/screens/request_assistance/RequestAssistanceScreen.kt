@@ -114,6 +114,38 @@ fun RequestAssistanceScreen(
         onNavigateBack = onNavigateBack,
         snackbarHostState = snackbarHostState
     )
+
+    // Offline success dialog — navigate back to NoInternetScreen on dismiss
+    if (uiState.showOfflineSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = onNavigateBack,
+            icon = {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Solicitud guardada",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Tu solicitud de auxilio se guardó correctamente. Se enviará automáticamente cuando tengas conexión a internet.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(onClick = onNavigateBack) {
+                    Text("Aceptar")
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

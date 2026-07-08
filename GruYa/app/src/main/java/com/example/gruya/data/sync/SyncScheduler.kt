@@ -1,5 +1,6 @@
 package com.example.gruya.data.sync
 
+import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
@@ -9,12 +10,14 @@ import androidx.work.WorkManager
 import com.example.gruya.connectivity.ConnectivityObserver
 import com.example.gruya.data.local.dao.PendingAssistanceDao
 import com.example.gruya.data.repository.AssistanceRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Provider
@@ -31,11 +34,13 @@ interface SyncHandler {
 
 @Singleton
 class SyncScheduler @Inject constructor(
-    private val workManager: WorkManager,
+    @ApplicationContext private val context: Context,
     private val connectivityObserver: ConnectivityObserver,
     private val pendingAssistanceDao: PendingAssistanceDao,
     private val assistanceRepositoryProvider: Provider<AssistanceRepository>,
 ) : SyncHandler {
+
+    private val workManager by lazy { WorkManager.getInstance(context) }
 
     companion object {
         const val WORK_NAME = "sync_pending_assistances"
@@ -63,16 +68,23 @@ class SyncScheduler @Inject constructor(
 
         // ── 2. Reactive observer ────────────────────────────────────
         // Watches for connectivity restoration while items are pending.
-        // Uses WorkManager for reliability (constraints, retries, lifecycle).
+        // Reads DB directly instead of relying on Room Flow emissions,
+        // then falls back to WorkManager if the sync fails.
         scope.launch {
             try {
-                combine(
-                    connectivityObserver.observe(),
-                    pendingAssistanceDao.observePendingCount()
-                ) { connectivity, count -> connectivity to count }
-                    .collect { (status, count) ->
-                        if (status == ConnectivityObserver.Status.Available && count > 0) {
-                            enqueueSync()
+                connectivityObserver.observe()
+                    .distinctUntilChanged()
+                    .collect { status ->
+                        if (status == ConnectivityObserver.Status.Available) {
+                            val needsSync = withContext(Dispatchers.IO) {
+                                pendingAssistanceDao.readNeedsSync()
+                            }
+                            if (needsSync.isNotEmpty()) {
+                                val result = assistanceRepositoryProvider.get().syncPendingAssistances()
+                                if (result.isFailure) {
+                                    enqueueSync()
+                                }
+                            }
                         }
                     }
             } catch (_: Exception) {

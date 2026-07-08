@@ -62,10 +62,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -81,7 +82,10 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.connectivity.ConnectivityObserver
+import com.example.gruya.data.local.dao.PendingAssistanceDao
 import com.example.gruya.data.local.dao.VehicleCacheDao
+import com.example.gruya.data.local.entity.PendingAssistanceEntity
+import com.example.gruya.data.local.entity.SyncStatus
 import com.example.gruya.ui.screens.common.NoInternetScreen
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.ServiceType
@@ -126,6 +130,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -141,6 +146,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var vehicleCacheDao: VehicleCacheDao
 
+    @Inject
+    lateinit var pendingAssistanceDao: PendingAssistanceDao
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -154,7 +162,8 @@ class MainActivity : ComponentActivity() {
                     GruYaApp(
                         navEventBus = navEventBus,
                         connectivityObserver = connectivityObserver,
-                        vehicleCacheDao = vehicleCacheDao
+                        vehicleCacheDao = vehicleCacheDao,
+                        pendingAssistanceDao = pendingAssistanceDao
                     )
                 }
             }
@@ -198,7 +207,8 @@ fun GruYaApp(
     notificationViewModel: NotificationViewModel = hiltViewModel(),
     navEventBus: NavigationEventBus,
     connectivityObserver: ConnectivityObserver,
-    vehicleCacheDao: VehicleCacheDao
+    vehicleCacheDao: VehicleCacheDao,
+    pendingAssistanceDao: PendingAssistanceDao
 ) {
     val connectivityFlow = remember { connectivityObserver.observe() }
     val status by connectivityFlow.collectAsState(initial = ConnectivityObserver.Status.Available)
@@ -207,7 +217,40 @@ fun GruYaApp(
     val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
     val currentRole by authViewModel.currentRole.collectAsState()
 
-    // Define backStack early so all blocks can use it
+    var hasCachedVehicles by remember { mutableStateOf(true) }
+    var pendingAssistances by remember { mutableStateOf<List<PendingAssistanceEntity>>(emptyList()) }
+
+    // Check vehicle cache from Room
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                hasCachedVehicles = vehicleCacheDao.count() > 0
+            } catch (_: Exception) {
+                hasCachedVehicles = false
+            }
+        }
+    }
+
+    // Observe pending offline assistance requests
+    LaunchedEffect(Unit) {
+        pendingAssistanceDao.observeAll().collect { list ->
+            pendingAssistances = list
+        }
+    }
+
+    // ── Gate 1: Token check — loading while validating session ──
+    // Must be BEFORE backStack to avoid flash of wrong Login screen
+    if (isCheckingToken) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // ── BackStack (initialized with correct isLoggedIn value) ──
     val backStack = rememberNavBackStack(
         if (isLoggedIn) AppDest.MainContent
         else AppDest.Login
@@ -221,53 +264,23 @@ fun GruYaApp(
         }
     }
 
-    var showAssistanceFromNoInternet by remember { mutableStateOf(false) }
-    var hasCachedVehicles by remember { mutableStateOf(true) }
-
-    // Check vehicle cache from Room
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            try {
-                hasCachedVehicles = vehicleCacheDao.count() > 0
-            } catch (_: Exception) {
-                hasCachedVehicles = false
+    // ── Connectivity-based navigation: replace with NoInternet ↔ MainContent ──
+    LaunchedEffect(status) {
+        if (status != ConnectivityObserver.Status.Available) {
+            val last = backStack.lastOrNull()
+            if (last != AppDest.NoInternet && last !is AppDest.RequestAssistance) {
+                backStack.clear()
+                backStack.add(AppDest.NoInternet)
+            }
+        } else {
+            backStack.removeAll { it is AppDest.NoInternet || it is AppDest.RequestAssistance }
+            if (backStack.isEmpty()) {
+                backStack.add(if (isLoggedIn) AppDest.MainContent else AppDest.Login)
             }
         }
     }
 
-    if (status != ConnectivityObserver.Status.Available) {
-        if (showAssistanceFromNoInternet) {
-            // Inline RequestAssistanceScreen — direct composable, no MapPicker in offline
-            val assistanceVm: RequestAssistanceViewModel = hiltViewModel()
-            RequestAssistanceScreen(
-                viewModel = assistanceVm,
-                onNavigateBack = { showAssistanceFromNoInternet = false },
-                onNavigateToMapPicker = { /* no-op — offline: auto current location */ },
-                onNavigateToAddVehicle = { /* no-op — requires internet */ },
-                onNavigateToLogin = {
-                    showAssistanceFromNoInternet = false
-                    backStack.clear()
-                    backStack.add(AppDest.Login)
-                }
-            )
-            return
-        }
-
-        NoInternetScreen(
-            onRetry = { /* connectivity will be re-evaluated automatically */ },
-            onRequestAssistance = { showAssistanceFromNoInternet = true },
-            hasCachedVehicles = hasCachedVehicles,
-            isUser = currentRole == Role.USER
-        )
-        return
-    }
-
-    // Reset override when connectivity returns
-    LaunchedEffect(status) {
-        if (status == ConnectivityObserver.Status.Available) {
-            showAssistanceFromNoInternet = false
-        }
-    }
+    // ── Connected: Normal app ──
 
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -351,16 +364,6 @@ fun GruYaApp(
                 }
             }
         }
-    }
-
-    if (isCheckingToken) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
     }
 
     val providerViewModel: ProviderProfileViewModel = hiltViewModel()
@@ -452,6 +455,52 @@ fun GruYaApp(
                         },
                         onBack = {
                             backStack.removeAt(backStack.size - 1)
+                        }
+                    )
+                }
+
+                entry<AppDest.NoInternet> {
+                    val scope = rememberCoroutineScope()
+                    NoInternetScreen(
+                        onRetry = { /* connectivity will be re-evaluated automatically */ },
+                        onRequestAssistance = {
+                            backStack.add(AppDest.RequestAssistance())
+                        },
+                        hasCachedVehicles = hasCachedVehicles,
+                        isUser = currentRole == Role.USER,
+                        pendingAssistances = pendingAssistances,
+                        onDeletePending = { pendingId ->
+                            scope.launch {
+                                pendingAssistanceDao.deleteById(pendingId)
+                            }
+                        },
+                        onRetryPending = { pendingId ->
+                            scope.launch {
+                                val entity = pendingAssistanceDao.getById(pendingId)
+                                if (entity != null) {
+                                    pendingAssistanceDao.updateStatus(
+                                        entity.copy(status = SyncStatus.PENDING.name)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+
+                entry<AppDest.RequestAssistance> {
+                    val vm: RequestAssistanceViewModel = hiltViewModel()
+                    RequestAssistanceScreen(
+                        viewModel = vm,
+                        onNavigateBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
+                        },
+                        onNavigateToMapPicker = { /* no-op — offline: auto current location */ },
+                        onNavigateToAddVehicle = { /* no-op — requires internet */ },
+                        onNavigateToLogin = {
+                            backStack.clear()
+                            backStack.add(AppDest.Login)
                         }
                     )
                 }

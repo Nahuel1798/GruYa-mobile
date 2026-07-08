@@ -69,6 +69,11 @@ sealed interface AppDest : NavKey {
     }
 
     @Serializable
+    data object NoInternet : AppDest {
+        override val requieresAuth = false
+    }
+
+    @Serializable
     data object Notifications : AppDest {
         override val requieresAuth = true
     }

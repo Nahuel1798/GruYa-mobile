@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import com.example.gruya.data.local.dao.VehicleCacheDao
 import com.example.gruya.data.local.entity.VehicleCacheEntity
+import com.example.gruya.data.mapper.toCacheEntity
 import com.example.gruya.data.mapper.toDomain
 import com.example.gruya.data.remote.dtos.request.CreateVehicleRequest
 import com.example.gruya.data.remote.dtos.request.UpdateVehicleRequest
@@ -68,17 +69,6 @@ class VehicleRepository @Inject constructor(
             Result.failure(e)
         }
     }
-
-    private fun Vehicle.toCacheEntity() = VehicleCacheEntity(
-        id = id,
-        type = type.name,
-        licensePlate = licensePlate,
-        brand = brand,
-        model = model,
-        insurance = insurance,
-        color = color,
-        imageUrl = imageUrl
-    )
 
     suspend fun getById(id: Int): Vehicle? {
         val response = vehicleService.getById(id)

@@ -28,6 +28,15 @@ class AssistancesViewModel @Inject constructor(
     init {
         loadAssistances()
         observeNavigationEvents()
+        observePendingAssistances()
+    }
+
+    private fun observePendingAssistances() {
+        viewModelScope.launch {
+            assistanceRepository.observePendingAssistances().collect { pending ->
+                _uiState.update { it.copy(pendingLocalRequests = pending) }
+            }
+        }
     }
 
     private fun observeNavigationEvents() {
@@ -111,6 +120,28 @@ class AssistancesViewModel @Inject constructor(
                     }
                 }
             
+            _uiState.update { it.copy(isPerformingAction = false) }
+        }
+    }
+
+    fun retryPendingAssistance(pendingId: Long) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPerformingAction = true, error = null) }
+            assistanceRepository.syncPendingAssistance(pendingId)
+                .onFailure { t ->
+                    _uiState.update {
+                        it.copy(error = t.message ?: "Error al reenviar la solicitud")
+                    }
+                }
+            _uiState.update { it.copy(isPerformingAction = false) }
+            loadAssistances()
+        }
+    }
+
+    fun deletePendingAssistance(pendingId: Long) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPerformingAction = true) }
+            assistanceRepository.deletePendingAssistance(pendingId)
             _uiState.update { it.copy(isPerformingAction = false) }
         }
     }

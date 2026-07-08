@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,7 +32,10 @@ import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CarRepair
+import androidx.compose.material.icons.filled.LocalGasStation
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TireRepair
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -67,10 +71,16 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.gruya.data.local.entity.PendingAssistanceEntity
+import com.example.gruya.data.local.entity.SyncStatus
 import com.example.gruya.domain.model.Assistance
 import com.example.gruya.domain.model.AssistanceStatus
+import com.example.gruya.domain.model.IssueType
 import com.example.gruya.domain.model.ServiceType
 import com.example.gruya.domain.model.displayName
+import com.example.gruya.ui.screens.common.PendingStatusBadge
+import com.example.gruya.ui.screens.common.issueTypeIcon
+import com.example.gruya.ui.screens.common.pendingStatusLabel
 import com.example.gruya.utils.DateTimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,7 +111,9 @@ fun AssistancesScreen(
         onRefresh = viewModel::onRefresh,
         onRetry = viewModel::loadAssistances,
         onNavigateToQuotes = onNavigateToQuotes,
-        onCancelAssistance = viewModel::cancelActiveAssistance
+        onCancelAssistance = viewModel::cancelActiveAssistance,
+        onDeletePendingAssistance = viewModel::deletePendingAssistance,
+        onRetryPendingAssistance = viewModel::retryPendingAssistance
     )
 }
 
@@ -113,7 +125,9 @@ private fun AssistancesScreenContent(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onNavigateToQuotes: (Int) -> Unit,
-    onCancelAssistance: () -> Unit
+    onCancelAssistance: () -> Unit,
+    onDeletePendingAssistance: (Long) -> Unit = {},
+    onRetryPendingAssistance: (Long) -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -186,9 +200,12 @@ private fun AssistancesScreenContent(
                         AssistancesListContent(
                             activeAssistance = state.activeAssistance,
                             assistances = state.assistances,
+                            pendingLocalRequests = state.pendingLocalRequests,
                             isPerformingAction = state.isPerformingAction,
                             onNavigateToQuotes = onNavigateToQuotes,
                             onCancelAssistance = onCancelAssistance,
+                            onDeletePendingAssistance = onDeletePendingAssistance,
+                            onRetryPendingAssistance = onRetryPendingAssistance,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -203,9 +220,12 @@ private fun AssistancesScreenContent(
 private fun AssistancesListContent(
     activeAssistance: Assistance?,
     assistances: List<Assistance>,
+    pendingLocalRequests: List<PendingAssistanceEntity>,
     isPerformingAction: Boolean,
     onNavigateToQuotes: (Int) -> Unit,
     onCancelAssistance: () -> Unit,
+    onDeletePendingAssistance: (Long) -> Unit = {},
+    onRetryPendingAssistance: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val historyAssistances = remember(assistances, activeAssistance) {
@@ -221,6 +241,28 @@ private fun AssistancesListContent(
     ) {
         item { Spacer(modifier = Modifier.height(4.dp)) }
 
+        // ── Pending local requests section (at the top for visibility) ──
+        if (pendingLocalRequests.isNotEmpty()) {
+            item(key = "pending_section_title") {
+                Text(
+                    text = "Pendientes sin conexión",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp, start = 4.dp),
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            items(pendingLocalRequests, key = { "pending_${it.id}" }) { pending ->
+                PendingLocalRequestCard(
+                    pending = pending,
+                    onDelete = { onDeletePendingAssistance(pending.id) },
+                    onRetry = onRetryPendingAssistance,
+                    isPerformingAction = isPerformingAction,
+                    modifier = Modifier.animateItem()
+                )
+            }
+        }
+
         activeAssistance?.let {
             item(key = "active_section_title") {
                 Text(
@@ -228,7 +270,7 @@ private fun AssistancesListContent(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp, start = 4.dp)
                 )
             }
             item(key = "active_assistance_card") {
@@ -557,6 +599,133 @@ private fun EmptySectionCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
+        }
+    }
+}
+
+@Composable
+private fun PendingLocalRequestCard(
+    pending: PendingAssistanceEntity,
+    onDelete: () -> Unit,
+    onRetry: (Long) -> Unit = {},
+    isPerformingAction: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val issueType = remember(pending.issueType) {
+        try { IssueType.valueOf(pending.issueType) } catch (_: Exception) { null }
+    }
+    val syncStatus = remember(pending.status) {
+        try { SyncStatus.valueOf(pending.status) } catch (_: Exception) { null }
+    }
+    val statusInfo = remember(syncStatus) { pendingStatusLabel(syncStatus) }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = issueTypeIcon(issueType),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = issueType?.displayName ?: "Solicitud de auxilio",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = DateTimeUtils.formatRelative(pending.capturedAt),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                PendingStatusBadge(syncStatus)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(modifier = Modifier.alpha(0.1f))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = statusInfo.second,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = statusInfo.first,
+                    modifier = Modifier.weight(1f)
+                )
+                if (!isPerformingAction) {
+                    val showRetry = syncStatus == SyncStatus.FAILED || syncStatus == SyncStatus.NEEDS_REAUTH
+                    if (showRetry) {
+                        OutlinedButton(
+                            onClick = { onRetry(pending.id) },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Reintentar",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    OutlinedButton(
+                        onClick = onDelete,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp,
+                            MaterialTheme.colorScheme.error.copy(alpha = 0.3f)
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Eliminar",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }

@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.Locale
 import javax.inject.Inject
 
@@ -424,11 +425,15 @@ class RequestAssistanceViewModel @Inject constructor(
                 onSuccess()
             },
             onFailure = { error ->
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = error.message ?: "Error al enviar la solicitud"
-                    )
+                if (error is IOException) {
+                    submitOffline(request)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = error.message ?: "Error al enviar la solicitud"
+                        )
+                    }
                 }
             }
         )
@@ -440,9 +445,7 @@ class RequestAssistanceViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        syncStatus = SyncStatus.PENDING,
-                        pendingId = outcome.pendingId,
-                        offlineQueueMessage = "Tu solicitud fue guardada. Se enviará automáticamente cuando tengas conexión."
+                        showOfflineSuccessDialog = true
                     )
                 }
             }
@@ -454,12 +457,6 @@ class RequestAssistanceViewModel @Inject constructor(
                     )
                 }
             }
-            is AssistanceRepository.QueueAssistanceOutcome.Submitted -> {
-                // Shouldn't happen in offline path, but handle gracefully
-                _uiState.update {
-                    it.copy(isLoading = false, isSubmitted = true)
-                }
-            }
         }
     }
 
@@ -468,8 +465,12 @@ class RequestAssistanceViewModel @Inject constructor(
     fun retryPendingAssistance(pendingId: Long) {
         viewModelScope.launch {
             _uiState.update { it.copy(syncStatus = SyncStatus.PENDING) }
-            // Re-enqueue the worker to retry sync
-            assistanceRepository.syncPendingAssistances()
+            assistanceRepository.syncPendingAssistance(pendingId)
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(syncStatus = SyncStatus.FAILED, error = error.message)
+                    }
+                }
         }
     }
 

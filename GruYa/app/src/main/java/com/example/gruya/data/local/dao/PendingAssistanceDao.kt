@@ -20,6 +20,9 @@ interface PendingAssistanceDao {
     @Query("SELECT * FROM pending_assistances WHERE status = 'PENDING' ORDER BY capturedAt ASC")
     suspend fun readPending(): List<PendingAssistanceEntity>
 
+    @Query("SELECT * FROM pending_assistances WHERE status IN ('PENDING', 'NEEDS_REAUTH') ORDER BY capturedAt ASC")
+    suspend fun readNeedsSync(): List<PendingAssistanceEntity>
+
     @Query("SELECT * FROM pending_assistances WHERE id = :id")
     suspend fun getById(id: Long): PendingAssistanceEntity?
 

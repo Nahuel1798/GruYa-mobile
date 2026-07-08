@@ -29,6 +29,14 @@ object DateTimeUtils {
         if (isoString.isNullOrBlank()) return ""
         val date = parseIso(isoString) ?: return isoString
         
+        return formatRelative(date)
+    }
+
+    fun formatRelative(timestamp: Long): String {
+        return formatRelative(Date(timestamp))
+    }
+
+    private fun formatRelative(date: Date): String {
         val now = Date()
         val diff = now.time - date.time
         

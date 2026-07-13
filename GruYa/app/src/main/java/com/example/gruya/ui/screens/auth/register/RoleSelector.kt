@@ -20,7 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.selectableGroup
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -64,29 +65,36 @@ fun RoleSelector(
             
             Spacer(modifier = Modifier.height(48.dp))
 
-            OptionCard(
-                title = "Necesito auxilio",
-                description = "Para conductores con vehículos averiados o que necesitan asistencia inmediata.",
-                icon = Icons.Default.CarRepair,
-                titleColor = Color(0xFF1E3A8A),
-                iconTint = Color(0xFF1E3A8A),
-                iconContainerColor = Color(0xFFE0E7FF),
-                isSelected = uiState.role == Role.USER,
-                onClick = { onRoleSelected(Role.USER) }
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            OptionCard(
-                title = "Soy Proveedor",
-                description = "Para profesionales que buscan aceptar trabajos y hacer crecer su negocio.",
-                icon = Icons.Default.Engineering,
-                titleColor = Color(0xFFB45309),
-                iconTint = Color(0xFFB45309),
-                iconContainerColor = Color(0xFFFEF3C7),
-                isSelected = uiState.role == Role.PROVIDER,
-                onClick = { onRoleSelected(Role.PROVIDER) }
-            )
+            Column(
+                modifier = Modifier.semantics { selectableGroup() },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                OptionCard(
+                    title = "Necesito auxilio",
+                    description = "Para conductores con vehículos averiados o que necesitan asistencia inmediata.",
+                    icon = Icons.Default.CarRepair,
+                    iconContentDescription = "Icono de conductor",
+                    titleColor = MaterialTheme.colorScheme.primary,
+                    iconTint = MaterialTheme.colorScheme.primary,
+                    iconContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    isSelected = uiState.role == Role.USER,
+                    onClick = { onRoleSelected(Role.USER) }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OptionCard(
+                    title = "Soy Proveedor",
+                    description = "Para profesionales que buscan aceptar trabajos y hacer crecer su negocio.",
+                    icon = Icons.Default.Engineering,
+                    iconContentDescription = "Icono de proveedor",
+                    titleColor = MaterialTheme.colorScheme.secondary,
+                    iconTint = MaterialTheme.colorScheme.secondary,
+                    iconContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    isSelected = uiState.role == Role.PROVIDER,
+                    onClick = { onRoleSelected(Role.PROVIDER) }
+                )
+            }
         }
 
         Button(

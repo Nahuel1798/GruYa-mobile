@@ -164,20 +164,7 @@ private fun ActiveServiceTrackingContent(
                 title = if (status == AssistanceStatus.COMPLETADO) "Servicio finalizado" else "Servicio en curso",
                 onBack = onNavigateBack,
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                titleContent = {
-                    Column {
-                        Text(
-                            if (status == AssistanceStatus.COMPLETADO) "Servicio finalizado" else "Servicio en curso",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = assistance.serviceType.name,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                subtitle = assistance.serviceType.name
             )
         },
         sheetPeekHeight = 180.dp,

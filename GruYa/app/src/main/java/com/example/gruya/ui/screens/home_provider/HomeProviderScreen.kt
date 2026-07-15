@@ -264,13 +264,7 @@ fun HomeProviderScreen(
             AppTopAppBar(
                 title = "GruYa",
                 containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                titleContent = {
-                    Text(
-                        "GruYa",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                titleColor = MaterialTheme.colorScheme.primary,
                 actions = {
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),

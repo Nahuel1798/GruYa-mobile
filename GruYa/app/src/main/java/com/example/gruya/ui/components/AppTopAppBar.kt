@@ -1,6 +1,9 @@
 package com.example.gruya.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -15,24 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 
 /**
- * TopAppBar estandarizado extraído de [ScreenScaffold].
+ * TopAppBar estandarizado para pantallas con [BottomSheetScaffold]
+ * u otros layouts que no pueden usar [ScreenScaffold] directamente.
  *
- * Útil cuando la pantalla usa [androidx.compose.material3.BottomSheetScaffold]
- * u otro layout que no puede usar [ScreenScaffold] directamente, pero necesita
- * la misma TopAppBar consistente con ícono de retroceso RTL-aware y estilo
- * unificado.
- *
- * @param title Título por defecto (usado cuando [titleContent] es null).
- * @param modifier Modificador para la TopAppBar.
- * @param onBack Callback de navegación hacia atrás. Si es null, no se muestra el botón.
- * @param actions Slot de acciones (recibe [RowScope]).
- * @param containerColor Color de fondo de la TopAppBar.
- * @param scrollBehavior Comportamiento de scroll (pinned, enterAlways, etc.).
- * @param titleContent Slot personalizado para el título. Cuando se provee, reemplaza
- *   el [Text] por defecto renderizado a partir de [title]. Útil para títulos
- *   con subtítulo o estilos personalizados.
+ * @param title Título principal (bold por defecto).
+ * @param titleColor Color del título. null = hereda de [TopAppBar].
+ * @param subtitle Texto secundario opcional debajo del título.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,18 +37,26 @@ fun AppTopAppBar(
     actions: @Composable RowScope.() -> Unit = {},
     containerColor: Color = MaterialTheme.colorScheme.surface,
     scrollBehavior: TopAppBarScrollBehavior? = null,
-    titleContent: @Composable (() -> Unit)? = null
+    titleColor: Color? = null,
+    subtitle: String? = null
 ) {
     TopAppBar(
         modifier = modifier,
         title = {
-            if (titleContent != null) {
-                titleContent()
-            } else {
+            Column {
                 Text(
                     text = title,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = titleColor ?: Color.Unspecified
                 )
+                if (subtitle != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         },
         navigationIcon = {

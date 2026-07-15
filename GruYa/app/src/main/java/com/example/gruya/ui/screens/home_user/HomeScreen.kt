@@ -166,13 +166,7 @@ fun HomeScreen(
         ScreenScaffold(
             title = "GruYa",
             onBack = null,
-            titleContent = {
-                Text(
-                    "GruYa",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            titleColor = MaterialTheme.colorScheme.primary,
             actions = {
                 IconButton(onClick = onNavigateToNotifications) {
                     BadgedBox(

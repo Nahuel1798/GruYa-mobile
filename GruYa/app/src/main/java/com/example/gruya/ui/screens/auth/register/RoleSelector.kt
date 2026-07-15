@@ -2,6 +2,7 @@ package com.example.gruya.ui.screens.auth.register
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.gruya.domain.model.Role
+import com.example.gruya.ui.components.BackButton
 import com.example.gruya.ui.components.OptionCard
 
 @Composable
@@ -33,6 +35,7 @@ fun RoleSelector(
     uiState: RegisterUiState,
     onRoleSelected: (Role) -> Unit,
     onConfirm: () -> Unit,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -45,7 +48,14 @@ fun RoleSelector(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(40.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                BackButton(onClick = onBack)
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             
             Text(
                 text = "Bienvenido a GruYa",

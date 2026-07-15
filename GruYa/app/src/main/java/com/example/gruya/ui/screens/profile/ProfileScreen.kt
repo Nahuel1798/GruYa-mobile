@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import com.example.gruya.domain.model.ProviderProfile
 import com.example.gruya.domain.model.ServiceType
 import com.example.gruya.ui.components.AppTextField
+import com.example.gruya.ui.components.ScreenScaffold
 import com.example.gruya.ui.theme.GruYaTheme
 
 @Composable
@@ -122,29 +123,17 @@ fun ProfileContent(
 
     val userFieldsValid = editedFirstName.isNotBlank() && editedLastName.isNotBlank() && editedEmail.isNotBlank()
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { 
-                    Text(
-                        "Mi Perfil",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    ) 
-                },
-                actions = {
-                    IconButton(onClick = onLogout) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Logout,
-                            contentDescription = "Cerrar Sesión",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ScreenScaffold(
+        title = "Mi Perfil",
+        onBack = null,
+        actions = {
+            IconButton(onClick = onLogout) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Logout,
+                    contentDescription = "Cerrar Sesión",
+                    tint = MaterialTheme.colorScheme.error
                 )
-            )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->

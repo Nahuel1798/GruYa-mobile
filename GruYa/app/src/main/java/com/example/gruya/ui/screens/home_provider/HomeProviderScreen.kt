@@ -33,8 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.BottomSheetScaffold
@@ -96,6 +94,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.example.gruya.ui.components.AppTopAppBar
 import com.example.gruya.domain.model.ServiceType
 import com.example.gruya.domain.model.ProviderProfile
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
@@ -262,8 +261,10 @@ fun HomeProviderScreen(
         sheetPeekHeight = 200.dp,
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         topBar = {
-            TopAppBar(
-                title = {
+            AppTopAppBar(
+                title = "GruYa",
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                titleContent = {
                     Text(
                         "GruYa",
                         color = MaterialTheme.colorScheme.primary,
@@ -333,10 +334,7 @@ fun HomeProviderScreen(
                             )
                         }
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-                )
+                }
             )
         },
         sheetContent = {

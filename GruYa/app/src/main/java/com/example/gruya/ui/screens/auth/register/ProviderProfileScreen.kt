@@ -14,10 +14,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.*
+import com.example.gruya.ui.components.ScreenScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -107,7 +107,9 @@ fun ProviderProfileScreen(
         }
     }
 
-    Scaffold(
+    ScreenScaffold(
+        title = "Registro de Prestador",
+        onBack = onBack,
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(
@@ -118,26 +120,6 @@ fun ProviderProfileScreen(
                     actionColor = MaterialTheme.colorScheme.error
                 )
             }
-        },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Registro de Prestador",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onBack
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null
-                        )
-                    }
-                }
-            )
         }
     ) { padding ->
 

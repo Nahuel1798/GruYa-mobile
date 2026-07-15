@@ -47,13 +47,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.gruya.ui.components.ScreenScaffold
 import com.example.gruya.data.local.entity.PendingAssistanceEntity
 import com.example.gruya.data.local.entity.SyncStatus
 import com.example.gruya.domain.model.Assistance
@@ -129,40 +127,29 @@ private fun AssistancesScreenContent(
     onDeletePendingAssistance: (Long) -> Unit = {},
     onRetryPendingAssistance: (Long) -> Unit = {}
 ) {
-    Scaffold(
-        topBar = {
-            Column {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Mis Solicitudes",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-                if ((uiState.isLoading || uiState.isPerformingAction) && (uiState.assistances.isNotEmpty() || uiState.activeAssistance != null)) {
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                    )
-                }
-            }
-        },
+    ScreenScaffold(
+        title = "Mis Solicitudes",
+        onBack = null,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = uiState.isRefreshing,
-            onRefresh = onRefresh,
-            modifier = Modifier.padding(padding)
-        ) {
-            AnimatedContent(
+        Column(modifier = Modifier.fillMaxSize()) {
+            if ((uiState.isLoading || uiState.isPerformingAction) && (uiState.assistances.isNotEmpty() || uiState.activeAssistance != null)) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                )
+            }
+            PullToRefreshBox(
+                isRefreshing = uiState.isRefreshing,
+                onRefresh = onRefresh,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(padding)
+            ) {
+                AnimatedContent(
                 targetState = uiState,
                 transitionSpec = {
                     fadeIn() togetherWith fadeOut()
@@ -210,6 +197,7 @@ private fun AssistancesScreenContent(
                         )
                     }
                 }
+            }
             }
         }
     }

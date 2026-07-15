@@ -404,6 +404,11 @@ fun GruYaApp(
                                 backStack.clear()
                                 backStack.add(AppDest.MainContent)
                             }
+                        },
+                        onBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
                         }
                     )
                 }

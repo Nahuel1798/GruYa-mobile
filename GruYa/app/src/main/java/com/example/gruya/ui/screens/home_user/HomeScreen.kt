@@ -43,6 +43,7 @@ import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
 import com.example.gruya.R
 import com.example.gruya.data.remote.dtos.response.ProviderLocationResponse
+import com.example.gruya.ui.components.ScreenScaffold
 import com.example.gruya.ui.theme.Success
 import com.example.gruya.ui.theme.Warning
 import com.example.gruya.ui.theme.Info
@@ -161,67 +162,46 @@ fun HomeScreen(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            AnimatedVisibility(
-                visible = !uiState.isMapFullScreen,
-                enter = slideInVertically(initialOffsetY = { -it }),
-                exit = slideOutVertically(targetOffsetY = { -it })
-            ) {
-                TopAppBar(
-                    title = {
-                        androidx.compose.material3.Text(
-                            "GruYa",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    actions = {
-                        IconButton(onClick = onNavigateToNotifications) {
-                            BadgedBox(
-                                badge = {
-                                    if (uiState.unreadNotificationsCount > 0) {
-                                        Badge {
-                                            Text(
-                                                text = if (uiState.unreadNotificationsCount > 9) "9+" else uiState.unreadNotificationsCount.toString()
-                                            )
-                                        }
-                                    }
+    Box(modifier = Modifier.fillMaxSize()) {
+        ScreenScaffold(
+            title = "GruYa",
+            onBack = null,
+            titleContent = {
+                Text(
+                    "GruYa",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            actions = {
+                IconButton(onClick = onNavigateToNotifications) {
+                    BadgedBox(
+                        badge = {
+                            if (uiState.unreadNotificationsCount > 0) {
+                                Badge {
+                                    Text(
+                                        text = if (uiState.unreadNotificationsCount > 9) "9+" else uiState.unreadNotificationsCount.toString()
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Notifications,
-                                    contentDescription = "Notificaciones",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
-            }
-        },
-        floatingActionButton = {
-            if (uiState.isMapFullScreen) {
-                FloatingActionButton(
-                    onClick = viewModel::toggleMapFullScreen,
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Cerrar Mapa Completo")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = "Notificaciones",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-            }
-        },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { padding ->
+            },
+            topBarVisible = !uiState.isMapFullScreen,
+            containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { padding ->
 
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
             // MAPA (Fondo)
             val isDarkTheme = isSystemInDarkTheme()
 
@@ -525,8 +505,23 @@ fun HomeScreen(
                     }
                 )
             }
+            }
+        }
+
+    // FAB for full-screen map toggle
+    if (uiState.isMapFullScreen) {
+        FloatingActionButton(
+            onClick = viewModel::toggleMapFullScreen,
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Cerrar Mapa Completo")
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

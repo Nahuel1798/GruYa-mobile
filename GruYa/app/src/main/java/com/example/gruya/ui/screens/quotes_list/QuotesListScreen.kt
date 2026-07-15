@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
@@ -46,8 +45,6 @@ import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,6 +69,8 @@ import com.example.gruya.domain.model.Quote
 import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.TrackingState
 import com.example.gruya.domain.model.displayName
+import com.example.gruya.ui.components.AppTopAppBar
+import com.example.gruya.ui.components.ScreenScaffold
 import com.example.gruya.ui.components.TrackingMap
 import com.example.gruya.utils.DateTimeUtils
 
@@ -93,26 +92,9 @@ fun QuotesListScreen(
             onNavigateBack = onNavigateBack
         )
     } else {
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Respuestas",
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBackIosNew,
-                                contentDescription = "Volver"
-                            )
-                        }
-                    }
-                )
-            },
+        ScreenScaffold(
+            title = "Respuestas",
+            onBack = onNavigateBack,
             containerColor = MaterialTheme.colorScheme.background
         ) { padding ->
             Box(
@@ -178,8 +160,11 @@ private fun ActiveServiceTrackingContent(
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         topBar = {
-            TopAppBar(
-                title = {
+            AppTopAppBar(
+                title = if (status == AssistanceStatus.COMPLETADO) "Servicio finalizado" else "Servicio en curso",
+                onBack = onNavigateBack,
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                titleContent = {
                     Column {
                         Text(
                             if (status == AssistanceStatus.COMPLETADO) "Servicio finalizado" else "Servicio en curso",
@@ -192,15 +177,7 @@ private fun ActiveServiceTrackingContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBackIosNew, contentDescription = "Atrás")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                )
+                }
             )
         },
         sheetPeekHeight = 180.dp,

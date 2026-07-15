@@ -12,7 +12,6 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -58,39 +57,15 @@ fun VehiclesScreen(
         }
     }
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Mis Vehículos",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = viewModel::onAddVehicle,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                shape = RoundedCornerShape(16.dp),
-                elevation = FloatingActionButtonDefaults.elevation(8.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Agregar Vehículo")
-            }
-        }
-    ) { padding ->
-        PullToRefreshBox(
+    Box(modifier = Modifier.fillMaxSize()) {
+        ScreenScaffold(
+            title = "Mis Vehículos",
+            onBack = null,
+            scrollBehavior = scrollBehavior,
+            containerColor = MaterialTheme.colorScheme.background,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { padding ->
+            PullToRefreshBox(
             isRefreshing = uiState.isLoading,
             onRefresh = viewModel::listVehicles,
             modifier = Modifier
@@ -141,6 +116,21 @@ fun VehiclesScreen(
             }
         }
     }
+
+    FloatingActionButton(
+        onClick = viewModel::onAddVehicle,
+        containerColor = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shape = RoundedCornerShape(16.dp),
+        elevation = FloatingActionButtonDefaults.elevation(8.dp),
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(16.dp)
+    ) {
+        Icon(Icons.Default.Add, contentDescription = "Agregar Vehículo")
+    }
+}
+
 }
 
 @Composable

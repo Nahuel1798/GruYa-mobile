@@ -142,6 +142,10 @@ class RegisterViewModel @Inject constructor(
         }
     }
 
+    fun onBackToRoleSelection() {
+        _uiState.update { it.copy(step = RegisterStep.RoleSelector, error = "") }
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = "") }
     }

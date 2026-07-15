@@ -41,11 +41,11 @@ import com.example.gruya.domain.model.Vehicle
 import com.example.gruya.domain.model.VehicleType
 import com.example.gruya.domain.model.displayName
 import com.example.gruya.ui.components.AppTextField
+import com.example.gruya.ui.components.ScreenScaffold
 import com.example.gruya.ui.components.VehicleCarouselCard
 import com.example.gruya.ui.theme.GruYaTheme
 
 @SuppressLint("MissingPermission")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RequestAssistanceScreen(
     onNavigateBack: () -> Unit,
@@ -166,32 +166,12 @@ fun RequestAssistanceContent(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
-    Scaffold(
+    ScreenScaffold(
         modifier = modifier,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = "Solicitar Auxilio",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowBackIosNew,
-                            contentDescription = "Volver"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        title = "Solicitar Auxilio",
+        onBack = onNavigateBack,
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         LazyColumn(
             modifier = Modifier

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -19,9 +18,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import com.example.gruya.ui.components.ScreenScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -110,58 +108,9 @@ fun LocationPickerScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Seleccionar Ubicación") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Botón de mi ubicación
-                if (hasLocationPermission) {
-                    FloatingActionButton(
-                        onClick = {
-                            userLocationState?.location?.let {
-                                val lat = it.position.value.latitude
-                                val lng = it.position.value.longitude
-                                selectedLat = lat
-                                selectedLng = lng
-                                scope.launch {
-                                    cameraState.animateTo(
-                                        CameraPosition(
-                                            target = Position(lng, lat),
-                                            zoom = 15.0
-                                        )
-                                    )
-                                }
-                            }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ) {
-                        Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
-                    }
-                }
-
-                // Botón de confirmar
-                if (selectedLat != null && selectedLng != null) {
-                    FloatingActionButton(
-                        onClick = { onLocationSelected(selectedLat!!, selectedLng!!) }
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = "Confirmar")
-                    }
-                }
-            }
-        }
+    ScreenScaffold(
+        title = "Seleccionar Ubicación",
+        onBack = onBack
     ) { padding ->
         Box(modifier = Modifier
             .fillMaxSize()
@@ -208,6 +157,50 @@ fun LocationPickerScreen(
                         strokeColor = const(Color.White),
                         strokeWidth = const(2.dp)
                     )
+                }
+            }
+
+            // Floating Action Buttons
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Botón de mi ubicación
+                if (hasLocationPermission) {
+                    FloatingActionButton(
+                        onClick = {
+                            userLocationState?.location?.let {
+                                val lat = it.position.value.latitude
+                                val lng = it.position.value.longitude
+                                selectedLat = lat
+                                selectedLng = lng
+                                scope.launch {
+                                    cameraState.animateTo(
+                                        CameraPosition(
+                                            target = Position(lng, lat),
+                                            zoom = 15.0
+                                        )
+                                    )
+                                }
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                    }
+                }
+
+                // Botón de confirmar
+                if (selectedLat != null && selectedLng != null) {
+                    FloatingActionButton(
+                        onClick = { onLocationSelected(selectedLat!!, selectedLng!!) }
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = "Confirmar")
+                    }
                 }
             }
         }

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.gruya.domain.model.VehicleType
 import com.example.gruya.ui.components.AppTextField
+import com.example.gruya.ui.components.ScreenScaffold
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -124,32 +125,11 @@ fun AddVehicleScreen(
         uiState.error?.let { snackbarHostState.showSnackbar(it) }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (uiState.isEditMode) "Editar Vehículo" else "Agregar Vehículo",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Outlined.ArrowBackIosNew,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ScreenScaffold(
+        title = if (uiState.isEditMode) "Editar Vehículo" else "Agregar Vehículo",
+        onBack = onNavigateBack,
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             // Botón pegado al fondo
             Box(

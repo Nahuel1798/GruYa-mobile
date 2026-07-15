@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.gruya.ui.components.AppTextField
+import com.example.gruya.ui.components.ScreenScaffold
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
 import org.maplibre.compose.expressions.dsl.const
@@ -50,7 +51,6 @@ import java.util.Locale
 
 import org.maplibre.spatialk.geojson.Position
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuoteScreen(
     assistanceId: Int?,
@@ -118,20 +118,9 @@ fun QuoteContent(
 ) {
     val isDark = isSystemInDarkTheme()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Cotizar Servicio", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Outlined.ArrowBackIosNew, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
-            )
-        }
+    ScreenScaffold(
+        title = "Cotizar Servicio",
+        onBack = onNavigateBack
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Background Map

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gruya.ui.components.AppTextField
+import com.example.gruya.ui.components.BackButton
 import com.example.gruya.ui.theme.GruYaTheme
 import com.example.gruya.domain.model.Role
 
@@ -41,6 +42,7 @@ fun RegisterForm(
     onPasswordChanged: (String) -> Unit,
     onPasswordVisibilityChanged: (Boolean) -> Unit,
     onContinue: () -> Unit,
+    onBack: () -> Unit,
 ) {
 
     Box(
@@ -82,6 +84,14 @@ fun RegisterForm(
 
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+
+                // BACK BUTTON
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    BackButton(onClick = onBack)
+                }
 
                 // ICONO
                 val roleIcon = when (uiState.role) {

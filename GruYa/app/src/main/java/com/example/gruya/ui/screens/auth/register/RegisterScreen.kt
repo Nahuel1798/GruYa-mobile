@@ -19,7 +19,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun RegisterScreen(
     viewModel: RegisterViewModel = hiltViewModel(),
-    onRegisterSuccess: (Role) -> Unit
+    onRegisterSuccess: (Role) -> Unit,
+    onBack: () -> Unit = {}
 ){
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -60,7 +61,8 @@ fun RegisterScreen(
                 RegisterStep.RoleSelector -> RoleSelector(
                     uiState = uiState,
                     onConfirm = viewModel::onContinueClick,
-                    onRoleSelected = viewModel::onRoleChanged
+                    onRoleSelected = viewModel::onRoleChanged,
+                    onBack = onBack
                 )
 
                 RegisterStep.Form -> RegisterForm(
@@ -71,7 +73,8 @@ fun RegisterScreen(
                     onPhoneChanged = viewModel::onPhoneChanged,
                     onEmailChanged = viewModel::onEmailChanged,
                     onPasswordChanged = viewModel::onPasswordChanged,
-                    onPasswordVisibilityChanged = viewModel::onPasswordVisibilityChanged
+                    onPasswordVisibilityChanged = viewModel::onPasswordVisibilityChanged,
+                    onBack = viewModel::onBackToRoleSelection
                 )
             }
         }

@@ -22,6 +22,9 @@ interface QuoteService {
     @GET(Constants.QUOTES_PATH + "/by-assistance/{assistanceId}")
     suspend fun getByAssistance(@Path("assistanceId") id: Int): Response<List<QuoteResponse>>
 
+    @GET(Constants.QUOTES_PATH +"/accepted/{assistanceId}")
+    suspend fun getQuoteAssistanceActive(@Path("assistanceId") id: Int): Response<QuoteResponse>
+
     @GET(Constants.QUOTES_PATH + "/requests-for-me")
     suspend fun getRequestsForMe(): Response<List<AssistanceResponse>>
 

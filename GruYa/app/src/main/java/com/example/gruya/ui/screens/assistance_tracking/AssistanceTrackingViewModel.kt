@@ -20,7 +20,6 @@ import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.service.LocationTrackingService
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.PaymentMethod
-import com.example.gruya.domain.model.QuoteStatus
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.TrackingState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -463,10 +462,11 @@ class AssistanceTrackingViewModel @Inject constructor(
 
     private fun fetchAcceptedQuote(assistanceId: Int) {
         viewModelScope.launch {
-            val result = quoteRepository.getByAssistance(assistanceId)
-            result.onSuccess { quotes ->
-                val accepted = quotes.find { it.status == QuoteStatus.ACEPTADA }
-                _uiState.update { it.copy(acceptedQuote = accepted) }
+            val result = quoteRepository.getQuoteAssistanceActive(assistanceId)
+            result.onSuccess { quote ->
+                _uiState.update { it.copy(acceptedQuote = quote) }
+            }.onFailure { error ->
+                Log.e("AssistanceTrackingVM", "Error fetching active quote: ${error.message}")
             }
         }
     }

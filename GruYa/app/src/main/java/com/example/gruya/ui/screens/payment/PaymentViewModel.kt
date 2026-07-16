@@ -3,7 +3,6 @@ package com.example.gruya.ui.screens.payment
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.remote.dtos.request.CreatePaymentRequest
-import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.PaymentRepository
 import com.example.gruya.data.repository.QuoteRepository
 import com.example.gruya.domain.model.PaymentMethod
@@ -21,7 +20,6 @@ import javax.inject.Inject
 @HiltViewModel
 class PaymentViewModel @Inject constructor(
     private val paymentRepository: PaymentRepository,
-    private val assistanceRepository: AssistanceRepository,
     private val quoteRepository: QuoteRepository
 ) : ViewModel() {
 
@@ -77,9 +75,19 @@ class PaymentViewModel @Inject constructor(
         }
     }
 
-    fun pay(method: PaymentMethod) {
+    fun selectMethod(method: PaymentMethod) {
+        _uiState.update { it.copy(selectedMethod = method) }
+    }
+
+    fun pay() {
         val assistanceId = _uiState.value.assistanceId
         val amount = _uiState.value.amount
+        val method = _uiState.value.selectedMethod
+
+        if (method == null) {
+            _uiState.update { it.copy(error = "Debe seleccionar un método de pago") }
+            return
+        }
 
         if (amount <= 0) {
             _uiState.update { it.copy(error = "El monto a pagar debe ser mayor a 0") }
@@ -92,19 +100,11 @@ class PaymentViewModel @Inject constructor(
             val payment = paymentRepository.createPayment(assistanceId, request)
 
             if (payment != null && payment.status == PaymentStatus.PAGADO) {
-                // After successful payment, complete the service
-                val result = assistanceRepository.completeService(assistanceId)
-                result.fold(
-                    onSuccess = {
-                        _uiState.update { it.copy(isLoading = false, isSuccess = true, payment = payment) }
-                    },
-                    onFailure = { error ->
-                        _uiState.update { it.copy(isLoading = false, error = "Pago realizado pero error al finalizar: ${error.message}") }
-                    }
-                )
+                _uiState.update { it.copy(isLoading = false, isSuccess = true, payment = payment) }
             } else {
                 _uiState.update { it.copy(isLoading = false, error = "Error al procesar el pago") }
             }
         }
     }
+
 }

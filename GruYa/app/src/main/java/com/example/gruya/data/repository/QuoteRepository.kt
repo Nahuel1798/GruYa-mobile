@@ -77,6 +77,32 @@ class QuoteRepository @Inject constructor(
         }
     }
 
+    suspend fun getQuoteAssistanceActive(assistanceId: Int): Result<Quote> {
+        return try {
+            val response = quoteService.getQuoteAssistanceActive(assistanceId)
+
+            if (response.isSuccessful) {
+                val quote = response.body()?.toDomainOrNull()
+
+                if (quote != null) {
+                    Result.success(quote)
+                } else {
+                    Result.failure(Exception("No se encontró un presupuesto aceptado"))
+                }
+            } else {
+                val error = when (response.code()) {
+                    403 -> "No tienes permiso para consultar este presupuesto"
+                    404 -> "No existe un presupuesto aceptado para esta asistencia"
+                    else -> "Error ${response.code()}: ${response.message()}"
+                }
+
+                Result.failure(Exception(error))
+            }
+        } catch (e: Exception) {
+            Result.failure(Exception("Error de conexión: ${e.message}", e))
+        }
+    }
+
     suspend fun getMine(statuses: List<QuoteStatus> = emptyList()): Result<List<Quote>> {
         return try {
             val response = quoteService.getMine(statuses.map { it.name })

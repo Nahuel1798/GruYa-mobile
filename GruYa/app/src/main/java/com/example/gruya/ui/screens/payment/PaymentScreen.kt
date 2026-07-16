@@ -22,9 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import com.example.gruya.domain.model.PaymentMethod
 import java.util.Locale
 
@@ -38,16 +35,9 @@ fun PaymentScreen(
     viewModel: PaymentViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var selectedMethod by remember { mutableStateOf<PaymentMethod?>(null) }
 
     LaunchedEffect(assistanceId, amount) {
         viewModel.initPayment(assistanceId, amount)
-    }
-
-    LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) {
-            onPaymentSuccess()
-        }
     }
 
     ScreenScaffold(
@@ -61,13 +51,13 @@ fun PaymentScreen(
                     shadowElevation = 16.dp
                 ) {
                     Button(
-                        onClick = { selectedMethod?.let { viewModel.pay(it) } },
+                        onClick = { viewModel.pay() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(24.dp)
                             .height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = selectedMethod != null && !uiState.isLoading
+                        enabled = uiState.selectedMethod != null && !uiState.isLoading
                     ) {
                         if (uiState.isLoading) {
                             CircularProgressIndicator(
@@ -95,14 +85,15 @@ fun PaymentScreen(
             } else {
                 PaymentContent(
                     amount = uiState.amount,
-                    selectedMethod = selectedMethod,
-                    onMethodSelected = { selectedMethod = it },
+                    selectedMethod = uiState.selectedMethod,
+                    onMethodSelected = { viewModel.selectMethod(it) },
                     error = uiState.error
                 )
             }
         }
     }
 }
+
 
 @Composable
 private fun PaymentContent(
@@ -260,7 +251,7 @@ private fun PaymentSuccessView(onFinish: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "El servicio ha finalizado correctamente.",
+            text = "El pago se ha procesado correctamente.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -271,7 +262,7 @@ private fun PaymentSuccessView(onFinish: () -> Unit) {
             modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(16.dp)
         ) {
-            Text("VOLVER AL INICIO", fontWeight = FontWeight.Bold)
+            Text("CONTINUAR", fontWeight = FontWeight.Bold)
         }
     }
 }

@@ -41,6 +41,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -79,6 +81,10 @@ fun AssistanceTrackingScreen(
     }
 
     LaunchedEffect(assistanceId, trackingSessionId) {
+        viewModel.loadAssistance(assistanceId, trackingSessionId)
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.loadAssistance(assistanceId, trackingSessionId)
     }
 
@@ -180,7 +186,7 @@ fun AssistanceTrackingScreen(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // ETA and Distance Row
+                    // ETA, Distance and Price Row
                     if (assistance.status != AssistanceStatus.COMPLETADO && assistance.status != AssistanceStatus.CANCELADO) {
                         Row(
                             modifier = Modifier
@@ -200,6 +206,12 @@ fun AssistanceTrackingScreen(
                                 icon = Icons.Default.DirectionsCar,
                                 value = if (assistance.distanceKm != null) String.format(Locale.getDefault(), "%.1f km", assistance.distanceKm) else "--",
                                 label = "Distancia"
+                            )
+                            VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                            MetricItem(
+                                icon = Icons.Default.LocalAtm,
+                                value = if (uiState.acceptedQuote != null) String.format(Locale.getDefault(), "$%.0f", uiState.acceptedQuote!!.price) else "--",
+                                label = "Presupuesto"
                             )
                         }
                         Spacer(modifier = Modifier.height(20.dp))
@@ -327,29 +339,39 @@ fun AssistanceTrackingScreen(
                         }
                         AssistanceStatus.EN_CAMINO_AL_DESTINO -> {
                             if (uiState.isProvider) {
-                                ProviderActionButton(
-                                    label = "REALIZAR PAGO",
-                                    icon = Icons.Default.CreditCard,
-                                    isLoading = uiState.isLoading,
-                                    isError = trackingState is TrackingState.Error,
-                                    enabled = uiState.isNearDestination,
-                                    onClick = { 
-                                        onNavigateToPayment(
-                                            assistance.id, 
-                                            uiState.acceptedQuote?.price ?: 0.0
-                                        ) 
-                                    }
-                                )
-                                if (!uiState.isNearDestination && !uiState.isLoading) {
-                                    Text(
-                                        text = "Debes estar a menos de 300m del destino",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 8.dp),
-                                        textAlign = TextAlign.Center
+                                if (uiState.payment?.status == PaymentStatus.PAGADO) {
+                                    ProviderActionButton(
+                                        label = "FINALIZAR VIAJE",
+                                        icon = Icons.Default.Check,
+                                        isLoading = uiState.isLoading,
+                                        isError = trackingState is TrackingState.Error,
+                                        onClick = { viewModel.completeService() }
                                     )
+                                } else {
+                                    ProviderActionButton(
+                                        label = "REALIZAR PAGO",
+                                        icon = Icons.Default.CreditCard,
+                                        isLoading = uiState.isLoading,
+                                        isError = trackingState is TrackingState.Error,
+                                        enabled = uiState.isNearDestination,
+                                        onClick = {
+                                            onNavigateToPayment(
+                                                assistance.id,
+                                                uiState.acceptedQuote?.price ?: 0.0
+                                            )
+                                        }
+                                    )
+                                    if (!uiState.isNearDestination && !uiState.isLoading) {
+                                        Text(
+                                            text = "Debes estar a menos de 300m del destino",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 8.dp),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
                                 }
                             } else {
                                 if (uiState.payment?.status == PaymentStatus.PAGADO) {

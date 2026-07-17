@@ -20,6 +20,7 @@ import com.example.gruya.data.remote.dtos.response.AssistanceResponse
 import com.example.gruya.data.service.LocationTrackingService
 import com.example.gruya.domain.model.Location
 import com.example.gruya.domain.model.PaymentMethod
+import com.example.gruya.domain.model.PaymentStatus
 import com.example.gruya.domain.model.Role
 import com.example.gruya.domain.model.TrackingState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -172,7 +173,11 @@ class AssistanceTrackingViewModel @Inject constructor(
                                 startLocationService()
                             }
                         } else {
-                            Log.d("AssistanceTrackingVM", "No tracking session ID available yet for assistance ${assistance.id}")
+                            Log.d("AssistanceTrackingVM", "No tracking session ID available or assistance not active. Disconnecting if needed.")
+                            trackingRepository.disconnect()
+                            if (isProvider) {
+                                stopLocationService()
+                            }
                         }
                         getRoute(assistanceId)
                     }
@@ -294,6 +299,18 @@ class AssistanceTrackingViewModel @Inject constructor(
         if (!routeMutex.tryLock()) return
         viewModelScope.launch {
             try {
+                // Refresh assistance and payment status periodically along with route
+                launch {
+                    assistanceRepository.getAssistanceDetails(assistanceId).onSuccess { assistance ->
+                        if (assistance != null) {
+                            _uiState.update { it.copy(assistance = assistance) }
+                            if (_uiState.value.payment?.status != PaymentStatus.PAGADO) {
+                                fetchPayment(assistanceId)
+                            }
+                        }
+                    }
+                }
+
                 val result = assistanceRepository.getRoute(assistanceId)
                 result.fold(
                     onSuccess = { routeResponse ->

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.LocalAtm
@@ -40,11 +41,24 @@ fun PaymentScreen(
         viewModel.initPayment(assistanceId, amount)
     }
 
+    // Auto-navigate back after success for a smoother flow, 
+    // but give enough time to see the success state
+    LaunchedEffect(uiState.isSuccess, uiState.isFinished) {
+        if (uiState.isSuccess && !uiState.isProvider) {
+            kotlinx.coroutines.delay(2000)
+            onPaymentSuccess()
+        }
+        if (uiState.isFinished) {
+            kotlinx.coroutines.delay(2000)
+            onPaymentSuccess()
+        }
+    }
+
     ScreenScaffold(
         title = "Realizar Pago",
         onBack = onNavigateBack,
         bottomBar = {
-            if (!uiState.isSuccess) {
+            if (!uiState.isSuccess && !uiState.isFailed) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     tonalElevation = 8.dp,
@@ -80,15 +94,30 @@ fun PaymentScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (uiState.isSuccess) {
-                PaymentSuccessView(onFinish = onPaymentSuccess)
-            } else {
-                PaymentContent(
-                    amount = uiState.amount,
-                    selectedMethod = uiState.selectedMethod,
-                    onMethodSelected = { viewModel.selectMethod(it) },
-                    error = uiState.error
-                )
+            when {
+                uiState.isSuccess -> {
+                    PaymentSuccessView(
+                        isProvider = uiState.isProvider,
+                        isFinished = uiState.isFinished,
+                        isLoading = uiState.isLoading,
+                        onFinishService = { viewModel.completeService() },
+                        onContinue = onPaymentSuccess
+                    )
+                }
+                uiState.isFailed -> {
+                    PaymentFailureView(
+                        error = uiState.error ?: "Error desconocido",
+                        onRetry = { viewModel.clearError() }
+                    )
+                }
+                else -> {
+                    PaymentContent(
+                        amount = uiState.amount,
+                        selectedMethod = uiState.selectedMethod,
+                        onMethodSelected = { viewModel.selectMethod(it) },
+                        error = uiState.error
+                    )
+                }
             }
         }
     }
@@ -230,39 +259,110 @@ private fun PaymentMethodItem(
 }
 
 @Composable
-private fun PaymentSuccessView(onFinish: () -> Unit) {
+private fun PaymentSuccessView(
+    isProvider: Boolean,
+    isFinished: Boolean,
+    isLoading: Boolean,
+    onFinishService: () -> Unit,
+    onContinue: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Icon(
-            imageVector = Icons.Default.CheckCircle,
+            imageVector = if (isFinished) Icons.Default.CheckCircle else Icons.Default.CheckCircle,
             contentDescription = null,
             modifier = Modifier.size(100.dp),
             tint = Color(0xFF4CAF50)
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "¡Pago Exitoso!",
+            text = if (isFinished) "¡Servicio Finalizado!" else "¡Pago Exitoso!",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF2E7D32)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "El pago se ha procesado correctamente.",
+            text = if (isFinished) 
+                "El servicio ha sido completado correctamente." 
+            else 
+                "El pago se ha procesado correctamente.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        if (isProvider && !isFinished) {
+            Button(
+                onClick = onFinishService,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("FINALIZAR VIAJE", fontWeight = FontWeight.Bold)
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+        
+        OutlinedButton(
+            onClick = onContinue,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            enabled = !isLoading
+        ) {
+            Text(if (isFinished) "VOLVER AL INICIO" else "VOLVER AL SEGUIMIENTO", fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun PaymentFailureView(
+    error: String,
+    onRetry: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = Icons.Default.Cancel,
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            tint = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "¡Pago Fallido!",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.error
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = error,
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(48.dp))
         Button(
-            onClick = onFinish,
+            onClick = onRetry,
             modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.error
+            )
         ) {
-            Text("CONTINUAR", fontWeight = FontWeight.Bold)
+            Text("REINTENTAR", fontWeight = FontWeight.Bold)
         }
     }
 }

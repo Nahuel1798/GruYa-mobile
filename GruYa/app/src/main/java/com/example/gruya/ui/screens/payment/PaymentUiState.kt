@@ -9,7 +9,10 @@ data class PaymentUiState(
     val selectedMethod: PaymentMethod? = null,
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    val isFailed: Boolean = false,
     val error: String? = null,
-    val payment: Payment? = null
+    val payment: Payment? = null,
+    val isProvider: Boolean = false,
+    val isFinished: Boolean = false
 )
 

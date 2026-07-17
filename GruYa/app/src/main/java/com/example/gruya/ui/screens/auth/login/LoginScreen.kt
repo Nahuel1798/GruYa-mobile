@@ -39,6 +39,12 @@ fun LoginScreen(
     val loginUiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Reset state on every fresh composition so stale data from previous
+    // sessions (email, password, etc.) is cleared.
+    LaunchedEffect(Unit) {
+        viewModel.resetState()
+    }
+
     LaunchedEffect(loginUiState.success) {
         if (loginUiState.success) {
             onLoginSuccess()

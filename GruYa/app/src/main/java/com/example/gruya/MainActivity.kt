@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -42,6 +43,7 @@ import androidx.compose.material.icons.outlined.Assignment
 import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalAtm
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -216,6 +218,8 @@ fun GruYaApp(
     val isLoggedIn by authViewModel.isLoggedIn.collectAsState()
     val isCheckingToken by authViewModel.isCheckingToken.collectAsState()
     val currentRole by authViewModel.currentRole.collectAsState()
+    val isProviderProfileComplete by authViewModel.isProviderProfileComplete.collectAsState()
+    val providerProfileError by authViewModel.providerProfileError.collectAsState()
 
     var hasCachedVehicles by remember { mutableStateOf(true) }
     var pendingAssistances by remember { mutableStateOf<List<PendingAssistanceEntity>>(emptyList()) }
@@ -250,18 +254,63 @@ fun GruYaApp(
         return
     }
 
-    // ── BackStack (initialized with correct isLoggedIn value) ──
-    val backStack = rememberNavBackStack(
-        if (isLoggedIn) AppDest.MainContent
-        else AppDest.Login
-    )
-
-    LaunchedEffect(isLoggedIn) {
-        val expected = if (isLoggedIn) AppDest.MainContent else AppDest.Login
-        if (backStack.lastOrNull() != expected) {
-            backStack.clear()
-            backStack.add(expected)
+    // ── Gate 1.5: Provider profile check ──
+    // If the user is a provider, wait until we know the profile status
+    // before initialising the backStack. This avoids flashing MainContent
+    // and then immediately navigating to ProviderProfileScreen.
+    if (isLoggedIn && currentRole == Role.PROVIDER && isProviderProfileComplete == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(16.dp))
+                if (providerProfileError != null) {
+                    Text(
+                        text = "No pudimos verificar tu perfil",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = providerProfileError ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = { authViewModel.refreshProviderProfile() }) {
+                        Text("Reintentar")
+                    }
+                } else {
+                    Text(
+                        text = "Verificando perfil...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
         }
+        return
+    }
+
+    // ── BackStack (destination depends on auth + profile state) ──
+    val startDest: AppDest = when {
+        !isLoggedIn -> AppDest.Login
+        currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
+        else -> AppDest.MainContent
+    }
+    val backStack = rememberNavBackStack(startDest)
+
+    LaunchedEffect(isLoggedIn, isProviderProfileComplete) {
+        val expected: AppDest = when {
+            !isLoggedIn -> AppDest.Login
+            currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
+            else -> AppDest.MainContent
+        }
+            if (backStack.lastOrNull() != expected) {
+                backStack.clear()
+                backStack.add(expected)
+            }
     }
 
     // ── Connectivity-based navigation: replace with NoInternet ↔ MainContent ──
@@ -275,7 +324,12 @@ fun GruYaApp(
         } else {
             backStack.removeAll { it is AppDest.NoInternet || it is AppDest.RequestAssistance }
             if (backStack.isEmpty()) {
-                backStack.add(if (isLoggedIn) AppDest.MainContent else AppDest.Login)
+                val fallback: AppDest = when {
+                    !isLoggedIn -> AppDest.Login
+                    currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
+                    else -> AppDest.MainContent
+                }
+                backStack.add(fallback)
             }
         }
     }
@@ -366,8 +420,6 @@ fun GruYaApp(
         }
     }
 
-    val providerViewModel: ProviderProfileViewModel = hiltViewModel()
-
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { _ ->
@@ -375,6 +427,8 @@ fun GruYaApp(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopCenter
         ) {
+            val onProviderLocationPicked = remember { mutableStateOf<(Double, Double) -> Unit>({ _, _ -> }) }
+
             NavDisplay(
                 backStack = backStack,
                 entryDecorators = listOf(
@@ -387,6 +441,8 @@ fun GruYaApp(
                     LoginScreen(
                         onLoginSuccess = {
                             authViewModel.onLoginSuccess()
+                            // If provider, kick off profile check for Gate 1.5
+                            authViewModel.refreshProviderProfile()
                         },
                         onNavigateToRegister = {
                             backStack.add(AppDest.Register)
@@ -398,6 +454,7 @@ fun GruYaApp(
                     RegisterScreen(
                         onRegisterSuccess = { role ->
                             if (role == Role.PROVIDER) {
+                                backStack.removeAt(backStack.size - 1)
                                 backStack.add(AppDest.ProviderProfile)
                             } else {
                                 authViewModel.onLoginSuccess()
@@ -414,12 +471,19 @@ fun GruYaApp(
                 }
 
                 entry<AppDest.ProviderProfile> {
-                    val providerUiState by providerViewModel.uiState.collectAsState()
+                    val viewModel: ProviderProfileViewModel = hiltViewModel()
+                    val providerUiState by viewModel.uiState.collectAsState()
+
+                    onProviderLocationPicked.value = { lat, lng ->
+                        viewModel.onLocationChange(lat, lng)
+                    }
 
                     LaunchedEffect(providerUiState.success) {
                         if (providerUiState.success) {
                             authViewModel.onLoginSuccess()
-                            providerViewModel.resetSuccess()
+                            authViewModel.markProviderProfileComplete()
+                            authViewModel.refreshProviderProfile()
+                            viewModel.resetSuccess()
                             backStack.clear()
                             backStack.add(AppDest.MainContent)
                         }
@@ -427,25 +491,26 @@ fun GruYaApp(
 
                     ProviderProfileScreen(
                         uiState = providerUiState,
-                        onBack = {
+                        onBack = if (!isLoggedIn) ({
                             if (backStack.size > 1) {
                                 backStack.removeAt(backStack.size - 1)
                             }
-                        },
-                        onCompanyNameChange = providerViewModel::onCompanyNameChange,
-                        onServiceTypeChange = providerViewModel::onServiceTypeChange,
-                        onDescriptionChange = providerViewModel::onDescriptionChange,
-                        onAvailableChange = providerViewModel::onAvailableChange,
-                        onAddressChange = providerViewModel::onAddressChange,
-                        onSearchAddress = providerViewModel::searchAddress,
-                        onCurrentLocationChange = providerViewModel::onCurrentLocationChange,
+                        }) else null,
+                        onLogout = if (isLoggedIn) ({ authViewModel.logout() }) else null,
+                        onCompanyNameChange = viewModel::onCompanyNameChange,
+                        onServiceTypeChange = viewModel::onServiceTypeChange,
+                        onDescriptionChange = viewModel::onDescriptionChange,
+                        onAvailableChange = viewModel::onAvailableChange,
+                        onAddressChange = viewModel::onAddressChange,
+                        onSearchAddress = viewModel::searchAddress,
+                        onCurrentLocationChange = viewModel::onCurrentLocationChange,
                         onOpenMap = {
                             backStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
                         },
                         onConfirm = {
-                            providerViewModel.createProfile()
+                            viewModel.createProfile()
                         },
-                        onClearError = providerViewModel::clearError
+                        onClearError = viewModel::clearError
                     )
                 }
 
@@ -455,7 +520,7 @@ fun GruYaApp(
                         initialLat = currentEntry?.initialLat,
                         initialLng = currentEntry?.initialLng,
                         onLocationSelected = { lat, lng ->
-                            providerViewModel.onLocationChange(lat, lng)
+                            onProviderLocationPicked.value(lat, lng)
                             backStack.removeAt(backStack.size - 1)
                         },
                         onBack = {
@@ -513,7 +578,6 @@ fun GruYaApp(
                 entry<AppDest.MainContent> {
                     MainNavigationSuite(
                         authViewModel = authViewModel,
-                        providerViewModel = providerViewModel,
                         onLogout = {
                             authViewModel.logout()
                         },
@@ -639,7 +703,6 @@ private data class NavItem(
 @Composable
 fun MainNavigationSuite(
     authViewModel: AuthViewModel,
-    providerViewModel: ProviderProfileViewModel,
     onLogout: () -> Unit,
     pendingNavEvent: MutableState<NavEvent?>
 ) {
@@ -650,12 +713,6 @@ fun MainNavigationSuite(
     val currentRole by authViewModel.currentRole.collectAsState()
     val homeProviderViewModel: HomeProviderViewModel = hiltViewModel()
     val homeProviderUiState by homeProviderViewModel.uiState.collectAsState()
-
-    val showNav = if (currentRole == Role.PROVIDER) {
-        homeProviderUiState.isProfileComplete == true
-    } else {
-        true
-    }
 
     // Handle pending navigation from notification tap
     LaunchedEffect(pendingNavEvent.value) {
@@ -738,7 +795,6 @@ fun MainNavigationSuite(
             navigationBarContainerColor = MaterialTheme.colorScheme.surface,
         ),
         navigationSuiteItems = {
-            if (showNav) {
                 navItems.forEach { item ->
 
                     val selected = when (item.key) {
@@ -774,7 +830,6 @@ fun MainNavigationSuite(
                         colors = navSuiteItemColors
                     )
                 }
-            }
         }
     ) {
 
@@ -810,9 +865,6 @@ fun MainNavigationSuite(
                                 },
                                 onNavigateToNotifications = {
                                     tabBackStack.add(AppDest.Notifications)
-                                },
-                                onNavigateToCompleteProfile = {
-                                    tabBackStack.add(AppDest.ProviderProfile)
                                 }
                             )
                             else -> {
@@ -1032,56 +1084,7 @@ fun MainNavigationSuite(
                         )
                     }
 
-                    entry<AppDest.ProviderProfile> {
-                        val providerUiState by providerViewModel.uiState.collectAsState()
 
-                        LaunchedEffect(providerUiState.success) {
-                            if (providerUiState.success) {
-                                providerViewModel.resetSuccess()
-                                if (tabBackStack.size > 1) {
-                                    tabBackStack.removeAt(tabBackStack.size - 1)
-                                }
-                            }
-                        }
-
-                        ProviderProfileScreen(
-                            uiState = providerUiState,
-                            onBack = {
-                                if (tabBackStack.size > 1) {
-                                    tabBackStack.removeAt(tabBackStack.size - 1)
-                                }
-                            },
-                            onCompanyNameChange = providerViewModel::onCompanyNameChange,
-                            onServiceTypeChange = providerViewModel::onServiceTypeChange,
-                            onDescriptionChange = providerViewModel::onDescriptionChange,
-                            onAvailableChange = providerViewModel::onAvailableChange,
-                            onAddressChange = providerViewModel::onAddressChange,
-                            onSearchAddress = providerViewModel::searchAddress,
-                            onCurrentLocationChange = providerViewModel::onCurrentLocationChange,
-                            onOpenMap = {
-                                tabBackStack.add(AppDest.LocationPicker(providerUiState.latitude, providerUiState.longitude))
-                            },
-                            onConfirm = {
-                                providerViewModel.createProfile()
-                            },
-                            onClearError = providerViewModel::clearError
-                        )
-                    }
-
-                    entry<AppDest.LocationPicker> {
-                        val currentEntry = tabBackStack.findLast { it is AppDest.LocationPicker } as? AppDest.LocationPicker
-                        LocationPickerScreen(
-                            initialLat = currentEntry?.initialLat,
-                            initialLng = currentEntry?.initialLng,
-                            onLocationSelected = { lat, lng ->
-                                providerViewModel.onLocationChange(lat, lng)
-                                tabBackStack.removeAt(tabBackStack.size - 1)
-                            },
-                            onBack = {
-                                tabBackStack.removeAt(tabBackStack.size - 1)
-                            }
-                        )
-                    }
                 }
             )
         }

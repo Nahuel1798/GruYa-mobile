@@ -2,6 +2,7 @@ package com.example.gruya.ui.screens.auth.register
 
 import android.Manifest
 import android.annotation.SuppressLint
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
@@ -14,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.*
@@ -55,7 +57,8 @@ import org.maplibre.spatialk.geojson.Position
 @Composable
 fun ProviderProfileScreen(
     uiState: ProviderProfileUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)? = null,
+    onLogout: (() -> Unit)? = null,
     onCompanyNameChange: (String) -> Unit,
     onServiceTypeChange: (ServiceType) -> Unit,
     onDescriptionChange: (String) -> Unit,
@@ -107,9 +110,26 @@ fun ProviderProfileScreen(
         }
     }
 
+    // Block system back gesture when onBack is disabled (forced profile creation).
+    // The only way out is logout — triggers the TopAppBar logout action.
+    BackHandler(enabled = onBack == null) {
+        onLogout?.invoke()
+    }
+
     ScreenScaffold(
         title = "Registro de Prestador",
         onBack = onBack,
+        actions = {
+            if (onLogout != null) {
+                IconButton(onClick = onLogout) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                        contentDescription = "Cerrar Sesión",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 Snackbar(

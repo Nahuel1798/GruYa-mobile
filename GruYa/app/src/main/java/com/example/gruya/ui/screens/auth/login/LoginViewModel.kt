@@ -66,6 +66,15 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Resets all form state to defaults.
+     * Called on every fresh entry of LoginScreen to avoid stale data
+     * when re-entering after logout+login.
+     */
+    fun resetState() {
+        _uiState.value = LoginUiState()
+    }
+
     fun clearError() {
         _uiState.update { it.copy(error = "") }
     }

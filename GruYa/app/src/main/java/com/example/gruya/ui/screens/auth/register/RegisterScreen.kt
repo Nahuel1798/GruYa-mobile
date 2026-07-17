@@ -26,7 +26,10 @@ fun RegisterScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.success) {
-        if (uiState.success) onRegisterSuccess(uiState.role)
+        if (uiState.success) {
+            onRegisterSuccess(uiState.role)
+            viewModel.resetSuccess()
+        }
     }
 
     LaunchedEffect(uiState.error) {

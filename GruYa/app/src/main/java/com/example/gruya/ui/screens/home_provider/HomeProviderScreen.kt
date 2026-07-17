@@ -115,8 +115,7 @@ private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 fun HomeProviderScreen(
     viewModel: HomeProviderViewModel = hiltViewModel(),
     onNavigateToQuote: (Int) -> Unit = {},
-    onNavigateToNotifications: () -> Unit = {},
-    onNavigateToCompleteProfile: () -> Unit = {}
+    onNavigateToNotifications: () -> Unit = {}
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -125,12 +124,6 @@ fun HomeProviderScreen(
         viewModel.checkProfileCompletion()
         viewModel.loadUnreadNotificationsCount()
         onPauseOrDispose { }
-    }
-
-    LaunchedEffect(uiState.isProfileComplete) {
-        if (uiState.isProfileComplete == false) {
-            onNavigateToCompleteProfile()
-        }
     }
 
     if (uiState.profileCheckError != null) {

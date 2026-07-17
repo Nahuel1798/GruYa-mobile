@@ -12,11 +12,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,6 +29,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -48,6 +54,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
@@ -72,9 +79,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -344,12 +354,7 @@ fun GruYaApp(
     // State for custom foreground notification overlay
     val currentNotification = remember { mutableStateOf<ForegroundNotification?>(null) }
 
-    LaunchedEffect(currentNotification.value) {
-        if (currentNotification.value != null) {
-            delay(5000)
-            currentNotification.value = null
-        }
-    }
+    // El manejo del tiempo ahora se delega al componente Overlay para sincronizar con la barra de progreso
 
     // Launcher para el permiso de notificaciones (Android 13+)
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -607,6 +612,27 @@ fun ForegroundNotificationOverlay(
     notification: ForegroundNotification?,
     onDismiss: () -> Unit
 ) {
+    val offsetY = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var progress by remember { mutableStateOf(1f) }
+
+    LaunchedEffect(notification) {
+        if (notification != null) {
+            offsetY.snapTo(0f)
+            progress = 1f
+            // Animación de la barra de progreso (15 segundos)
+            animate(
+                initialValue = 1f,
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 15000, easing = LinearEasing)
+            ) { value, _ ->
+                progress = value
+            }
+            // Al terminar la animación, ocultamos la notificación
+            onDismiss()
+        }
+    }
+
     AnimatedVisibility(
         visible = notification != null,
         enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
@@ -614,7 +640,29 @@ fun ForegroundNotificationOverlay(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .offset { IntOffset(0, offsetY.value.roundToInt()) }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (offsetY.value < -80f) { // Umbral para descartar
+                            scope.launch {
+                                offsetY.animateTo(-500f)
+                                onDismiss()
+                            }
+                        } else {
+                            scope.launch { offsetY.animateTo(0f) }
+                        }
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        // Solo permitimos deslizar hacia arriba
+                        if (dragAmount < 0 || offsetY.value < 0) {
+                            change.consume()
+                            scope.launch { offsetY.snapTo(offsetY.value + dragAmount) }
+                        }
+                    }
+                )
+            }
     ) {
         notification?.let {
             Card(
@@ -624,46 +672,58 @@ fun ForegroundNotificationOverlay(
                         it.onAction?.invoke()
                         onDismiss()
                     },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.size(40.dp)
+                Column {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = it.icon ?: Icons.Default.Notifications,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.size(64.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = it.icon ?: Icons.Default.Notifications,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimary
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(20.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = it.title,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = it.description,
+                                style = MaterialTheme.typography.bodyLarge,
+                                maxLines = 3,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = it.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = it.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    // Barra de progreso de tiempo restante
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        trackColor = androidx.compose.ui.graphics.Color.Transparent
+                    )
                 }
             }
         }

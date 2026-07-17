@@ -31,7 +31,7 @@ class LocationTrackingService : Service() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var isTracking = false
     private var sessionId: String? = null
-    private val updateInterval = 5000L // 5 seconds
+    private val updateInterval = 1000L // 1 seconds
     private var locationCallback: LocationCallback? = null
 
     companion object {
@@ -76,9 +76,9 @@ class LocationTrackingService : Service() {
             Priority.PRIORITY_HIGH_ACCURACY,
             updateInterval
         )
-            .setMinUpdateIntervalMillis(updateInterval)
-            .setMaxUpdateDelayMillis(updateInterval)
-            .setMinUpdateDistanceMeters(0f)
+            .setMinUpdateIntervalMillis(500L)
+            .setMaxUpdateDelayMillis(0)
+            .setWaitForAccurateLocation(true)
             .build()
 
         try {
@@ -136,7 +136,7 @@ class LocationTrackingService : Service() {
         val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.iconogruya)
             .setContentTitle("Compartiendo ubicación")
-            .setContentText("Enviando ubicación cada 5 segundos")
+            .setContentText("Compartiendo ubicación en tiempo real")
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .addAction(R.drawable.iconogruya, "Detener", stopPendingIntent)

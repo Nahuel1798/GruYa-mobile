@@ -47,7 +47,7 @@ fun AppTopAppBar(
                 Text(
                     text = title,
                     fontWeight = FontWeight.Bold,
-                    color = titleColor ?: Color.Unspecified
+                    color = titleColor ?: MaterialTheme.colorScheme.primary
                 )
                 if (subtitle != null) {
                     Spacer(modifier = Modifier.height(2.dp))

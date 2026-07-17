@@ -88,7 +88,7 @@ class AssistanceTrackingViewModel @Inject constructor(
                     Double.MAX_VALUE
                 }
 
-                if (distance > 2.0 || previousLocation == null) {
+                if (distance > 0.3 || previousLocation == null) {
                     _uiState.update { it.copy(providerLocation = location) }
                 }
 
@@ -109,8 +109,8 @@ class AssistanceTrackingViewModel @Inject constructor(
                     } else false
                 }
 
-                // Trigger redraw if deviated OR if 15 seconds have passed (increased from 10)
-                if (isDeviated || (now - lastRouteFetchTime) > 15_000L) {
+                // Trigger redraw if deviated OR if 15 seconds have passed (increased from 5)
+                if (isDeviated || (now - lastRouteFetchTime) > 5_000L) {
                     lastRouteFetchTime = now
                     getRoute(assistanceId)
                 }

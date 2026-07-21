@@ -351,7 +351,7 @@ class AssistanceTrackingViewModel @Inject constructor(
                             val newAssistanceRoutePositions = routeResponse.originToDestination?.geometryJson?.let { 
                                 LocationUtils.parseRouteGeometry(it) 
                             } ?: state.assistanceRoutePositions
-                            
+
                             RouteUpdate(
                                 providerToOriginRoute = if (isBeyondOrigin) null else (routeResponse.providerToOrigin?.geometryJson),
                                 providerToDestinationRoute = routeResponse.providerToDestination?.geometryJson,

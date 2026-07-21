@@ -10,10 +10,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.gruya.data.repository.AssistanceRepository
 import com.example.gruya.data.repository.NotificationRepository
+import com.example.gruya.data.repository.PaymentRepository
 import com.example.gruya.data.repository.ProviderRepository
 import com.example.gruya.data.service.ProviderLocationService
 import com.example.gruya.ui.navigation.NavEvent
 import com.example.gruya.ui.navigation.NavigationEventBus
+import com.example.gruya.utils.DateTimeUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -28,6 +30,7 @@ import org.maplibre.spatialk.geojson.Position
 class HomeProviderViewModel @Inject constructor(
     private val assistanceRepository: AssistanceRepository,
     private val providerRepository: ProviderRepository,
+    private val paymentRepository: PaymentRepository,
     private val notificationRepository: NotificationRepository,
     private val navigationEventBus: NavigationEventBus,
     private val application: Application
@@ -42,6 +45,7 @@ class HomeProviderViewModel @Inject constructor(
         checkProfileCompletion()
         loadNearbyAssistances()
         loadUnreadNotificationsCount()
+        loadTodayStats()
         observeAssistanceNotifications()
     }
 
@@ -155,6 +159,29 @@ fun onLocationPermissionChanged(granted: Boolean) {
         }
     }
 
+    fun loadTodayStats() {
+        viewModelScope.launch {
+            try {
+                val payments = paymentRepository.getMyPayments()
+                val todayPayments = payments.filter { 
+                    DateTimeUtils.isToday(it.date) && it.status == com.example.gruya.domain.model.PaymentStatus.PAGADO 
+                }
+                
+                val totalEarnings = todayPayments.sumOf { it.amount }
+                val servicesCount = todayPayments.size
+
+                _uiState.update {
+                    it.copy(
+                        todayServices = servicesCount,
+                        earnings = totalEarnings
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("HomeProviderViewModel", "Error loading today stats", e)
+            }
+        }
+    }
+
     private fun observeAssistanceNotifications() {
         viewModelScope.launch {
             navigationEventBus.notificationEvents.collect { event ->
@@ -165,6 +192,10 @@ fun onLocationPermissionChanged(granted: Boolean) {
                     is NavEvent.QuoteRejected -> {
                         Log.d("HomeProviderVM", "Refreshing assistances after $event")
                         loadNearbyAssistances()
+                    }
+                    is NavEvent.ServiceCompleted -> {
+                        Log.d("HomeProviderVM", "Refreshing stats after $event")
+                        loadTodayStats()
                     }
                     else -> { /* otros eventos no afectan el mapa de asistencias */ }
                 }

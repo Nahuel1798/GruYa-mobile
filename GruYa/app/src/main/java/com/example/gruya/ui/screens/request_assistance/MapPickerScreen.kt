@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.Button
@@ -31,8 +32,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import com.example.gruya.ui.components.ScreenScaffold
@@ -59,6 +64,7 @@ import org.maplibre.compose.expressions.dsl.*
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -90,18 +96,31 @@ fun MapPickerScreen(
     var selectedLocation by remember { mutableStateOf(initialLocation) }
     val isDark = isSystemInDarkTheme()
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { error ->
+            snackbarHostState.showSnackbar(
+                message = error,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.dismissError()
+        }
+    }
 
     val locationProvider = rememberFusedLocationProvider()
     val locationState = rememberUserLocationState(locationProvider = locationProvider)
+    var hasLoadedNearby by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showNearby, locationState.location) {
-        if (showNearby) {
+    LaunchedEffect(showNearby, locationState.location, selectedLocation) {
+        if (showNearby && !hasLoadedNearby) {
             val location = selectedLocation?.let { Position(it.second, it.first) }
                 ?: initialLocation?.let { Position(it.second, it.first) }
                 ?: locationState.location?.position?.value
 
             location?.let {
                 viewModel.loadNearbyProviders(it.latitude, it.longitude)
+                hasLoadedNearby = true
             }
         }
     }
@@ -147,7 +166,8 @@ fun MapPickerScreen(
 
     ScreenScaffold(
         title = title,
-        onBack = onNavigateBack
+        onBack = onNavigateBack,
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             MaplibreMap(
@@ -195,6 +215,25 @@ fun MapPickerScreen(
                     )
                 )
 
+                val nearbyStationsSource = rememberGeoJsonSource(
+                    data = GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = uiState.nearbyStations.map { station ->
+                                Feature(
+                                    geometry = Point(
+                                        longitude = station.longitude,
+                                        latitude = station.latitude
+                                    ),
+                                    properties = buildJsonObject {
+                                        put("id", station.id)
+                                        put("name", station.name)
+                                    }
+                                )
+                            }
+                        )
+                    )
+                )
+
                 if (hasLocationPermission) {
                     LocationPuck(
                         idPrefix = "user",
@@ -206,6 +245,25 @@ fun MapPickerScreen(
                 val auxilioIcon = image(painterResource(R.drawable.ic_auxilio), drawAsSdf = true)
                 val gomeriaIcon = image(painterResource(R.drawable.ic_gomeria), drawAsSdf = true)
                 val mecanicoIcon = image(painterResource(R.drawable.ic_mecanico), drawAsSdf = true)
+                val fuelStationIcon = image(painterResource(R.drawable.ic_estacionservicio), drawAsSdf = true)
+
+                SymbolLayer(
+                    id = "nearby-stations-icons",
+                    source = nearbyStationsSource,
+                    iconImage = fuelStationIcon,
+                    iconColor = const(Color(0xFF4CAF50)),
+                    iconSize = const(1.0f),
+                    iconAllowOverlap = const(false),
+                    iconIgnorePlacement = const(false),
+                    onClick = { features ->
+                        features.firstOrNull()?.properties?.get("id")?.jsonPrimitive?.longOrNull?.let { id ->
+                            uiState.nearbyStations.find { it.id == id }?.let { station ->
+                                viewModel.selectStation(station)
+                            }
+                        }
+                        ClickResult.Consume
+                    }
+                )
 
                 SymbolLayer(
                     id = "nearby-providers-icons",
@@ -257,35 +315,60 @@ fun MapPickerScreen(
                 )
             }
 
-            // MyLocation FAB
+            // FAB Actions
             if (hasLocationPermission) {
-                Button(
-                    onClick = {
-                        locationState.location?.let { loc ->
-                            scope.launch {
-                                cameraState.animateTo(
-                                    CameraPosition(
-                                        target = loc.position.value,
-                                        zoom = 16.0
-                                    )
-                                )
-                            }
-                            selectedLocation = Pair(loc.position.value.latitude, loc.position.value.longitude)
-                        }
-                    },
-                    contentPadding = PaddingValues(8.dp),
-                    shape = CircleShape,
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(16.dp)
-                        .padding(bottom = 70.dp)
-                        .size(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                        .padding(bottom = 70.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalAlignment = Alignment.End
                 ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                    if (showNearby) {
+                        Button(
+                            onClick = {
+                                val target = cameraState.position.target
+                                viewModel.loadNearbyProviders(target.latitude, target.longitude)
+                            },
+                            contentPadding = PaddingValues(8.dp),
+                            shape = CircleShape,
+                            modifier = Modifier.size(48.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = "Actualizar área")
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            locationState.location?.let { loc ->
+                                scope.launch {
+                                    cameraState.animateTo(
+                                        CameraPosition(
+                                            target = loc.position.value,
+                                            zoom = 16.0
+                                        )
+                                    )
+                                }
+                                selectedLocation = Pair(loc.position.value.latitude, loc.position.value.longitude)
+                            }
+                        },
+                        contentPadding = PaddingValues(8.dp),
+                        shape = CircleShape,
+                        modifier = Modifier.size(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = "Mi ubicación")
+                    }
                 }
             }
 
@@ -308,16 +391,27 @@ fun MapPickerScreen(
                 Spacer(modifier = Modifier.size(8.dp))
                 Text("Confirmar ubicación", fontWeight = FontWeight.SemiBold)
             }
+
+            // Loading Indicator
+            if (uiState.isLoading) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
 
         uiState.selectedProvider?.let { provider ->
             ModalBottomSheet(
-                onDismissRequest = { viewModel.clearSelectedProvider() }
+                onDismissRequest = { viewModel.clearSelection() }
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(bottom = 32.dp)
                 ) {
                     Text(
                         text = provider.companyName,
@@ -354,8 +448,50 @@ fun MapPickerScreen(
                         Spacer(Modifier.width(8.dp))
                         Text(text = provider.phone, style = MaterialTheme.typography.bodyMedium)
                     }
+                }
+            }
+        }
 
-                    Spacer(Modifier.height(24.dp))
+        uiState.selectedStation?.let { station ->
+            ModalBottomSheet(
+                onDismissRequest = { viewModel.clearSelection() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(bottom = 32.dp)
+                ) {
+                    Text(
+                        text = station.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Surface(
+                        color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "ESTACIÓN DE SERVICIO",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Lat: ${station.latitude}, Lng: ${station.longitude}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
             }
         }

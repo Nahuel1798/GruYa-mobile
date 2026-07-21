@@ -123,6 +123,7 @@ fun HomeProviderScreen(
     LifecycleResumeEffect(Unit) {
         viewModel.checkProfileCompletion()
         viewModel.loadUnreadNotificationsCount()
+        viewModel.loadTodayStats()
         onPauseOrDispose { }
     }
 
@@ -343,7 +344,10 @@ fun HomeProviderScreen(
                 assistances = uiState.nearbyAssistances,
                 userLocationState = locationState,
                 providerProfile = uiState.providerProfile,
-                onRefresh = { viewModel.loadNearbyAssistances() },
+                onRefresh = { 
+                    viewModel.loadNearbyAssistances()
+                    viewModel.loadTodayStats()
+                },
                 onAssistanceClick = onNavigateToQuote
             )
         }

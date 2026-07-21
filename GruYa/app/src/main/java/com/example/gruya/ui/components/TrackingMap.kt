@@ -47,13 +47,13 @@ private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 fun TrackingMap(
     origin: Location,
     destination: Location,
+    modifier: Modifier = Modifier,
     routePositions: List<Position> = emptyList(),
     providerLocation: Location? = null,
     providerRoutePositions: List<Position> = emptyList(),
     providerToDestPositions: List<Position> = emptyList(),
     isTracking: Boolean = false,
-    isProvider: Boolean = false,
-    modifier: Modifier = Modifier
+    isProvider: Boolean = false
 ) {
     val isDarkTheme = isSystemInDarkTheme()
     val cameraState = rememberCameraState(
@@ -157,31 +157,12 @@ fun TrackingMap(
 
     // Visual improvement: Connect the provider location to the route for a smoother look.
     // This avoids the gap between the vehicle and the start of the route line.
-    val displayRoute = remember(remainingRoute, providerLocation, isTracking) {
-        if (isTracking && providerLocation != null && remainingRoute.isNotEmpty()) {
-            val first = remainingRoute[0]
-            val d = LocationUtils.calculateDistance(providerLocation, Location(first.latitude, first.longitude))
-            if (d < 80.0) listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingRoute
-            else remainingRoute
-        } else remainingRoute
-    }
+    val displayRoute = remainingRoute
 
-    val displayProviderRoute = remember(remainingProviderRoute, providerLocation, isTracking) {
-        if (isTracking && providerLocation != null && remainingProviderRoute.isNotEmpty()) {
-            val first = remainingProviderRoute[0]
-            val d = LocationUtils.calculateDistance(providerLocation, Location(first.latitude, first.longitude))
-            if (d < 80.0) listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingProviderRoute
-            else remainingProviderRoute
-        } else remainingProviderRoute
-    }
+    val displayProviderRoute = remainingProviderRoute
 
     val displayProviderToDestRoute = remember(remainingProviderToDestRoute, providerLocation, isTracking) {
-        if (isTracking && providerLocation != null && remainingProviderToDestRoute.isNotEmpty()) {
-            val first = remainingProviderToDestRoute[0]
-            val d = LocationUtils.calculateDistance(providerLocation, Location(first.latitude, first.longitude))
-            if (d < 80.0) listOf(Position(providerLocation.longitude, providerLocation.latitude)) + remainingProviderToDestRoute
-            else remainingProviderToDestRoute
-        } else remainingProviderToDestRoute
+        connectProviderToRoute(providerLocation, remainingProviderToDestRoute, isTracking)
     }
 
     MaplibreMap(
@@ -202,21 +183,6 @@ fun TrackingMap(
         val destinoIcon = image(painterResource(R.drawable.ic_destino), drawAsSdf = true)
 
         // Optimized Route Source handling
-        val routeSource = rememberGeoJsonSource(
-            data = remember(displayRoute) {
-                GeoJsonData.Features(
-                    geoJson = FeatureCollection(
-                        features = if (displayRoute.size >= 2) listOf(
-                            Feature(
-                                geometry = LineString(coordinates = displayRoute),
-                                properties = null
-                            )
-                        ) else emptyList()
-                    )
-                )
-            }
-        )
-
         val providerRouteSource = rememberGeoJsonSource(
             data = remember(displayProviderRoute) {
                 GeoJsonData.Features(
@@ -249,6 +215,21 @@ fun TrackingMap(
 
         // Trace the route if available
         if (displayRoute.size >= 2) {
+            val routeSource = rememberGeoJsonSource(
+                data = remember(displayRoute) {
+                    GeoJsonData.Features(
+                        geoJson = FeatureCollection(
+                            features = listOf(
+                                Feature(
+                                    geometry = LineString(coordinates = displayRoute),
+                                    properties = null
+                                )
+                            )
+                        )
+                    )
+                }
+            )
+
             // Route casing (border)
             LineLayer(
                 id = "assistance-route-casing",
@@ -382,13 +363,13 @@ fun TrackingMap(
     }
 }
 
-private fun trimPolyline(point: Location, polyline: List<Position>, threshold: Double = 35.0): List<Position> {
+private fun trimPolyline(point: Location, polyline: List<Position>, threshold: Double = 80.0): List<Position> {
     if (polyline.size < 2) return polyline
 
     // Optimization: Since the polyline is already being trimmed as we move, the provider
-    // is usually near the beginning of the list. We only check the first 20 segments.
-    // This significantly accelerates the search, especially if the provider deviates.
-    val searchLimit = minOf(polyline.size - 1, 20)
+    // is usually near the beginning of the list. We check the first 100 segments
+    // to handle cases where the provider might have moved significantly between updates.
+    val searchLimit = minOf(polyline.size - 1, 100)
     var closestIndex = -1
     var minDistance = Double.MAX_VALUE
 
@@ -407,4 +388,23 @@ private fun trimPolyline(point: Location, polyline: List<Position>, threshold: D
     } else {
         polyline
     }
+}
+
+private fun connectProviderToRoute(
+    providerLocation: Location?,
+    route: List<Position>,
+    isTracking: Boolean
+): List<Position> {
+    if (isTracking && providerLocation != null && route.isNotEmpty()) {
+        val first = route[0]
+        val d = LocationUtils.calculateDistance(providerLocation, Location(first.latitude, first.longitude))
+        // Increased threshold to handle sparse waypoints (e.g., long straight roads)
+        // If the provider is within 1.5km of the next waypoint, we connect them to avoid gaps.
+        return if (d < 1500.0) {
+            listOf(Position(providerLocation.longitude, providerLocation.latitude)) + route
+        } else {
+            route
+        }
+    }
+    return route
 }

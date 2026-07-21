@@ -67,6 +67,12 @@ object DateTimeUtils {
         }
     }
 
+    fun isToday(isoString: String?): Boolean {
+        if (isoString.isNullOrBlank()) return false
+        val date = parseIso(isoString) ?: return false
+        return isSameDay(date, Date())
+    }
+
     private fun isSameDay(date1: Date, date2: Date): Boolean {
         val fmt = SimpleDateFormat("yyyyMMdd", Locale.US)
         return fmt.format(date1) == fmt.format(date2)

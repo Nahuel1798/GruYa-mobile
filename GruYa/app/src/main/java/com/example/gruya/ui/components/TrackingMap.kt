@@ -96,18 +96,18 @@ fun TrackingMap(
                 val zoom = when {
                     maxDelta > 2.0 -> 7.5
                     maxDelta > 1.0 -> 8.5
-                    maxDelta > 0.5 -> 9.5
-                    maxDelta > 0.2 -> 11.0
-                    maxDelta > 0.1 -> 12.2
-                    maxDelta > 0.05 -> 13.2
-                    maxDelta > 0.02 -> 14.2
-                    maxDelta > 0.01 -> 15.2
-                    else -> 16.2
+                    maxDelta > 0.5 -> 10.0
+                    maxDelta > 0.2 -> 11.5
+                    maxDelta > 0.1 -> 13.0
+                    maxDelta > 0.05 -> 14.0
+                    maxDelta > 0.02 -> 15.0
+                    maxDelta > 0.01 -> 16.0
+                    else -> 17.0
                 }
 
                 cameraState.animateTo(
                     CameraPosition(target = target, zoom = zoom),
-                    duration = 800.milliseconds
+                    duration = 1000.milliseconds
                 )
             }
         }
@@ -134,15 +134,77 @@ fun TrackingMap(
                 }
                 previousLocation = providerLocation
 
-                cameraState.animateTo(
-                    CameraPosition(
-                        target = Position(providerLocation.longitude, providerLocation.latitude),
-                        zoom = if (cameraState.position.zoom < 15.0) 17.0 else cameraState.position.zoom,
-                        bearing = currentBearing,
-                        tilt = 45.0
-                    ),
-                    duration = 600.milliseconds
-                )
+                // Dynamic zoom and camera target based on role and distance to target
+                val targetPoint = when {
+                    remainingProviderRoute.isNotEmpty() -> remainingProviderRoute.last()
+                    remainingProviderToDestRoute.isNotEmpty() -> remainingProviderToDestRoute.last()
+                    else -> null
+                }
+
+                if (isProvider) {
+                    val distanceToTarget = targetPoint?.let {
+                        LocationUtils.calculateDistance(providerLocation, Location(it.latitude, it.longitude))
+                    } ?: 0.0
+
+                    // Provider (Grúa): Zoomed in for navigation, but slightly out if far to see the path
+                    val targetZoom = when {
+                        distanceToTarget > 5000 -> 14.5
+                        distanceToTarget > 2000 -> 15.5
+                        distanceToTarget > 1000 -> 16.5
+                        else -> 18.0
+                    }
+
+                    cameraState.animateTo(
+                        CameraPosition(
+                            target = Position(providerLocation.longitude, providerLocation.latitude),
+                            zoom = targetZoom,
+                            bearing = currentBearing,
+                            tilt = 55.0
+                        ),
+                        duration = 800.milliseconds
+                    )
+                } else {
+                    // Client (Usuario): Wants to see both the provider and the target point (Origin/Destination)
+                    if (targetPoint != null) {
+                        val minLat = minOf(providerLocation.latitude, targetPoint.latitude)
+                        val maxLat = maxOf(providerLocation.latitude, targetPoint.latitude)
+                        val minLon = minOf(providerLocation.longitude, targetPoint.longitude)
+                        val maxLon = maxOf(providerLocation.longitude, targetPoint.longitude)
+
+                        val center = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
+                        val deltaLat = maxLat - minLat
+                        val deltaLon = maxLon - minLon
+                        val maxDelta = maxOf(deltaLat, deltaLon)
+
+                        val zoom = when {
+                            maxDelta > 2.0 -> 7.5
+                            maxDelta > 1.0 -> 8.5
+                            maxDelta > 0.5 -> 10.0
+                            maxDelta > 0.2 -> 11.5
+                            maxDelta > 0.1 -> 13.0
+                            maxDelta > 0.05 -> 14.0
+                            maxDelta > 0.02 -> 15.0
+                            maxDelta > 0.01 -> 16.0
+                            else -> 17.0
+                        }
+
+                        cameraState.animateTo(
+                            CameraPosition(target = center, zoom = zoom, bearing = 0.0, tilt = 0.0),
+                            duration = 800.milliseconds
+                        )
+                    } else {
+                        // Fallback: Follow provider if no target is found
+                        cameraState.animateTo(
+                            CameraPosition(
+                                target = Position(providerLocation.longitude, providerLocation.latitude),
+                                zoom = 16.0,
+                                bearing = 0.0,
+                                tilt = 0.0
+                            ),
+                            duration = 800.milliseconds
+                        )
+                    }
+                }
             }
         } else if (!isTracking) {
             // Reset rotation and routes when not tracking
@@ -235,7 +297,7 @@ fun TrackingMap(
                 id = "assistance-route-casing",
                 source = routeSource,
                 color = const(Color.White),
-                width = const(9.dp),
+                width = const(11.dp),
                 join = const(LineJoin.Round),
                 cap = const(LineCap.Round)
             )
@@ -244,7 +306,7 @@ fun TrackingMap(
                 id = "assistance-route",
                 source = routeSource,
                 color = const(MaterialTheme.colorScheme.primary),
-                width = const(6.dp),
+                width = const(8.dp),
                 join = const(LineJoin.Round),
                 cap = const(LineCap.Round)
             )
@@ -256,7 +318,7 @@ fun TrackingMap(
                 id = "provider-to-origin-route",
                 source = providerRouteSource,
                 color = const(Color(0xFF3B82F6)),
-                width = const(6.dp),
+                width = const(8.dp),
                 join = const(LineJoin.Round),
                 cap = const(LineCap.Round),
                 dasharray = const(listOf(2f, 2f))
@@ -270,7 +332,7 @@ fun TrackingMap(
                 id = "provider-to-destination-route-casing",
                 source = providerToDestSource,
                 color = const(Color.White),
-                width = const(9.dp),
+                width = const(11.dp),
                 join = const(LineJoin.Round),
                 cap = const(LineCap.Round)
             )
@@ -279,7 +341,7 @@ fun TrackingMap(
                 id = "provider-to-destination-route",
                 source = providerToDestSource,
                 color = const(MaterialTheme.colorScheme.secondary),
-                width = const(6.dp),
+                width = const(8.dp),
                 join = const(LineJoin.Round),
                 cap = const(LineCap.Round)
             )

@@ -176,9 +176,31 @@ fun onLocationPermissionChanged(granted: Boolean) {
                         earnings = totalEarnings
                     )
                 }
+
+                // Cargar historial detallado para la nueva vista
+                loadEarningsHistory(payments)
             } catch (e: Exception) {
                 Log.e("HomeProviderViewModel", "Error loading today stats", e)
             }
+        }
+    }
+
+    private val assistanceNameCache = mutableMapOf<Int, String>()
+
+    private fun loadEarningsHistory(payments: List<com.example.gruya.domain.model.Payment>) {
+        viewModelScope.launch {
+            val paymentsWithClient = payments.filter { 
+                it.status == com.example.gruya.domain.model.PaymentStatus.PAGADO 
+            }.map { payment ->
+                val clientName = assistanceNameCache[payment.assistanceId] ?: run {
+                    val name = assistanceRepository.getAssistanceDetails(payment.assistanceId)
+                        .getOrNull()?.client?.firstName ?: "Cliente"
+                    assistanceNameCache[payment.assistanceId] = name
+                    name
+                }
+                PaymentWithClient(payment, clientName)
+            }
+            _uiState.update { it.copy(paymentsHistory = paymentsWithClient) }
         }
     }
 

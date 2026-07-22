@@ -24,8 +24,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gruya.ui.components.AppTopAppBar
 import com.example.gruya.ui.components.TrackingMap
 import com.example.gruya.domain.model.AssistanceStatus
-import com.example.gruya.domain.model.Payment
-import com.example.gruya.domain.model.PaymentMethod
 import com.example.gruya.domain.model.PaymentStatus
 import com.example.gruya.domain.model.TrackingState
 import androidx.compose.material.icons.filled.Flag
@@ -43,6 +41,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.ui.platform.LocalContext
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,6 +58,7 @@ fun AssistanceTrackingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
     val scaffoldState = rememberBottomSheetScaffoldState()
+    val context = LocalContext.current
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -125,7 +127,7 @@ fun AssistanceTrackingScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Client Info Row
+                    // Client/Provider Info Row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -148,8 +150,14 @@ fun AssistanceTrackingScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         
                         Column(modifier = Modifier.weight(1f)) {
+                            val displayName = if (uiState.isProvider) {
+                                "${assistance.client.firstName} ${assistance.client.lastName}"
+                            } else {
+                                assistance.providerProfile?.user?.let { "${it.firstName} ${it.lastName}" } ?: "Buscando proveedor..."
+                            }
+                            
                             Text(
-                                text = "${assistance.client.firstName} ${assistance.client.lastName}",
+                                text = displayName,
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -164,8 +172,22 @@ fun AssistanceTrackingScreen(
                         }
 
                         Row {
+                            val phoneNumber = if (uiState.isProvider) {
+                                assistance.client.phone
+                            } else {
+                                assistance.providerProfile?.user?.phone
+                            }
+                            
                             IconButton(
-                                onClick = { /* TODO: Call client */ },
+                                onClick = {
+                                    phoneNumber?.let {
+                                        val intent = Intent(Intent.ACTION_DIAL).apply {
+                                            data = Uri.parse("tel:$it")
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                },
+                                enabled = !phoneNumber.isNullOrBlank(),
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                                 )
@@ -174,7 +196,16 @@ fun AssistanceTrackingScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
-                                onClick = { /* TODO: Chat with client */ },
+                                onClick = {
+                                    phoneNumber?.let {
+                                        val cleanNumber = it.filter { char -> char.isDigit() }
+                                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                                            data = Uri.parse("https://wa.me/$cleanNumber")
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                },
+                                enabled = !phoneNumber.isNullOrBlank(),
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer
                                 )
@@ -188,6 +219,17 @@ fun AssistanceTrackingScreen(
 
                     // ETA, Distance and Price Row
                     if (assistance.status != AssistanceStatus.COMPLETADO && assistance.status != AssistanceStatus.CANCELADO) {
+                        val arrivalLabel = when (assistance.status) {
+                            AssistanceStatus.EN_CAMINO_AL_CLIENTE, AssistanceStatus.ACEPTADA -> {
+                                if (uiState.isProvider) "Al cliente" else "A tu ubic."
+                            }
+                            AssistanceStatus.EN_ORIGEN, AssistanceStatus.EN_CAMINO_AL_DESTINO -> "Al destino"
+                            else -> "Llegada"
+                        }
+                        
+                        val price = uiState.acceptedQuote?.price ?: uiState.payment?.amount
+                        val priceLabel = if (uiState.payment?.status == PaymentStatus.PAGADO) "Pagado" else "Presupuesto"
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -198,20 +240,28 @@ fun AssistanceTrackingScreen(
                         ) {
                             MetricItem(
                                 icon = Icons.Default.AccessTime,
-                                value = if (assistance.etaMinutes != null) "${assistance.etaMinutes.toInt()} min" else "--",
-                                label = "Llegada"
+                                value = when {
+                                    assistance.etaMinutes == null -> "--"
+                                    assistance.etaMinutes < 1.0 -> "< 1 min"
+                                    else -> "${assistance.etaMinutes.toInt()} min"
+                                },
+                                label = arrivalLabel
                             )
                             VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
                             MetricItem(
                                 icon = Icons.Default.DirectionsCar,
-                                value = if (assistance.distanceKm != null) String.format(Locale.getDefault(), "%.1f km", assistance.distanceKm) else "--",
+                                value = when {
+                                    assistance.distanceKm == null -> "--"
+                                    assistance.distanceKm < 0.1 -> "< 100 m"
+                                    else -> String.format(Locale.getDefault(), "%.1f km", assistance.distanceKm)
+                                },
                                 label = "Distancia"
                             )
                             VerticalDivider(modifier = Modifier.height(40.dp), color = MaterialTheme.colorScheme.outlineVariant)
                             MetricItem(
                                 icon = Icons.Default.LocalAtm,
-                                value = if (uiState.acceptedQuote != null) String.format(Locale.getDefault(), "$%.0f", uiState.acceptedQuote!!.price) else "--",
-                                label = "Presupuesto"
+                                value = if (price != null) String.format(Locale.getDefault(), "$%.0f", price) else "--",
+                                label = priceLabel
                             )
                         }
                         Spacer(modifier = Modifier.height(20.dp))
@@ -228,7 +278,7 @@ fun AssistanceTrackingScreen(
                             InfoRow(
                                 icon = Icons.Default.LocationOn,
                                 label = "Punto de recogida",
-                                value = uiState.originAddress ?: "Cargando...",
+                                value = uiState.originAddress ?: String.format(Locale.getDefault(), "%.5f, %.5f", assistance.origin.latitude, assistance.origin.longitude),
                                 iconColor = Color(0xFF4CAF50)
                             )
                             
@@ -244,7 +294,7 @@ fun AssistanceTrackingScreen(
                             InfoRow(
                                 icon = Icons.Default.Flag,
                                 label = "Destino final",
-                                value = uiState.destinationAddress ?: "Cargando...",
+                                value = uiState.destinationAddress ?: String.format(Locale.getDefault(), "%.5f, %.5f", assistance.destination.latitude, assistance.destination.longitude),
                                 iconColor = MaterialTheme.colorScheme.error
                             )
                         }

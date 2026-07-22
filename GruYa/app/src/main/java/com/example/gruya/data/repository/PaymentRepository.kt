@@ -46,7 +46,9 @@ class PaymentRepository @Inject constructor(
             if (response.isSuccessful) {
                 response.body()?.toDomain()
             } else {
-                Log.e("PaymentRepository", "Error getting payment by assistance: ${response.code()} ${response.message()}")
+                if (response.code() != 404) {
+                    Log.e("PaymentRepository", "Error getting payment by assistance: ${response.code()} ${response.message()}")
+                }
                 null
             }
         } catch (e: Exception) {

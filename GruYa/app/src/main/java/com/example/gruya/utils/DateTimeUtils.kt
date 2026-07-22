@@ -73,6 +73,26 @@ object DateTimeUtils {
         return isSameDay(date, Date())
     }
 
+    fun isInCurrentWeek(isoString: String?): Boolean {
+        if (isoString.isNullOrBlank()) return false
+        val date = parseIso(isoString) ?: return false
+        val now = Date()
+        val cal1 = java.util.Calendar.getInstance().apply { time = date }
+        val cal2 = java.util.Calendar.getInstance().apply { time = now }
+        return cal1.get(java.util.Calendar.YEAR) == cal2.get(java.util.Calendar.YEAR) &&
+                cal1.get(java.util.Calendar.WEEK_OF_YEAR) == cal2.get(java.util.Calendar.WEEK_OF_YEAR)
+    }
+
+    fun isInCurrentMonth(isoString: String?): Boolean {
+        if (isoString.isNullOrBlank()) return false
+        val date = parseIso(isoString) ?: return false
+        val now = Date()
+        val cal1 = java.util.Calendar.getInstance().apply { time = date }
+        val cal2 = java.util.Calendar.getInstance().apply { time = now }
+        return cal1.get(java.util.Calendar.YEAR) == cal2.get(java.util.Calendar.YEAR) &&
+                cal1.get(java.util.Calendar.MONTH) == cal2.get(java.util.Calendar.MONTH)
+    }
+
     private fun isSameDay(date1: Date, date2: Date): Boolean {
         val fmt = SimpleDateFormat("yyyyMMdd", Locale.US)
         return fmt.format(date1) == fmt.format(date2)

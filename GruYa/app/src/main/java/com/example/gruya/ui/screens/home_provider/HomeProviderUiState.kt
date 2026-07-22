@@ -1,8 +1,14 @@
 package com.example.gruya.ui.screens.home_provider
 
 import com.example.gruya.data.remote.dtos.response.NearbyAssistanceResponse
+import com.example.gruya.domain.model.Payment
 import com.example.gruya.domain.model.ProviderProfile
 import org.maplibre.spatialk.geojson.Position
+
+data class PaymentWithClient(
+    val payment: Payment,
+    val clientName: String
+)
 
 data class HomeProviderUiState(
     val isLoading: Boolean = false,
@@ -12,6 +18,7 @@ data class HomeProviderUiState(
     val earnings: Double = 0.0,
     val currentLocation: String = "",
     val nearbyAssistances: List<NearbyAssistanceResponse> = emptyList(),
+    val paymentsHistory: List<PaymentWithClient> = emptyList(),
     val hasLocationPermission: Boolean = false,
     val userLocation: Position? = null,
     val isProfileComplete: Boolean? = null,

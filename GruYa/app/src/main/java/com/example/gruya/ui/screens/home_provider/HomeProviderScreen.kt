@@ -70,7 +70,6 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.camera.rememberCameraState
@@ -106,6 +105,13 @@ import com.example.gruya.R
 import org.maplibre.compose.expressions.dsl.*
 import org.maplibre.compose.expressions.value.SymbolAnchor
 
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+
 private const val LIGHT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val DARK_STYLE_URL = "https://tiles.openfreemap.org/styles/dark"
 
@@ -119,6 +125,7 @@ fun HomeProviderScreen(
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var showEarningsHistory by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         viewModel.checkProfileCompletion()
@@ -332,7 +339,8 @@ fun HomeProviderScreen(
             } else {
                 MobileProviderSheetContent(
                     uiState = uiState,
-                    onNavigateToQuote = onNavigateToQuote
+                    onNavigateToQuote = onNavigateToQuote,
+                    onEarningsClick = { showEarningsHistory = true }
                 )
             }
         }
@@ -351,6 +359,13 @@ fun HomeProviderScreen(
                 onAssistanceClick = onNavigateToQuote
             )
         }
+    }
+
+    if (showEarningsHistory) {
+        EarningsHistorySheet(
+            payments = uiState.paymentsHistory,
+            onDismiss = { showEarningsHistory = false }
+        )
     }
 }
 
@@ -484,7 +499,8 @@ fun StaticProviderSheetContent(
 @Composable
 fun MobileProviderSheetContent(
     uiState: HomeProviderUiState,
-    onNavigateToQuote: (Int) -> Unit
+    onNavigateToQuote: (Int) -> Unit,
+    onEarningsClick: () -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -520,7 +536,7 @@ fun MobileProviderSheetContent(
                         title = "Ganancias",
                         value = "$${uiState.earnings}",
                         icon = Icons.Default.AttachMoney,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.weight(1f).clickable { onEarningsClick() },
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 }
@@ -994,6 +1010,185 @@ fun FullCoverageMap(
                 imageVector = Icons.Default.Refresh,
                 contentDescription = "Actualizar solicitudes",
                 tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EarningsHistorySheet(
+    payments: List<PaymentWithClient>,
+    onDismiss: () -> Unit
+) {
+    var selectedFilter by remember { mutableIntStateOf(0) } // 0: Semana, 1: Mes
+    val filters = listOf("Esta semana", "Este mes")
+
+    val filteredPayments = remember(payments, selectedFilter) {
+        payments.filter { 
+            if (selectedFilter == 0) {
+                com.example.gruya.utils.DateTimeUtils.isInCurrentWeek(it.payment.date)
+            } else {
+                com.example.gruya.utils.DateTimeUtils.isInCurrentMonth(it.payment.date)
+            }
+        }.sortedByDescending { it.payment.date }
+    }
+
+    val totalAmount = remember(filteredPayments) {
+        filteredPayments.sumOf { it.payment.amount }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 48.dp)
+        ) {
+            Text(
+                text = "Historial de Ganancias",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                filters.forEachIndexed { index, label ->
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = filters.size),
+                        onClick = { selectedFilter = index },
+                        selected = selectedFilter == index
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Total del periodo",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "$${"%,.2f".format(totalAmount)}",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.AttachMoney,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Detalle de servicios",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (filteredPayments.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No hay ganancias registradas en este periodo",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 16.dp)
+                ) {
+                    items(filteredPayments) { item ->
+                        PaymentHistoryItem(item)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PaymentHistoryItem(item: PaymentWithClient) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.clientName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = com.example.gruya.utils.DateTimeUtils.formatIsoToDisplay(item.payment.date),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Text(
+                text = "+$${"%,.0f".format(item.payment.amount)}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF4CAF50)
             )
         }
     }

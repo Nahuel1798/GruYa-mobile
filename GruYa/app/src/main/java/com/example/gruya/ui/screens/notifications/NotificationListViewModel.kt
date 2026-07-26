@@ -18,7 +18,9 @@ data class NotificationListUiState(
     val page: Int = 1,
     val totalPages: Int = 1,
     val isMarkingAllAsRead: Boolean = false,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    val lastDeletedNotification: NotificationResponse? = null,
+    val lastDeletedIndex: Int? = null
 )
 
 @HiltViewModel
@@ -133,5 +135,40 @@ class NotificationListViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    fun deleteNotificationLocally(notificationId: Int) {
+        val currentNotifications = _uiState.value.notifications
+        val index = currentNotifications.indexOfFirst { it.id == notificationId }
+        if (index != -1) {
+            val deletedNotification = currentNotifications[index]
+            _uiState.update { state ->
+                state.copy(
+                    notifications = currentNotifications.filter { it.id != notificationId },
+                    lastDeletedNotification = deletedNotification,
+                    lastDeletedIndex = index
+                )
+            }
+        }
+    }
+
+    fun undoDeleteNotification() {
+        val lastDeleted = _uiState.value.lastDeletedNotification
+        val lastIndex = _uiState.value.lastDeletedIndex
+        if (lastDeleted != null && lastIndex != null) {
+            _uiState.update { state ->
+                val newNotifications = state.notifications.toMutableList()
+                if (lastIndex <= newNotifications.size) {
+                    newNotifications.add(lastIndex, lastDeleted)
+                } else {
+                    newNotifications.add(lastDeleted)
+                }
+                state.copy(
+                    notifications = newNotifications,
+                    lastDeletedNotification = null,
+                    lastDeletedIndex = null
+                )
+            }
+        }
     }
 }

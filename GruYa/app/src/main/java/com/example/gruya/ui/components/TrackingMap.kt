@@ -161,49 +161,31 @@ fun TrackingMap(
                             bearing = currentBearing,
                             tilt = 55.0
                         ),
-                        duration = 800.milliseconds
+                        duration = 1000.milliseconds
                     )
                 } else {
-                    // Client (Usuario): Wants to see both the provider and the target point (Origin/Destination)
-                    if (targetPoint != null) {
-                        val minLat = minOf(providerLocation.latitude, targetPoint.latitude)
-                        val maxLat = maxOf(providerLocation.latitude, targetPoint.latitude)
-                        val minLon = minOf(providerLocation.longitude, targetPoint.longitude)
-                        val maxLon = maxOf(providerLocation.longitude, targetPoint.longitude)
+                    // Client (Usuario): Follow the provider but adjust zoom based on distance to target
+                    val distanceToTarget = targetPoint?.let {
+                        LocationUtils.calculateDistance(providerLocation, Location(it.latitude, it.longitude))
+                    } ?: 0.0
 
-                        val center = Position((minLon + maxLon) / 2.0, (minLat + maxLat) / 2.0)
-                        val deltaLat = maxLat - minLat
-                        val deltaLon = maxLon - minLon
-                        val maxDelta = maxOf(deltaLat, deltaLon)
-
-                        val zoom = when {
-                            maxDelta > 2.0 -> 7.5
-                            maxDelta > 1.0 -> 8.5
-                            maxDelta > 0.5 -> 10.0
-                            maxDelta > 0.2 -> 11.5
-                            maxDelta > 0.1 -> 13.0
-                            maxDelta > 0.05 -> 14.0
-                            maxDelta > 0.02 -> 15.0
-                            maxDelta > 0.01 -> 16.0
-                            else -> 17.0
-                        }
-
-                        cameraState.animateTo(
-                            CameraPosition(target = center, zoom = zoom, bearing = 0.0, tilt = 0.0),
-                            duration = 800.milliseconds
-                        )
-                    } else {
-                        // Fallback: Follow provider if no target is found
-                        cameraState.animateTo(
-                            CameraPosition(
-                                target = Position(providerLocation.longitude, providerLocation.latitude),
-                                zoom = 16.0,
-                                bearing = 0.0,
-                                tilt = 0.0
-                            ),
-                            duration = 800.milliseconds
-                        )
+                    val targetZoom = when {
+                        distanceToTarget > 10000 -> 13.0
+                        distanceToTarget > 5000 -> 14.0
+                        distanceToTarget > 2000 -> 15.0
+                        distanceToTarget > 1000 -> 16.0
+                        else -> 17.5
                     }
+
+                    cameraState.animateTo(
+                        CameraPosition(
+                            target = Position(providerLocation.longitude, providerLocation.latitude),
+                            zoom = targetZoom,
+                            bearing = 0.0,
+                            tilt = 0.0
+                        ),
+                        duration = 1000.milliseconds
+                    )
                 }
             }
         } else if (!isTracking) {
@@ -219,9 +201,25 @@ fun TrackingMap(
 
     // Visual improvement: Connect the provider location to the route for a smoother look.
     // This avoids the gap between the vehicle and the start of the route line.
-    val displayRoute = remainingRoute
+    val displayRoute = remember(remainingRoute, origin) {
+        if (remainingRoute.isNotEmpty()) {
+            val first = remainingRoute[0]
+            val d = LocationUtils.calculateDistance(origin, Location(first.latitude, first.longitude))
+            // If the first point of the route is near the origin but not exactly there,
+            // we force it to the origin to avoid the white gap between the icon and the line.
+            if (d in 0.1..500.0) {
+                listOf(Position(origin.longitude, origin.latitude)) + remainingRoute
+            } else {
+                remainingRoute
+            }
+        } else {
+            remainingRoute
+        }
+    }
 
-    val displayProviderRoute = remainingProviderRoute
+    val displayProviderRoute = remember(remainingProviderRoute, providerLocation, isTracking) {
+        connectProviderToRoute(providerLocation, remainingProviderRoute, isTracking)
+    }
 
     val displayProviderToDestRoute = remember(remainingProviderToDestRoute, providerLocation, isTracking) {
         connectProviderToRoute(providerLocation, remainingProviderToDestRoute, isTracking)
@@ -460,9 +458,9 @@ private fun connectProviderToRoute(
     if (isTracking && providerLocation != null && route.isNotEmpty()) {
         val first = route[0]
         val d = LocationUtils.calculateDistance(providerLocation, Location(first.latitude, first.longitude))
-        // Increased threshold to handle sparse waypoints (e.g., long straight roads)
-        // If the provider is within 1.5km of the next waypoint, we connect them to avoid gaps.
-        return if (d < 1500.0) {
+        // Reduced threshold to avoid drawing long straight lines that cut through blocks.
+        // We only connect the provider to the route if they are relatively close (within 200m).
+        return if (d < 200.0) {
             listOf(Position(providerLocation.longitude, providerLocation.latitude)) + route
         } else {
             route

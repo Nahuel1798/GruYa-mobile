@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,12 +54,20 @@ fun AssistanceTrackingScreen(
     trackingSessionId: String? = null,
     onNavigateBack: () -> Unit,
     onNavigateToPayment: (Int, Double) -> Unit,
+    onServiceCompleted: () -> Unit = {},
     viewModel: AssistanceTrackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isTracking by viewModel.isTracking.collectAsStateWithLifecycle()
     val scaffoldState = rememberBottomSheetScaffoldState()
     val context = LocalContext.current
+
+    LaunchedEffect(uiState.assistance?.status) {
+        if (uiState.isProvider && uiState.assistance?.status == AssistanceStatus.COMPLETADO) {
+            delay(1500)
+            onServiceCompleted()
+        }
+    }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -524,7 +533,7 @@ fun AssistanceTrackingScreen(
             } else {
                 uiState.assistance?.let { assistance ->
                     val status = assistance.status
-                    val showProviderToOrigin = status == AssistanceStatus.EN_CAMINO_AL_CLIENTE
+                    val showProviderToOrigin = status == AssistanceStatus.EN_CAMINO_AL_CLIENTE || status == AssistanceStatus.ACEPTADA
                     val showProviderToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
 
                     TrackingMap(

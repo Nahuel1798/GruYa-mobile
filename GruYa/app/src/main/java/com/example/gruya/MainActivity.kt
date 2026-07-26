@@ -21,7 +21,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -612,12 +612,14 @@ fun ForegroundNotificationOverlay(
     notification: ForegroundNotification?,
     onDismiss: () -> Unit
 ) {
+    val offsetX = remember { Animatable(0f) }
     val offsetY = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     var progress by remember { mutableStateOf(1f) }
 
     LaunchedEffect(notification) {
         if (notification != null) {
+            offsetX.snapTo(0f)
             offsetY.snapTo(0f)
             progress = 1f
             // Animación de la barra de progreso (15 segundos)
@@ -641,24 +643,35 @@ fun ForegroundNotificationOverlay(
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .offset { IntOffset(0, offsetY.value.roundToInt()) }
+            .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
             .pointerInput(Unit) {
-                detectVerticalDragGestures(
+                detectDragGestures(
                     onDragEnd = {
-                        if (offsetY.value < -80f) { // Umbral para descartar
-                            scope.launch {
+                        scope.launch {
+                            val screenWidth = size.width.toFloat()
+                            val dismissThreshold = screenWidth * 0.4f
+
+                            if (offsetY.value < -80f) { // Umbral para descartar hacia arriba
                                 offsetY.animateTo(-500f)
                                 onDismiss()
+                            } else if (kotlin.math.abs(offsetX.value) > dismissThreshold) { // Umbral para descartar lateralmente
+                                offsetX.animateTo(if (offsetX.value > 0) screenWidth else -screenWidth)
+                                onDismiss()
+                            } else {
+                                launch { offsetX.animateTo(0f) }
+                                launch { offsetY.animateTo(0f) }
                             }
-                        } else {
-                            scope.launch { offsetY.animateTo(0f) }
                         }
                     },
-                    onVerticalDrag = { change, dragAmount ->
-                        // Solo permitimos deslizar hacia arriba
-                        if (dragAmount < 0 || offsetY.value < 0) {
-                            change.consume()
-                            scope.launch { offsetY.snapTo(offsetY.value + dragAmount) }
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            offsetX.snapTo(offsetX.value + dragAmount.x)
+                            // Solo permitimos deslizar hacia arriba para el eje Y
+                            val newY = offsetY.value + dragAmount.y
+                            if (newY <= 0) {
+                                offsetY.snapTo(newY)
+                            }
                         }
                     }
                 )
@@ -972,6 +985,10 @@ fun MainNavigationSuite(
                             },
                             onNavigateToPayment = { id, amount ->
                                 tabBackStack.add(AppDest.Payment(id, amount))
+                            },
+                            onServiceCompleted = {
+                                tabBackStack.clear()
+                                tabBackStack.add(AppDest.TabKey.ProviderQuotes())
                             }
                         )
                     }

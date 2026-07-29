@@ -152,10 +152,14 @@ private fun ActiveServiceTrackingContent(
     val context = LocalContext.current
     val phoneNumber = quote.providerPhone
 
-    val showProviderToOrigin = status == AssistanceStatus.EN_CAMINO_AL_CLIENTE
+    val showProviderToOrigin = status == AssistanceStatus.EN_CAMINO_AL_CLIENTE || status == AssistanceStatus.ACEPTADA
     val showProviderToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
     val isTracking = uiState.trackingState is TrackingState.Tracking ||
-            uiState.trackingState is TrackingState.Connected
+            uiState.trackingState is TrackingState.Connected ||
+            (!assistance.trackingSessionId.isNullOrBlank() &&
+                    status != AssistanceStatus.PENDIENTE &&
+                    status != AssistanceStatus.COMPLETADO &&
+                    status != AssistanceStatus.CANCELADO)
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -356,8 +360,7 @@ private fun ActiveServiceTrackingContent(
                 providerRoutePositions = if (showProviderToOrigin) uiState.providerToOriginPositions else emptyList(),
                 providerToDestPositions = if (showProviderToDestination) uiState.providerToDestinationPositions else emptyList(),
                 isTracking = isTracking,
-                isProvider = false,
-                modifier = Modifier.fillMaxSize()
+                isProvider = uiState.isProvider
             )
         }
     }

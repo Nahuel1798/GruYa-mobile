@@ -40,18 +40,56 @@ class GruYaFirebaseService : FirebaseMessagingService() {
     @Inject
     lateinit var navigationEventBus: NavigationEventBus
 
+    @Inject
+    lateinit var authRepository: com.example.gruya.data.repository.AuthRepository
+
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
 
     // Atomic counter for unique notification IDs (avoids currentTimeMillis collisions)
     private val notificationIdCounter = java.util.concurrent.atomic.AtomicInteger(1)
 
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "gruya_notifications"
+            val channel = NotificationChannel(
+                channelId,
+                "GruYa Notifications",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Canal para notificaciones de la app GruYa"
+                enableLights(true)
+                enableVibration(true)
+                setShowBadge(true)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
     override fun onNewToken(token: String) {
         Log.d("FMC", "Token: $token")
+        scope.launch {
+            if (sessionManager.getJwt().isNotEmpty()) {
+                authRepository.updateFcmToken(token).onFailure {
+                    Log.e("FMC", "Failed to update FCM token on server", it)
+                }.onSuccess {
+                    Log.d("FMC", "FCM token updated successfully on server")
+                }
+            }
+        }
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
         super.onMessageReceived(message)
+
+        val delaySinceSent = System.currentTimeMillis() - message.sentTime
+        Log.d("FMC", "Message received. Type: ${message.data["type"]}, Delay since sent: $delaySinceSent ms")
 
         val data = message.data
 
@@ -112,17 +150,6 @@ class GruYaFirebaseService : FirebaseMessagingService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "gruya_notifications"
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "GruYa Notifications",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Canal para notificaciones de la app GruYa"
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             if (navType != null && assistanceId > 0) {
@@ -145,7 +172,7 @@ class GruYaFirebaseService : FirebaseMessagingService() {
             .setSmallIcon(R.drawable.iconogruya)
             .setContentTitle(title)
             .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_MAX) // Increased from HIGH to MAX
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

@@ -71,10 +71,24 @@ class QuotesListViewModel @Inject constructor(
                     
                     // Throttled route fetch
                     val acceptedQuote = _uiState.value.quotes.find { it.status == QuoteStatus.ACEPTADA }
-                    val assistanceId = acceptedQuote?.assistanceId
+                    val assistanceId = acceptedQuote?.assistanceId ?: return@collect
                     val now = System.currentTimeMillis()
                     
-                    if (assistanceId != null && (now - lastRouteFetchTime) > 30_000L) {
+                    val isDeviated = withContext(Dispatchers.Default) {
+                        val state = _uiState.value
+                        val status = acceptedQuote.assistance.status
+                        val currentPositions = when (status) {
+                            AssistanceStatus.EN_CAMINO_AL_DESTINO -> state.providerToDestinationPositions
+                            AssistanceStatus.EN_CAMINO_AL_CLIENTE, AssistanceStatus.ACEPTADA -> state.providerToOriginPositions
+                            else -> emptyList()
+                        }
+                        
+                        if (currentPositions.isNotEmpty()) {
+                            LocationUtils.isDeviated(location, currentPositions)
+                        } else false
+                    }
+
+                    if (isDeviated || (now - lastRouteFetchTime) > 5_000L) {
                         getRoute(assistanceId)
                     }
                 }
@@ -133,7 +147,7 @@ class QuotesListViewModel @Inject constructor(
                         getRoute(quote.assistanceId)
                     }
                     
-                    updateLocalAssistanceStatus(quote.id, assistance.status)
+                    updateLocalAssistanceStatus(quote.id, assistance.status, assistance.trackingSessionId, assistance.distanceKm, assistance.etaMinutes)
                 }
             }
         }
@@ -160,6 +174,8 @@ class QuotesListViewModel @Inject constructor(
                         if (oldStatus != assistance.status) {
                             getRoute(assistanceId)
                         }
+                        
+                        updateLocalAssistanceStatus(quoteId, assistance.status, assistance.trackingSessionId, assistance.distanceKm, assistance.etaMinutes)
 
                         if (assistance.status == AssistanceStatus.COMPLETADO || 
                             assistance.status == AssistanceStatus.CANCELADO) {
@@ -171,11 +187,28 @@ class QuotesListViewModel @Inject constructor(
         }
     }
 
-    private fun updateLocalAssistanceStatus(quoteId: Int, status: AssistanceStatus) {
+    private fun updateLocalAssistanceStatus(
+        quoteId: Int,
+        status: AssistanceStatus,
+        sessionId: String? = null,
+        distanceKm: Double? = null,
+        etaMinutes: Double? = null
+    ) {
         _uiState.update { state ->
             val updatedQuotes = state.quotes.map { q ->
                 if (q.id == quoteId) {
-                    var updatedQuote = q.copy(assistance = q.assistance.copy(status = status))
+                    var updatedAssistance = q.assistance.copy(status = status)
+                    if (sessionId != null) {
+                        updatedAssistance = updatedAssistance.copy(trackingSessionId = sessionId)
+                    }
+                    if (distanceKm != null) {
+                        updatedAssistance = updatedAssistance.copy(distanceKm = distanceKm)
+                    }
+                    if (etaMinutes != null) {
+                        updatedAssistance = updatedAssistance.copy(etaMinutes = etaMinutes)
+                    }
+
+                    var updatedQuote = q.copy(assistance = updatedAssistance)
                     if (status == AssistanceStatus.COMPLETADO) {
                         updatedQuote = updatedQuote.copy(status = QuoteStatus.COMPLETADO)
                     } else if (status == AssistanceStatus.CANCELADO) {
@@ -220,6 +253,9 @@ class QuotesListViewModel @Inject constructor(
                     onSuccess = { routeResponse ->
                         val acceptedQuote = _uiState.value.quotes.find { it.assistanceId == assistanceId }
                         val status = acceptedQuote?.assistance?.status
+                        val isBeyondOrigin = status == AssistanceStatus.EN_ORIGEN || 
+                                           status == AssistanceStatus.EN_CAMINO_AL_DESTINO ||
+                                           status == AssistanceStatus.COMPLETADO
                         val isHeadingToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
 
                         // Parse geometries in background
@@ -235,21 +271,53 @@ class QuotesListViewModel @Inject constructor(
 
                         _uiState.update { state ->
                             state.copy(
-                                providerToOriginRoute = routeResponse.providerToOrigin?.geometryJson,
+                                providerToOriginRoute = if (isBeyondOrigin) null else routeResponse.providerToOrigin?.geometryJson,
                                 providerToDestinationRoute = routeResponse.providerToDestination?.geometryJson,
-                                providerToOriginPositions = pToOriginPositions,
+                                providerToOriginPositions = if (isBeyondOrigin) emptyList() else pToOriginPositions,
                                 providerToDestinationPositions = pToDestPositions,
                                 assistanceRoutePositions = if (assistancePositions.isNotEmpty()) assistancePositions else state.assistanceRoutePositions,
-                                distanceKm = if (isHeadingToDestination) {
-                                    routeResponse.providerToDestination?.distanceKm
-                                } else {
-                                    routeResponse.providerToOrigin?.distanceKm
+                                distanceKm = when {
+                                    isHeadingToDestination && routeResponse.providerToDestination?.distanceKm != null -> 
+                                        routeResponse.providerToDestination.distanceKm
+                                    isBeyondOrigin -> routeResponse.originToDestination?.distanceKm
+                                    else -> routeResponse.providerToOrigin?.distanceKm
                                 },
-                                etaMinutes = if (isHeadingToDestination) {
-                                    routeResponse.providerToDestination?.etaMinutes
-                                } else {
-                                    routeResponse.providerToOrigin?.etaMinutes
+                                etaMinutes = when {
+                                    isHeadingToDestination && routeResponse.providerToDestination?.etaMinutes != null -> 
+                                        routeResponse.providerToDestination.etaMinutes
+                                    isBeyondOrigin -> routeResponse.originToDestination?.etaMinutes
+                                    else -> routeResponse.providerToOrigin?.etaMinutes
                                 }
+                            )
+                        }
+                        
+                        // Also update the assistance data inside the quote for consistency
+                        if (acceptedQuote != null) {
+                            val status = acceptedQuote.assistance.status
+                            val isBeyondOrigin = status == AssistanceStatus.EN_ORIGEN || 
+                                           status == AssistanceStatus.EN_CAMINO_AL_DESTINO ||
+                                           status == AssistanceStatus.COMPLETADO
+                            val isHeadingToDestination = status == AssistanceStatus.EN_CAMINO_AL_DESTINO
+
+                            val dist = when {
+                                isHeadingToDestination && routeResponse.providerToDestination?.distanceKm != null -> 
+                                    routeResponse.providerToDestination.distanceKm
+                                isBeyondOrigin -> routeResponse.originToDestination?.distanceKm
+                                else -> routeResponse.providerToOrigin?.distanceKm
+                            }
+                            val eta = when {
+                                isHeadingToDestination && routeResponse.providerToDestination?.etaMinutes != null -> 
+                                    routeResponse.providerToDestination.etaMinutes
+                                isBeyondOrigin -> routeResponse.originToDestination?.etaMinutes
+                                else -> routeResponse.providerToOrigin?.etaMinutes
+                            }
+                            
+                            updateLocalAssistanceStatus(
+                                acceptedQuote.id, 
+                                status, 
+                                acceptedQuote.assistance.trackingSessionId,
+                                dist,
+                                eta
                             )
                         }
                     },

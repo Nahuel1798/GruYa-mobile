@@ -12,5 +12,8 @@ data class Assistance(
     val createdAt: String? = null,
     val clientName: String = "",
     val routeGeometry: String? = null,
-    val payment: Payment? = null
+    val payment: Payment? = null,
+    val trackingSessionId: String? = null,
+    val distanceKm: Double? = null,
+    val etaMinutes: Double? = null
 )

@@ -1,5 +1,8 @@
 package com.example.gruya.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -66,6 +69,24 @@ fun TrackingMap(
     var previousLocation by remember { mutableStateOf<Location?>(null) }
     var currentBearing by remember { mutableDoubleStateOf(0.0) }
 
+    // Animated coordinates for smooth provider movement
+    val animatedLat = remember { Animatable(providerLocation?.latitude?.toFloat() ?: origin.latitude.toFloat()) }
+    val animatedLon = remember { Animatable(providerLocation?.longitude?.toFloat() ?: origin.longitude.toFloat()) }
+
+    LaunchedEffect(providerLocation) {
+        providerLocation?.let { loc ->
+            // Animate position
+            animatedLat.animateTo(
+                targetValue = loc.latitude.toFloat(),
+                animationSpec = tween(durationMillis = 1000, easing = LinearEasing)
+            )
+            animatedLon.animateTo(
+                targetValue = loc.longitude.toFloat(),
+                animationSpec = tween(durationMillis = 1000, easing = LinearEasing)
+            )
+        }
+    }
+
     var remainingRoute by remember(routePositions) { mutableStateOf(routePositions) }
     var remainingProviderRoute by remember(providerRoutePositions) { mutableStateOf(providerRoutePositions) }
     var remainingProviderToDestRoute by remember(providerToDestPositions) { mutableStateOf(providerToDestPositions) }
@@ -118,16 +139,15 @@ fun TrackingMap(
         if (isTracking && providerLocation != null) {
             val dist = previousLocation?.let { LocationUtils.calculateDistance(it, providerLocation) } ?: Double.MAX_VALUE
 
-            // Optimization: Only update routes and camera if moved significantly (> 2 meters)
-            // to reduce recompositions and improve performance.
-            if (dist > 2.0 || previousLocation == null) {
+            // Optimization: Only update routes and camera if moved significantly (> 1 meter)
+            if (dist > 1.0 || previousLocation == null) {
                 // Trim routes as the provider moves
                 remainingRoute = trimPolyline(providerLocation, remainingRoute)
                 remainingProviderRoute = trimPolyline(providerLocation, remainingProviderRoute)
                 remainingProviderToDestRoute = trimPolyline(providerLocation, remainingProviderToDestRoute)
 
                 // Only update bearing if moving significantly to avoid jitter
-                if (dist > 5.0 || previousLocation == null) {
+                if (dist > 3.0 || previousLocation == null) {
                     if (previousLocation != null) {
                         currentBearing = LocationUtils.calculateBearing(previousLocation!!, providerLocation)
                     }
@@ -141,11 +161,11 @@ fun TrackingMap(
                     else -> null
                 }
 
-                if (isProvider) {
-                    val distanceToTarget = targetPoint?.let {
-                        LocationUtils.calculateDistance(providerLocation, Location(it.latitude, it.longitude))
-                    } ?: 0.0
+                val distanceToTarget = targetPoint?.let {
+                    LocationUtils.calculateDistance(providerLocation, Location(it.latitude, it.longitude))
+                } ?: 0.0
 
+                if (isProvider) {
                     // Provider (Grúa): Zoomed in for navigation, but slightly out if far to see the path
                     val targetZoom = when {
                         distanceToTarget > 5000 -> 14.5
@@ -165,15 +185,11 @@ fun TrackingMap(
                     )
                 } else {
                     // Client (Usuario): Follow the provider but adjust zoom based on distance to target
-                    val distanceToTarget = targetPoint?.let {
-                        LocationUtils.calculateDistance(providerLocation, Location(it.latitude, it.longitude))
-                    } ?: 0.0
-
                     val targetZoom = when {
-                        distanceToTarget > 10000 -> 13.0
-                        distanceToTarget > 5000 -> 14.0
-                        distanceToTarget > 2000 -> 15.0
-                        distanceToTarget > 1000 -> 16.0
+                        distanceToTarget > 10000 -> 13.5
+                        distanceToTarget > 5000 -> 14.5
+                        distanceToTarget > 2000 -> 15.5
+                        distanceToTarget > 1000 -> 16.5
                         else -> 17.5
                     }
 
@@ -388,20 +404,18 @@ fun TrackingMap(
         )
 
         // Provider marker (The one being tracked) - Show on top
-        providerLocation?.let { location ->
+        providerLocation?.let { _ ->
             val providerSource = rememberGeoJsonSource(
-                data = remember(location) {
-                    GeoJsonData.Features(
-                        geoJson = FeatureCollection(
-                            features = listOf(
-                                Feature(
-                                    geometry = Point(Position(location.longitude, location.latitude)),
-                                    properties = buildJsonObject { put("type", "provider") }
-                                )
+                data = GeoJsonData.Features(
+                    geoJson = FeatureCollection(
+                        features = listOf(
+                            Feature(
+                                geometry = Point(Position(animatedLon.value.toDouble(), animatedLat.value.toDouble())),
+                                properties = buildJsonObject { put("type", "provider") }
                             )
                         )
                     )
-                }
+                )
             )
 
             SymbolLayer(

@@ -20,5 +20,6 @@ data class QuotesListUiState(
     val originAddress: String? = null,
     val destinationAddress: String? = null,
     val distanceKm: Double? = null,
-    val etaMinutes: Double? = null
+    val etaMinutes: Double? = null,
+    val isProvider: Boolean = false
 )

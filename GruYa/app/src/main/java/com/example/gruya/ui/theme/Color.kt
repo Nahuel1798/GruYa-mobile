@@ -3,13 +3,14 @@ package com.example.gruya.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // --- Core Palette ---
-val PrimaryYellow = Color(0xFFFFB95F)    // Amarillo firma GruYa
+val PrimaryBlue = Color(0xFF2563EB)      // Azul Eléctrico Profesional
+val PrimaryYellow = Color(0xFFFFB95F)    // Amarillo firma GruYa (Secundario ahora?)
 val SecondaryGrey = Color(0xFF64748B)    // Gris azulado moderno
 val TertiarySlate = Color(0xFF94A3B8)    // Slate claro
 
 // --- Light Theme ---
-val PrimaryLight = PrimaryYellow
-val OnPrimaryLight = Color(0xFF1A1C1E)
+val PrimaryLight = PrimaryBlue
+val OnPrimaryLight = Color(0xFFFFFFFF)
 
 val SecondaryLight = SecondaryGrey
 val OnSecondaryLight = Color(0xFFFFFFFF)
@@ -17,12 +18,12 @@ val OnSecondaryLight = Color(0xFFFFFFFF)
 val TertiaryLight = TertiarySlate
 val OnTertiaryLight = Color(0xFFFFFFFF)
 
-val BackgroundLight = Color(0xFFF8FAFC)  // Fondo muy claro, casi blanco
+val BackgroundLight = Color(0xFFF1F5F9)  // Fondo gris muy claro para contraste
 val OnBackgroundLight = Color(0xFF0F172A)
 
 val SurfaceLight = Color(0xFFFFFFFF)      // Cards blancas
 val OnSurfaceLight = Color(0xFF0F172A)
-val SurfaceVariantLight = Color(0xFFF1F5F9) // Contraste suave para cards/inputs
+val SurfaceVariantLight = Color(0xFFE2E8F0) // Contraste para inputs/elementos secundarios
 val OnSurfaceVariantLight = Color(0xFF475569)
 
 val OutlineLight = Color(0xFFCBD5E1)     // Bordes sutiles

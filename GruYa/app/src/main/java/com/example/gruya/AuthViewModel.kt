@@ -110,13 +110,14 @@ class AuthViewModel @Inject constructor(
      */
     fun refreshProviderProfile() {
         viewModelScope.launch {
+            _providerProfileError.value = null
             providerRepository.getMyProfile()
                 .onSuccess { profile ->
                     _isProviderProfileComplete.value = profile != null
                 }
                 .onFailure { e ->
                     Log.w(TAG, "Provider profile refresh failed", e)
-                    // Keep the current value — no flicker
+                    _providerProfileError.value = e.message ?: "Error al verificar perfil"
                 }
         }
     }

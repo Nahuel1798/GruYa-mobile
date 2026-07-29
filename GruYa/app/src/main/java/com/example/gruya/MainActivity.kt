@@ -114,7 +114,6 @@ import com.example.gruya.ui.navigation.parseTrackingSessionId
 import com.example.gruya.ui.screens.assistances.AssistancesScreen
 import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
 import com.example.gruya.ui.screens.payment.PaymentScreen
-import com.example.gruya.ui.screens.assistance_tracking.AssistanceTrackingScreen
 import kotlinx.serialization.json.Json
 import com.example.gruya.ui.screens.notifications.NotificationListScreen
 import com.example.gruya.ui.screens.auth.login.LoginScreen
@@ -252,9 +251,64 @@ fun GruYaApp(
         }
     }
 
+    // ── BackStack (destination depends on auth + profile state) ──
+    val startDest: AppDest = when {
+        !isLoggedIn -> AppDest.Login
+        currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
+        else -> AppDest.MainContent
+    }
+    val backStack = rememberNavBackStack(startDest)
+
+    LaunchedEffect(isLoggedIn, isProviderProfileComplete, currentRole) {
+        if (isLoggedIn && currentRole == null) return@LaunchedEffect
+
+        val expected: AppDest = when {
+            !isLoggedIn -> AppDest.Login
+            currentRole == Role.PROVIDER && isProviderProfileComplete == null -> return@LaunchedEffect
+            currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
+            else -> AppDest.MainContent
+        }
+            if (backStack.lastOrNull() != expected) {
+                backStack.clear()
+                backStack.add(expected)
+            }
+    }
+
+    // ── Connectivity-based navigation: replace with NoInternet ↔ MainContent ──
+    LaunchedEffect(status) {
+        if (status != ConnectivityObserver.Status.Available) {
+            val last = backStack.lastOrNull()
+            if (last != AppDest.NoInternet && last !is AppDest.RequestAssistance) {
+                backStack.add(AppDest.NoInternet)
+            }
+        } else {
+            backStack.removeAll { it is AppDest.NoInternet || it is AppDest.RequestAssistance }
+            if (backStack.isEmpty()) {
+                val fallback: AppDest? = when {
+                    !isLoggedIn -> AppDest.Login
+                    currentRole == Role.PROVIDER && isProviderProfileComplete == null -> null
+                    currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
+                    else -> AppDest.MainContent
+                }
+                fallback?.let { backStack.add(it) }
+            }
+        }
+    }
+
     // ── Gate 1: Token check — loading while validating session ──
     // Must be BEFORE backStack to avoid flash of wrong Login screen
     if (isCheckingToken) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    // ── Gate 1.2: Waiting for session role ──
+    if (isLoggedIn && currentRole == null) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -301,47 +355,6 @@ fun GruYaApp(
             }
         }
         return
-    }
-
-    // ── BackStack (destination depends on auth + profile state) ──
-    val startDest: AppDest = when {
-        !isLoggedIn -> AppDest.Login
-        currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
-        else -> AppDest.MainContent
-    }
-    val backStack = rememberNavBackStack(startDest)
-
-    LaunchedEffect(isLoggedIn, isProviderProfileComplete) {
-        val expected: AppDest = when {
-            !isLoggedIn -> AppDest.Login
-            currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
-            else -> AppDest.MainContent
-        }
-            if (backStack.lastOrNull() != expected) {
-                backStack.clear()
-                backStack.add(expected)
-            }
-    }
-
-    // ── Connectivity-based navigation: replace with NoInternet ↔ MainContent ──
-    LaunchedEffect(status) {
-        if (status != ConnectivityObserver.Status.Available) {
-            val last = backStack.lastOrNull()
-            if (last != AppDest.NoInternet && last !is AppDest.RequestAssistance) {
-                backStack.clear()
-                backStack.add(AppDest.NoInternet)
-            }
-        } else {
-            backStack.removeAll { it is AppDest.NoInternet || it is AppDest.RequestAssistance }
-            if (backStack.isEmpty()) {
-                val fallback: AppDest = when {
-                    !isLoggedIn -> AppDest.Login
-                    currentRole == Role.PROVIDER && isProviderProfileComplete == false -> AppDest.ProviderProfile
-                    else -> AppDest.MainContent
-                }
-                backStack.add(fallback)
-            }
-        }
     }
 
     // ── Connected: Normal app ──
@@ -540,6 +553,11 @@ fun GruYaApp(
                         onRetry = { /* connectivity will be re-evaluated automatically */ },
                         onRequestAssistance = {
                             backStack.add(AppDest.RequestAssistance())
+                        },
+                        onBack = {
+                            if (backStack.size > 1) {
+                                backStack.removeAt(backStack.size - 1)
+                            }
                         },
                         hasCachedVehicles = hasCachedVehicles,
                         isUser = currentRole == Role.USER,

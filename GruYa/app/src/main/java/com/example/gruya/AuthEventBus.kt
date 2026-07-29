@@ -13,7 +13,7 @@ sealed interface AuthEvent {
 @Singleton
 class AuthEventBus @Inject constructor() {
     private val _events = MutableSharedFlow<AuthEvent>(
-        replay = 1,
+        replay = 0,
         extraBufferCapacity = 1
     )
     val events: SharedFlow<AuthEvent> = _events.asSharedFlow()

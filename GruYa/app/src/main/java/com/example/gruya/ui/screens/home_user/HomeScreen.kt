@@ -288,9 +288,9 @@ fun HomeScreen(
                     ),
                     iconColor = switch(
                         input = feature["serviceType"].asString(),
-                        case("AUXILIO", const(Color(0xFFFFD600))),
-                        case("GOMERIA", const(Color(0xFF424242))),
-                        case("MECANICO", const(Color(0xFF1976D2))),
+                        case("AUXILIO", const(Color(0xFF253DCC))),
+                        case("GOMERIA", const(Color(0xFF8D3319))),
+                        case("MECANICO", const(Color(0xFFB06B02))),
                         fallback = const(Color.Gray)
                     ),
                     iconSize = const(1.3f),

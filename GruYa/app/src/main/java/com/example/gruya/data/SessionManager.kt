@@ -13,7 +13,7 @@ class SessionManager(context: Context) {
     fun saveJwt(token: String) {
         prefs.edit()
             .putString("jwt", token)
-            .apply()
+            .commit()
     }
 
     fun getJwt(): String {
@@ -23,7 +23,7 @@ class SessionManager(context: Context) {
     fun saveRole(role: Role) {
         prefs.edit()
             .putString("role", role.name)
-            .apply()
+            .commit()
     }
 
     fun getRole(): Role? {

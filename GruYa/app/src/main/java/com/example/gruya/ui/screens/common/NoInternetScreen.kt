@@ -70,10 +70,12 @@ import com.example.gruya.connectivity.MechanicalGuideIndex
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoInternetScreen(
     onRetry: () -> Unit = {},
     onRequestAssistance: () -> Unit = {},
+    onBack: () -> Unit = {},
     hasCachedVehicles: Boolean = true,
     isUser: Boolean = false,
     pendingAssistances: List<PendingAssistanceEntity> = emptyList(),
@@ -115,166 +117,172 @@ fun NoInternetScreen(
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
+    ScreenScaffold(
+        title = "Sin conexión",
+        onBack = onBack
+    ) { padding ->
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.Center
         ) {
-            Spacer(modifier = Modifier.height(24.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Icon(
-                imageVector = Icons.Default.SignalWifiOff,
-                contentDescription = null,
-                modifier = Modifier.size(100.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "¡Ups! Sin conexión",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "No pudimos conectarnos al servidor. Por favor, verifica tu conexión a internet.",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            if (connectivityGuides.isNotEmpty()) {
-                Text(
-                    text = "Guía de conectividad:",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Start
+                Icon(
+                    imageVector = Icons.Default.SignalWifiOff,
+                    contentDescription = null,
+                    modifier = Modifier.size(100.dp),
+                    tint = MaterialTheme.colorScheme.error
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                connectivityGuides.forEach { guide ->
-                    TroubleshootingStep(
-                        icon = getIconForGuide(guide.icon),
-                        title = guide.title,
-                        description = guide.description
-                    )
-                }
-            }
+                Text(
+                    text = "¡Ups! Sin conexión",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
 
-            if (mechanicalGuides.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "No pudimos conectarnos al servidor. Por favor, verifica tu conexión a internet.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
                 Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    text = "Guías de auxilio mecánico:",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Start
-                )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                if (connectivityGuides.isNotEmpty()) {
+                    Text(
+                        text = "Guía de conectividad:",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Start
+                    )
 
-                mechanicalGuides.forEach { index ->
-                    Card(
-                        onClick = {
-                            try {
-                                val jsonString = context.assets.open("data/${index.fileName}")
-                                    .bufferedReader()
-                                    .use { it.readText() }
-                                selectedMechanicalGuide = Gson().fromJson(jsonString, MechanicalGuideDetail::class.java)
-                            } catch (e: Exception) {
-                                // Handle error
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    connectivityGuides.forEach { guide ->
+                        TroubleshootingStep(
+                            icon = getIconForGuide(guide.icon),
+                            title = guide.title,
+                            description = guide.description
                         )
-                    ) {
-                        Row(
+                    }
+                }
+
+                if (mechanicalGuides.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Text(
+                        text = "Guías de auxilio mecánico:",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Start
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    mechanicalGuides.forEach { index ->
+                        Card(
+                            onClick = {
+                                try {
+                                    val jsonString = context.assets.open("data/${index.fileName}")
+                                        .bufferedReader()
+                                        .use { it.readText() }
+                                    selectedMechanicalGuide = Gson().fromJson(jsonString, MechanicalGuideDetail::class.java)
+                                } catch (e: Exception) {
+                                    // Handle error
+                                }
+                            },
                             modifier = Modifier
-                                .padding(16.dp)
-                                .fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.4f)
+                            )
                         ) {
-                            Icon(
-                                imageVector = getMechanicalIcon(index.icon),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.secondary
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = index.title,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .padding(16.dp)
+                                    .fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = getMechanicalIcon(index.icon),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.secondary
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text(
+                                    text = index.title,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // Offline assistance request — one at a time
-            if (isUser) {
-                if (pendingAssistances.isNotEmpty()) {
-                    // Show pending request card instead of the button
-                    pendingAssistances.forEach { pending ->
-                        PendingAssistanceCard(
-                            pending = pending,
-                            onDelete = { onDeletePending(pending.id) },
-                            onRetry = { onRetryPending(pending.id) }
-                        )
-                    }
-                } else {
-                    // No pending request — show the solicitar button
-                    OutlinedButton(
-                        onClick = onRequestAssistance,
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = hasCachedVehicles
-                    ) {
-                        Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Solicitar auxilio")
-                    }
+                // Offline assistance request — one at a time
+                if (isUser) {
+                    if (pendingAssistances.isNotEmpty()) {
+                        // Show pending request card instead of the button
+                        pendingAssistances.forEach { pending ->
+                            PendingAssistanceCard(
+                                pending = pending,
+                                onDelete = { onDeletePending(pending.id) },
+                                onRetry = { onRetryPending(pending.id) }
+                            )
+                        }
+                    } else {
+                        // No pending request — show the solicitar button
+                        OutlinedButton(
+                            onClick = onRequestAssistance,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = hasCachedVehicles
+                        ) {
+                            Icon(Icons.Default.DirectionsCar, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Solicitar auxilio")
+                        }
 
-                    if (!hasCachedVehicles) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Necesitás conexión al menos una vez para registrar tus vehículos.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
+                        if (!hasCachedVehicles) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Necesitás conexión al menos una vez para registrar tus vehículos.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
-                }
 
                     Spacer(modifier = Modifier.height(16.dp))
-            }
+                }
 
-            Button(
-                onClick = onRetry,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Reintentar conexión")
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Reintentar conexión")
+                }
             }
         }
-
     }
 }
 

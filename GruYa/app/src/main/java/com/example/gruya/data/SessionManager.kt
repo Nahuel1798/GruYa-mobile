@@ -3,12 +3,14 @@ package com.example.gruya.data
 import android.content.Context
 import com.example.gruya.domain.model.Role
 
-class SessionManager(context: Context) {
+open class SessionManager(context: Context) {
 
-    private val prefs = context.getSharedPreferences(
-        "session",
-        Context.MODE_PRIVATE
-    )
+    private val prefs by lazy {
+        context.getSharedPreferences(
+            "session",
+            Context.MODE_PRIVATE
+        )
+    }
 
     fun saveJwt(token: String) {
         prefs.edit()
@@ -29,6 +31,16 @@ class SessionManager(context: Context) {
     fun getRole(): Role? {
         val roleName = prefs.getString("role", null)
         return roleName?.let { Role.valueOf(it) }
+    }
+
+    open fun saveUserId(id: Int) {
+        prefs.edit()
+            .putInt("userId", id)
+            .apply()
+    }
+
+    open fun getUserId(): Int {
+        return prefs.getInt("userId", 0)
     }
 
     fun clearSession() {

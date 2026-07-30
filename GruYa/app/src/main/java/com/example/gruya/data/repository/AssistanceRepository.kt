@@ -1,6 +1,7 @@
 package com.example.gruya.data.repository
 
 import android.util.Log
+import com.example.gruya.data.SessionManager
 import com.example.gruya.data.local.dao.PendingAssistanceDao
 import com.example.gruya.data.local.entity.PendingAssistanceEntity
 import com.example.gruya.data.local.entity.SyncStatus
@@ -26,7 +27,8 @@ import javax.inject.Singleton
 class AssistanceRepository @Inject constructor(
     private val assistanceService: AssistanceService,
     private val pendingAssistanceDao: PendingAssistanceDao,
-    private val syncScheduler: SyncHandler
+    private val syncScheduler: SyncHandler,
+    private val sessionManager: SessionManager
 ) {
 
     sealed interface QueueAssistanceOutcome {
@@ -38,6 +40,7 @@ class AssistanceRepository @Inject constructor(
         return try {
             val now = System.currentTimeMillis()
             val entity = PendingAssistanceEntity(
+                userId = sessionManager.getUserId(),
                 serviceType = request.serviceType.name,
                 issueType = request.issueType.name,
                 vehicleId = request.vehicleId,
@@ -62,7 +65,7 @@ class AssistanceRepository @Inject constructor(
 
     suspend fun syncPendingAssistances(): Result<Unit> {
         return try {
-            val pendingItems = pendingAssistanceDao.readNeedsSync()
+            val pendingItems = pendingAssistanceDao.readNeedsSync(sessionManager.getUserId())
             if (pendingItems.isEmpty()) return Result.success(Unit)
 
             var hasFailure = false
@@ -191,10 +194,10 @@ class AssistanceRepository @Inject constructor(
         pendingAssistanceDao.getById(id)
 
     fun observePendingCount(): Flow<Int> =
-        pendingAssistanceDao.observePendingCount()
+        pendingAssistanceDao.observeUserPendingCount(sessionManager.getUserId())
 
     fun observePendingAssistances(): Flow<List<PendingAssistanceEntity>> =
-        pendingAssistanceDao.observeAll()
+        pendingAssistanceDao.observeUserAll(sessionManager.getUserId())
 
     suspend fun deletePendingAssistance(id: Long) {
         pendingAssistanceDao.deleteById(id)

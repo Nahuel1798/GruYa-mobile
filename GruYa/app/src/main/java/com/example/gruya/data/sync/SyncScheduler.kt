@@ -8,6 +8,7 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.gruya.connectivity.ConnectivityObserver
+import com.example.gruya.data.SessionManager
 import com.example.gruya.data.local.dao.PendingAssistanceDao
 import com.example.gruya.data.repository.AssistanceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,6 +39,7 @@ class SyncScheduler @Inject constructor(
     private val connectivityObserver: ConnectivityObserver,
     private val pendingAssistanceDao: PendingAssistanceDao,
     private val assistanceRepositoryProvider: Provider<AssistanceRepository>,
+    private val sessionManager: SessionManager,
 ) : SyncHandler {
 
     private val workManager by lazy { WorkManager.getInstance(context) }
@@ -53,8 +55,10 @@ class SyncScheduler @Inject constructor(
         // Tries to sync pending items directly at app startup.
         // Falls back to WorkManager if the direct sync fails.
         scope.launch {
+            val userId = sessionManager.getUserId()
+            if (userId == 0) return@launch
             try {
-                val count = pendingAssistanceDao.observePendingCount().first()
+                val count = pendingAssistanceDao.observeUserPendingCount(userId).first()
                 if (count > 0) {
                     val result = assistanceRepositoryProvider.get().syncPendingAssistances()
                     if (result.isFailure) {
@@ -76,8 +80,10 @@ class SyncScheduler @Inject constructor(
                     .distinctUntilChanged()
                     .collect { status ->
                         if (status == ConnectivityObserver.Status.Available) {
+                            val userId = sessionManager.getUserId()
+                            if (userId == 0) return@collect
                             val needsSync = withContext(Dispatchers.IO) {
-                                pendingAssistanceDao.readNeedsSync()
+                                pendingAssistanceDao.readNeedsSync(userId)
                             }
                             if (needsSync.isNotEmpty()) {
                                 val result = assistanceRepositoryProvider.get().syncPendingAssistances()

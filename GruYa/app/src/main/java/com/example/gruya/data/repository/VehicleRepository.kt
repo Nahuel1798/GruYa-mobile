@@ -3,6 +3,7 @@ package com.example.gruya.data.repository
 import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.example.gruya.data.SessionManager
 import com.example.gruya.data.local.dao.VehicleCacheDao
 import com.example.gruya.data.local.entity.VehicleCacheEntity
 import com.example.gruya.data.mapper.toCacheEntity
@@ -27,7 +28,8 @@ import javax.inject.Inject
 class VehicleRepository @Inject constructor(
     private val vehicleService: VehicleService,
     private val vehicleCacheDao: VehicleCacheDao,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val sessionManager: SessionManager
 ) {
     suspend fun listAll(): List<Vehicle> {
         return try {
@@ -35,7 +37,7 @@ class VehicleRepository @Inject constructor(
             if (response.isSuccessful) {
                 val vehicles = response.body()!!.toDomain()
                 // Cache to Room after successful API fetch
-                vehicleCacheDao.upsertAll(vehicles.map { it.toCacheEntity() })
+                vehicleCacheDao.upsertAll(vehicles.map { it.toCacheEntity(sessionManager.getUserId()) })
                 vehicles
             } else {
                 Log.d("API_ERROR", "${response.code().toString()} \n ${response.message()}")
@@ -49,7 +51,7 @@ class VehicleRepository @Inject constructor(
         }
     }
 
-    fun getCachedVehicles(): Flow<List<VehicleCacheEntity>> = vehicleCacheDao.getAll()
+    fun getCachedVehicles(): Flow<List<VehicleCacheEntity>> = vehicleCacheDao.getAllByUser(sessionManager.getUserId())
 
     suspend fun refreshVehicleCache(): Result<Unit> {
         return try {
@@ -57,7 +59,7 @@ class VehicleRepository @Inject constructor(
             if (response.isSuccessful) {
                 val vehicles = response.body()!!.toDomain()
                 vehicleCacheDao.deleteAll()
-                vehicleCacheDao.upsertAll(vehicles.map { it.toCacheEntity() })
+                vehicleCacheDao.upsertAll(vehicles.map { it.toCacheEntity(sessionManager.getUserId()) })
                 Log.d("VehicleRepository", "Vehicle cache refreshed with ${vehicles.size} vehicles")
                 Result.success(Unit)
             } else {

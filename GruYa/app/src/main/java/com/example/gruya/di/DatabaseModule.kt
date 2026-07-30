@@ -23,7 +23,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "gruya-db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
 
     @Provides
     @Singleton

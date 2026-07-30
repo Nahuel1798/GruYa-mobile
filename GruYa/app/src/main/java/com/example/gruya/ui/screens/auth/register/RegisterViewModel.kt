@@ -120,6 +120,7 @@ class RegisterViewModel @Inject constructor(
                 result.fold(
                     onSuccess = { authResponse ->
                         sessionManager.saveJwt(authResponse.token)
+                        sessionManager.saveUserId(authResponse.user.id)
                         authResponse.user.role?.let { sessionManager.saveRole(it) }
                         _uiState.update { it.copy(success = true, loading = false) }
                     },

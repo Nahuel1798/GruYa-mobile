@@ -94,6 +94,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import com.example.gruya.connectivity.ConnectivityObserver
+import com.example.gruya.data.SessionManager
 import com.example.gruya.data.local.dao.PendingAssistanceDao
 import com.example.gruya.data.local.dao.VehicleCacheDao
 import com.example.gruya.data.local.entity.PendingAssistanceEntity
@@ -160,6 +161,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var pendingAssistanceDao: PendingAssistanceDao
 
+    @Inject
+    lateinit var sessionManager: SessionManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -174,7 +178,8 @@ class MainActivity : ComponentActivity() {
                         navEventBus = navEventBus,
                         connectivityObserver = connectivityObserver,
                         vehicleCacheDao = vehicleCacheDao,
-                        pendingAssistanceDao = pendingAssistanceDao
+                        pendingAssistanceDao = pendingAssistanceDao,
+                        sessionManager = sessionManager
                     )
                 }
             }
@@ -219,7 +224,8 @@ fun GruYaApp(
     navEventBus: NavigationEventBus,
     connectivityObserver: ConnectivityObserver,
     vehicleCacheDao: VehicleCacheDao,
-    pendingAssistanceDao: PendingAssistanceDao
+    pendingAssistanceDao: PendingAssistanceDao,
+    sessionManager: SessionManager
 ) {
     val connectivityFlow = remember { connectivityObserver.observe() }
     val status by connectivityFlow.collectAsState(initial = ConnectivityObserver.Status.Available)
@@ -233,21 +239,31 @@ fun GruYaApp(
     var hasCachedVehicles by remember { mutableStateOf(true) }
     var pendingAssistances by remember { mutableStateOf<List<PendingAssistanceEntity>>(emptyList()) }
 
-    // Check vehicle cache from Room
-    LaunchedEffect(Unit) {
-        withContext(Dispatchers.IO) {
-            try {
-                hasCachedVehicles = vehicleCacheDao.count() > 0
-            } catch (_: Exception) {
-                hasCachedVehicles = false
+    // Check vehicle cache from Room — re-run on login state change so the
+    // userId is fresh after logout/login (avoid stale data from previous user)
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            withContext(Dispatchers.IO) {
+                try {
+                    hasCachedVehicles = vehicleCacheDao.countByUser(sessionManager.getUserId()) > 0
+                } catch (_: Exception) {
+                    hasCachedVehicles = false
+                }
             }
+        } else {
+            hasCachedVehicles = true
         }
     }
 
-    // Observe pending offline assistance requests
-    LaunchedEffect(Unit) {
-        pendingAssistanceDao.observeAll().collect { list ->
-            pendingAssistances = list
+    // Observe pending offline assistance requests — re-run on login state
+    // change so the Flow re-subscribes with the new userId after logout/login
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            pendingAssistanceDao.observeUserAll(sessionManager.getUserId()).collect { list ->
+                pendingAssistances = list
+            }
+        } else {
+            pendingAssistances = emptyList()
         }
     }
 

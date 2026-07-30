@@ -11,7 +11,7 @@ import com.example.gruya.data.local.entity.VehicleCacheEntity
 
 @Database(
     entities = [PendingAssistanceEntity::class, VehicleCacheEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)

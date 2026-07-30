@@ -17,11 +17,11 @@ interface PendingAssistanceDao {
     @Update
     suspend fun updateStatus(entity: PendingAssistanceEntity)
 
-    @Query("SELECT * FROM pending_assistances WHERE status = 'PENDING' ORDER BY capturedAt ASC")
-    suspend fun readPending(): List<PendingAssistanceEntity>
+    @Query("SELECT * FROM pending_assistances WHERE status = 'PENDING' AND userId = :userId ORDER BY capturedAt ASC")
+    suspend fun readPending(userId: Int): List<PendingAssistanceEntity>
 
-    @Query("SELECT * FROM pending_assistances WHERE status IN ('PENDING', 'NEEDS_REAUTH') ORDER BY capturedAt ASC")
-    suspend fun readNeedsSync(): List<PendingAssistanceEntity>
+    @Query("SELECT * FROM pending_assistances WHERE status IN ('PENDING', 'NEEDS_REAUTH') AND userId = :userId ORDER BY capturedAt ASC")
+    suspend fun readNeedsSync(userId: Int): List<PendingAssistanceEntity>
 
     @Query("SELECT * FROM pending_assistances WHERE id = :id")
     suspend fun getById(id: Long): PendingAssistanceEntity?
@@ -29,9 +29,9 @@ interface PendingAssistanceDao {
     @Query("DELETE FROM pending_assistances WHERE id = :id")
     suspend fun deleteById(id: Long)
 
-    @Query("SELECT COUNT(*) FROM pending_assistances")
-    fun observePendingCount(): Flow<Int>
+    @Query("SELECT COUNT(*) FROM pending_assistances WHERE status = 'PENDING' AND userId = :userId")
+    fun observeUserPendingCount(userId: Int): Flow<Int>
 
-    @Query("SELECT * FROM pending_assistances ORDER BY capturedAt DESC")
-    fun observeAll(): Flow<List<PendingAssistanceEntity>>
+    @Query("SELECT * FROM pending_assistances WHERE userId = :userId ORDER BY capturedAt DESC")
+    fun observeUserAll(userId: Int): Flow<List<PendingAssistanceEntity>>
 }

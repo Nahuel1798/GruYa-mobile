@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "vehicle_cache")
 data class VehicleCacheEntity(
     @PrimaryKey val id: Int,
+    val userId: Int,
     val type: String,
     val licensePlate: String,
     val brand: String,

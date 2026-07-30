@@ -43,8 +43,9 @@ fun Vehicle.toRequest(): CreateVehicleRequest = CreateVehicleRequest(
     imageUrl = imageUrl
 )
 
-fun Vehicle.toCacheEntity() = VehicleCacheEntity(
+fun Vehicle.toCacheEntity(userId: Int) = VehicleCacheEntity(
     id = id,
+    userId = userId,
     type = type.name,
     licensePlate = licensePlate,
     brand = brand,

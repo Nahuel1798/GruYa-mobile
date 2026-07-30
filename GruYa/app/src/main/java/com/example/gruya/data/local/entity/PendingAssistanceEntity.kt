@@ -6,6 +6,7 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "pending_assistances")
 data class PendingAssistanceEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: Int = 0,
     val serviceType: String,
     val issueType: String,
     val vehicleId: Int,

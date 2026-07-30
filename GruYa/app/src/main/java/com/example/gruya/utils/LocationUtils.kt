@@ -124,7 +124,29 @@ object LocationUtils {
         }
     }
 
-    fun isDeviated(location: Location, polyline: List<Position>, thresholdMeters: Double = 50.0): Boolean {
+    fun getProjectionOnSegment(p: Location, a: Position, b: Position): Position {
+        val lat = p.latitude
+        val lon = p.longitude
+        val lat1 = a.latitude
+        val lon1 = a.longitude
+        val lat2 = b.latitude
+        val lon2 = b.longitude
+
+        val dLat = lat2 - lat1
+        val dLon = lon2 - lon1
+
+        if (dLat == 0.0 && dLon == 0.0) return a
+
+        val t = ((lon - lon1) * dLon + (lat - lat1) * dLat) / (dLon * dLon + dLat * dLat)
+
+        return when {
+            t < 0.0 -> a
+            t > 1.0 -> b
+            else -> Position(lon1 + t * dLon, lat1 + t * dLat)
+        }
+    }
+
+    fun isDeviated(location: Location, polyline: List<Position>, thresholdMeters: Double = 40.0): Boolean {
         if (polyline.size < 2) return false
         
         var minDistance = Double.MAX_VALUE

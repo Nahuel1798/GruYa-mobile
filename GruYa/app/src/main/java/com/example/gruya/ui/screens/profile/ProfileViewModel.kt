@@ -163,7 +163,9 @@ class ProfileViewModel @Inject constructor(
         companyName: String,
         address: String,
         serviceType: ServiceType,
-        description: String
+        description: String,
+        latitude: Double? = null,
+        longitude: Double? = null
     ) {
         viewModelScope.launch {
             _uiState.update {
@@ -174,12 +176,16 @@ class ProfileViewModel @Inject constructor(
             }
 
             try {
+                val location = if (latitude != null && longitude != null) {
+                    com.example.gruya.domain.model.Location(latitude, longitude)
+                } else null
+
                 val request = com.example.gruya.data.remote.dtos.request.UpdateProviderProfileRequest(
                     serviceType = serviceType,
                     companyName = companyName,
                     address = address,
                     description = description,
-                    location = null
+                    location = location
                 )
                 val result = providerRepository.updateProfile(request)
 
@@ -220,7 +226,18 @@ class ProfileViewModel @Inject constructor(
                 isEditingProvider = true,
                 providerCompanyName = profile.companyName,
                 providerAddress = profile.address,
-                providerServiceType = profile.serviceType
+                providerServiceType = profile.serviceType,
+                providerLatitude = profile.latitude,
+                providerLongitude = profile.longitude
+            )
+        }
+    }
+
+    fun onProviderLocationChange(latitude: Double, longitude: Double) {
+        _uiState.update {
+            it.copy(
+                providerLatitude = latitude,
+                providerLongitude = longitude
             )
         }
     }

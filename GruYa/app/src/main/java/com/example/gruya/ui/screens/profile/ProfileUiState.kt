@@ -33,6 +33,8 @@ data class ProfileUiState(
     val providerCompanyName: String = "",
     val providerAddress: String = "",
     val providerServiceType: ServiceType = ServiceType.AUXILIO,
+    val providerLatitude: Double? = null,
+    val providerLongitude: Double? = null,
 
     // Password change fields
     val isPasswordDialogOpen: Boolean = false,

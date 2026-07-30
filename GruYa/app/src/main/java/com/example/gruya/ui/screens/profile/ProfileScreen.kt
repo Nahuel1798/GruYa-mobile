@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +44,19 @@ import com.example.gruya.domain.model.ServiceType
 import com.example.gruya.ui.components.AppTextField
 import com.example.gruya.ui.components.ScreenScaffold
 import com.example.gruya.ui.theme.GruYaTheme
+import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.camera.rememberCameraState
+import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.layers.CircleLayer
+import org.maplibre.compose.map.MaplibreMap
+import org.maplibre.compose.sources.GeoJsonData
+import org.maplibre.compose.sources.rememberGeoJsonSource
+import org.maplibre.compose.style.BaseStyle
+import org.maplibre.compose.util.ClickResult
+import org.maplibre.spatialk.geojson.Feature
+import org.maplibre.spatialk.geojson.FeatureCollection
+import org.maplibre.spatialk.geojson.Point
+import org.maplibre.spatialk.geojson.Position
 
 @Composable
 fun ProfileScreen(
@@ -76,8 +90,8 @@ fun ProfileScreen(
                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
             )
         },
-        onUpdateProviderProfile = { companyName, address, serviceType, description ->
-            viewModel.updateProviderProfile(companyName, address, serviceType, description)
+        onUpdateProviderProfile = { companyName, address, serviceType, description, lat, lng ->
+            viewModel.updateProviderProfile(companyName, address, serviceType, description, lat, lng)
         },
         onToggleProviderEdit = {
             if (uiState.isEditingProvider) {
@@ -105,7 +119,7 @@ fun ProfileContent(
     onLogout: () -> Unit,
     onUpdateProfile: (String, String, String, String) -> Unit,
     onUpdateAvatar: () -> Unit = {},
-    onUpdateProviderProfile: (String, String, ServiceType, String) -> Unit = { _, _, _, _ -> },
+    onUpdateProviderProfile: (String, String, ServiceType, String, Double?, Double?) -> Unit = { _, _, _, _, _, _ -> },
     onToggleProviderEdit: () -> Unit = {},
     onCancelProviderEdit: () -> Unit = {},
     onOpenPasswordDialog: () -> Unit = {},
@@ -330,6 +344,8 @@ fun ProfileContent(
                         providerCompanyName = uiState.providerCompanyName,
                         providerAddress = uiState.providerAddress,
                         providerServiceType = uiState.providerServiceType,
+                        providerLatitude = uiState.providerLatitude,
+                        providerLongitude = uiState.providerLongitude,
                         onCancelEdit = onCancelProviderEdit,
                         onSave = onUpdateProviderProfile,
                         isLoading = uiState.isLoadingProvider && uiState.providerProfile == null
@@ -582,16 +598,32 @@ fun ProviderProfileSection(
     providerCompanyName: String,
     providerAddress: String,
     providerServiceType: ServiceType,
+    providerLatitude: Double?,
+    providerLongitude: Double?,
     onCancelEdit: () -> Unit,
-    onSave: (String, String, ServiceType, String) -> Unit,
+    onSave: (String, String, ServiceType, String, Double?, Double?) -> Unit,
     isLoading: Boolean = false
 ) {
     var editedCompanyName by remember(isEditingProvider, providerCompanyName) { mutableStateOf(providerCompanyName) }
     var editedAddress by remember(isEditingProvider, providerAddress) { mutableStateOf(providerAddress) }
     var editedServiceType by remember(isEditingProvider, providerServiceType) { mutableStateOf(providerServiceType) }
     var editedDescription by remember(isEditingProvider, providerProfile?.description) { mutableStateOf(providerProfile?.description ?: "") }
+    var editedLatitude by remember(isEditingProvider, providerLatitude) { mutableStateOf(providerLatitude) }
+    var editedLongitude by remember(isEditingProvider, providerLongitude) { mutableStateOf(providerLongitude) }
 
     val providerFieldsValid = editedCompanyName.isNotBlank() && editedAddress.isNotBlank() && editedDescription.isNotBlank()
+
+    val isDarkTheme = isSystemInDarkTheme()
+    val cameraState = rememberCameraState(
+        firstPosition = CameraPosition(
+            target = if (editedLatitude != null && editedLongitude != null) {
+                Position(editedLongitude!!, editedLatitude!!)
+            } else {
+                Position(-66.3356, -33.2950)
+            },
+            zoom = 15.0
+        )
+    )
 
     ElevatedCard(
         modifier = Modifier
@@ -668,6 +700,67 @@ fun ProviderProfileSection(
                 }
                 
                 Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = "Ubicación del servicio",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                ) {
+                    MaplibreMap(
+                        modifier = Modifier.fillMaxSize(),
+                        cameraState = cameraState,
+                        baseStyle = if (isDarkTheme) BaseStyle.Uri("https://tiles.openfreemap.org/styles/liberty") else BaseStyle.Uri("https://tiles.openfreemap.org/styles/bright"),
+                        onMapClick = { position, _ ->
+                            editedLatitude = position.latitude
+                            editedLongitude = position.longitude
+                            ClickResult.Consume
+                        }
+                    ) {
+                        if (editedLatitude != null && editedLongitude != null) {
+                            val selectedLocationSource = rememberGeoJsonSource(
+                                data = GeoJsonData.Features(
+                                    geoJson = FeatureCollection(
+                                        features = listOf(
+                                            Feature(
+                                                geometry = Point(
+                                                    coordinates = Position(editedLongitude!!, editedLatitude!!)
+                                                ),
+                                                properties = null
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+
+                            CircleLayer(
+                                id = "selected-location",
+                                source = selectedLocationSource,
+                                color = const(Color.Red),
+                                radius = const(10.dp),
+                                strokeColor = const(Color.White),
+                                strokeWidth = const(2.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Toca el mapa para cambiar tu ubicación base",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onCancelEdit) {
@@ -675,7 +768,7 @@ fun ProviderProfileSection(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = { onSave(editedCompanyName, editedAddress, editedServiceType, editedDescription) },
+                        onClick = { onSave(editedCompanyName, editedAddress, editedServiceType, editedDescription, editedLatitude, editedLongitude) },
                         enabled = providerFieldsValid && !isSavingProvider,
                         shape = RoundedCornerShape(12.dp)
                     ) {
